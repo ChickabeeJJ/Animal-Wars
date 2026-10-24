@@ -25,7 +25,33 @@
   function now() { return Date.now(); }
   function icon(k, cls) { return SPR.img('icon_' + k, 2, cls); }
   function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
-  function fillIcons(root) { (root || document).querySelectorAll('[data-icon]').forEach((el) => { if (!el.firstElementChild) el.innerHTML = icon(el.getAttribute('data-icon')); }); }
+  function fillIcons(root) { (root || document).querySelectorAll('[data-icon]').forEach((el) => { if (!el.firstElementChild) el.innerHTML = icon(el.getAttribute('data-icon')); }); pixelize(root || document); }
+  // Button labels: every text node inside a pixel button becomes a pixel-font label (the words stay in .sr).
+  function pixLabel(text, scale) {
+    return '<span class="blbl">' + SPR.textImg(text.toUpperCase(), scale, { size: 8, fill: ['#ffffff', '#ffffff', '#f2e6d4'], shadow: 'rgba(26,15,18,0.5)', outline: '#1a0f12' }) + '</span><span class="sr">' + esc(text) + '</span>';
+  }
+  function pixelizeButton(btn) {
+    const scale = btn.classList.contains('lg') ? 3 : 2;
+    const walker = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const p = n.parentElement;
+      if (!n.nodeValue.trim() || p.closest('.sr, .badge, .nopix, .blbl')) continue;
+      nodes.push(n);
+    }
+    for (const n of nodes) {
+      const span = document.createElement('span');
+      span.className = 'pl';
+      span.innerHTML = pixLabel(n.nodeValue.trim(), scale);
+      n.parentNode.replaceChild(span, n);
+    }
+  }
+  function pixelize(root) {
+    if (!root) return;
+    if (root.matches && root.matches('[class*="fx-btn-"]:not(.nopix)')) pixelizeButton(root);
+    root.querySelectorAll('[class*="fx-btn-"]:not(.nopix)').forEach(pixelizeButton);
+  }
+  function setBtnText(el, text) { el.textContent = text; pixelizeButton(el); }
   function heroName(id) { const h = state.heroes[id]; return AW.HERO[id].names[h ? h.form : 0]; }
   function rarityName(r) { return CT.RARITIES[r].name; }
   function stageLabel(def) { return def.kind === 'story' ? (def.r + 1) + '-' + (def.i + 1) : def.name; }
@@ -217,18 +243,16 @@
     c.book = 0;
     return c;
   }
-  const NEED = { hatch: 3, army: 1, lab: 2, rewards: 1, events: 6, tower: 12, medals: 2, book: 1 };
+  const NEED = { map: 1, hatch: 3, army: 1, lab: 2, rewards: 1, events: 6, tower: 12, medals: 2, book: 1 };
   function updateBadges() {
     const c = badgeCounts();
-    document.querySelectorAll('#nav button').forEach((b) => {
+    document.querySelectorAll('.nav [data-go]').forEach((b) => {
       const k = b.getAttribute('data-go'), n = c[k] || 0, el = b.querySelector('.badge');
       el.hidden = !n; el.textContent = n > 9 ? '9+' : n;
-      b.hidden = AW.storyCleared(state) < NEED[k] && !DEBUG;
+      // Locked features stay greyed out until they unlock.
+      const locked = AW.storyCleared(state) < NEED[k] && !DEBUG;
+      b.disabled = locked; b.title = locked ? 'Unlocks after stage ' + Math.floor(NEED[k] / 12 + 1) + '-' + (NEED[k] % 12 || 12) : '';
     });
-    const hb = $('btn-hatch');
-    hb.hidden = AW.storyCleared(state) < NEED.hatch && !DEBUG;
-    hb.querySelector('.badge').hidden = !c.hatch; hb.querySelector('.badge').textContent = c.hatch;
-    $('btn-map').hidden = AW.storyCleared(state) < 1 && !DEBUG;
   }
 
   function homePopups() {
@@ -529,6 +553,7 @@
       b.addEventListener('click', () => { AU.click(); a[2](b); });
       box.appendChild(b);
     });
+    if (box.lastChild) box.lastChild.classList.add('primary');
     $('modal-x').hidden = !!noX;
     $('modal').className = 'modal' + (kind ? ' ' + kind : '');
     modalOnClose = onClose || null;
@@ -635,9 +660,9 @@
     let r = ui.mapRegion;
     if (!AW.regionOpen(state, d, r)) { r = 0; for (let i = 0; i < 8; i++) if (AW.regionOpen(state, d, i)) r = i; ui.mapRegion = r; }
     const R0 = CT.REGIONS[r];
-    let h = '<div class="row"><div class="diffs">' + CT.DIFFICULTIES.map((D) => {
+    let h = '<div class="row"><div class="seg fx-insetDark">' + CT.DIFFICULTIES.map((D) => {
       const open = AW.regionOpen(state, D.id, 0);
-      return '<button type="button" data-diff="' + D.id + '" class="bt2 sm fx-btn-' + (D.id === d ? ['green', 'gold', 'pink'][D.id] : 'wood') + '"' + (open ? '' : ' style="filter:grayscale(1) brightness(.7)"') + '>' + (open ? '' : SPR.img('icon_lock', 1)) + D.name + '</button>';
+      return '<button type="button" data-diff="' + D.id + '" class="bt2 sm fx-btn-' + (D.id === d ? ['green', 'gold', 'pink'][D.id] : 'dark') + '"' + (open ? '' : ' style="filter:grayscale(1) brightness(.7)"') + '>' + (open ? '' : SPR.img('icon_lock', 1)) + D.name + '</button>';
     }).join('') + '</div><span class="grow"></span><span class="sub">' + icon('star') + ' <b>' + AW.totalStars(state) + '</b> stars</span></div>';
     h += '<div class="regions">' + CT.REGIONS.map((Rg, i) => {
       const open = AW.regionOpen(state, d, i);
@@ -794,7 +819,7 @@
       rays.classList.remove('on');
       st.innerHTML = '<div class="egg wob">' + SPR.img('egg_' + Math.max(1, r.rarity), 7) + '</div>';
       info.innerHTML = title('Egg ' + (q.i + 1) + ' of ' + q.list.length, 3, 'cream');
-      $('h-next').textContent = 'Crack!';
+      setBtnText($('h-next'), 'Crack!');
       $('h-skip').hidden = q.list.length < 2;
       AU.shake();
       q.phase = 'crack';
@@ -816,7 +841,7 @@
       info.innerHTML = title(rarityName(r.rarity), 3, RAR_PAL[r.rarity]) + title(def.names[0], 4, 'cream') + '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + (r.isNew ? 'NEW HERO!' : r.plus ? 'Duplicate: +1 level' : '+' + fmt(r.coins) + ' coins') + '</div>';
       AU.reveal(r.rarity);
       if (r.rarity >= 3) PF.happytime();
-      $('h-next').textContent = q.i + 1 < q.list.length ? 'Next' : 'OK';
+      setBtnText($('h-next'), q.i + 1 < q.list.length ? 'Next' : 'OK');
       q.phase = 'next';
       return;
     }
@@ -829,7 +854,7 @@
     $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r) => '<div class="hero ' + rarFrame(r.rarity) + '"><div class="hi">' + SPR.heroImg(r.id, 0, 2) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '') + '</div>').join('') + '</div>';
     const best = Math.max.apply(null, q.list.map((r) => r.rarity));
     $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]);
-    $('h-next').textContent = 'OK'; $('h-skip').hidden = true;
+    setBtnText($('h-next'), 'OK'); $('h-skip').hidden = true;
     q.phase = 'done';
   }
   function endHatch() { hatchQ = null; $('hatchery').hidden = true; if (panelName) rerender(); else refreshHome(); }
@@ -839,7 +864,7 @@
   function renderArmy(el) {
     let h = head('army', 'Lineup', swapPick ? 'Tap a slot for <b>' + esc(heroName(swapPick)) + '</b>' : 'Tap a hero to remove it');
     h += '<div class="shelf fx-inset"><div class="lineup">' + state.lineup.map((id, i) => id ? '<button type="button" class="slot ' + rarFrame(AW.HERO[id].rarity) + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">' + SPR.heroImg(id, state.heroes[id].form, 2) + '<span class="lv">' + heroLvl(id) + '</span></button>' : '<button type="button" class="slot empty fx-cardDark' + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">+</button>').join('') + '</div></div>';
-    h += '<div class="row"><div class="tabs">' + [-1, 0, 1, 2, 3, 4].map((r) => '<button type="button" data-filter="' + r + '" class="bt2 sm fx-btn-' + (ui.armyFilter === r ? 'gold' : 'wood') + '">' + (r < 0 ? 'All' : rarityName(r)) + '</button>').join('') + '</div><span class="grow"></span><span class="sub">' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + ' heroes</span><button type="button" class="bt2 sm fx-btn-blue" id="autofill">Auto-fill</button></div>';
+    h += '<div class="row"><div class="seg fx-insetDark">' + [-1, 0, 1, 2, 3, 4].map((r) => '<button type="button" data-filter="' + r + '" class="bt2 sm fx-btn-' + (ui.armyFilter === r ? 'gold' : 'dark') + '">' + (r < 0 ? 'All' : rarityName(r)) + '</button>').join('') + '</div><span class="grow"></span><span class="sub">' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + ' heroes</span><button type="button" class="bt2 sm fx-btn-blue" id="autofill">Auto-fill</button></div>';
     const list = CT.HEROES.filter((d) => ui.armyFilter < 0 || d.rarity === ui.armyFilter).slice().sort((a, b) => {
       const oa = state.heroes[a.id] ? 1 : 0, ob = state.heroes[b.id] ? 1 : 0;
       return ob - oa || b.rarity - a.rarity;
@@ -1058,7 +1083,7 @@
 
   // --- Book -------------------------------------------------------------------------
   function renderBook(el) {
-    let h = '<div class="tabs"><button type="button" data-tab="heroes" class="bt2 sm fx-btn-' + (ui.bookTab === 'heroes' ? 'gold' : 'wood') + '">Heroes ' + AW.ownedCount(state) + '/' + CT.HEROES.length + '</button><button type="button" data-tab="gloom" class="bt2 sm fx-btn-' + (ui.bookTab === 'gloom' ? 'gold' : 'wood') + '">Gloom ' + Object.keys(state.seen).length + '/' + CT.ENEMIES.length + '</button></div>';
+    let h = '<div class="row"><div class="seg fx-insetDark"><button type="button" data-tab="heroes" class="bt2 sm fx-btn-' + (ui.bookTab === 'heroes' ? 'gold' : 'dark') + '">Heroes ' + AW.ownedCount(state) + '/' + CT.HEROES.length + '</button><button type="button" data-tab="gloom" class="bt2 sm fx-btn-' + (ui.bookTab === 'gloom' ? 'gold' : 'dark') + '">Gloom ' + Object.keys(state.seen).length + '/' + CT.ENEMIES.length + '</button></div></div>';
     if (ui.bookTab === 'heroes') h += '<div class="roster">' + CT.HEROES.map(heroTile).join('') + '</div>';
     else {
       h += '<div class="roster">' + CT.ENEMIES.map((e) => {
@@ -1094,11 +1119,14 @@
   // ---------------------------------------------------------------------------
   function bindInput() {
     $('btn-battle').addEventListener('click', () => { AU.unlock(); AU.click(); const n = nextStory(); if (n) openStage(n); else openPanel('map'); });
-    $('btn-map').addEventListener('click', () => { AU.click(); const n = nextStory(); if (n) { ui.mapRegion = n.r; ui.mapDiff = 0; } openPanel('map'); });
-    $('btn-hatch').addEventListener('click', () => { AU.unlock(); AU.click(); openPanel('hatch'); });
     $('quests').addEventListener('click', () => { AU.click(); openPanel('rewards'); });
     $('profile').addEventListener('click', () => { AU.click(); openPanel('medals'); });
-    document.querySelectorAll('#nav button').forEach((b) => b.addEventListener('click', () => { AU.unlock(); AU.click(); openPanel(b.getAttribute('data-go')); }));
+    document.querySelectorAll('.nav [data-go]').forEach((b) => b.addEventListener('click', () => {
+      AU.unlock(); AU.click();
+      const k = b.getAttribute('data-go');
+      if (k === 'map') { const n = nextStory(); if (n) { ui.mapRegion = n.r; ui.mapDiff = 0; } }
+      openPanel(k);
+    }));
     $('panel-back').addEventListener('click', () => { AU.click(); closePanel(); });
     $('btn-settings').addEventListener('click', () => { AU.click(); openSettings(); });
     $('btn-sound').addEventListener('click', () => { AU.unlock(); setMuted(!AU.muted); });

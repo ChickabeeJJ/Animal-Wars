@@ -63,6 +63,17 @@ The owner asked for massive improvements to all UI. Everything was rebuilt aroun
 - **Results:** rotating rays, a VICTORY title, popping stars and reward tiles.
 - **Phones:** portrait gets a wide battlefield band with big cards beneath and a sideways-scrolling map; short landscape screens shrink the logo and keep result buttons on screen.
 
+## Version 1.2: buttons
+
+The owner asked to drastically improve button layout and design.
+
+- **New button art:** glossy pixel buttons with rounded corners, a banded face that keeps its proportions at any size, an inner rim, a sparkle and a deep 3D lip. Pressing drops the face onto a shallow lip. 11 colours, with hover brightening and a clear disabled state.
+- **Pixel-font labels everywhere:** `pixelize()` turns the text in every button into crisp pixel-font labels (the words stay in a screen-reader span), so menus, dialogs and the hatch show all match.
+- **Home action bar:** one wooden strip along the bottom with a raised BATTLE button (crossed swords, title, next stage) and four colour-coded buttons on each side: Map, Army, Lab, Book | Hatch, Rewards, Events, Medals. Locked features are greyed out with a tooltip instead of disappearing, so the layout never shifts. On phones BATTLE spans the top row and the eight buttons form a grid.
+- **Segmented tabs** for difficulty, rarity filters and the Book; the selected option is raised in gold.
+- **Dialogs:** the last action is the primary button, larger and on the right; an AD tag marks rewarded-ad buttons.
+- **HUD:** bigger square controls for pause, speed and camera; colour-coded sound and settings buttons.
+
 ## Not yet verified
 
 - The CrazyGames SDK calls (ads, data sync, leaderboard) have not been run against the live SDK.

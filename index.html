@@ -23,8 +23,8 @@
           </button>
           <div id="curs" class="curs"></div>
           <div class="corner">
-            <button id="btn-sound" class="sq fx-btn-dark" type="button" title="Sound (M)" aria-label="Sound"><span data-icon="sound"></span></button>
-            <button id="btn-settings" class="sq fx-btn-dark" type="button" title="Settings" aria-label="Settings"><span data-icon="gear"></span></button>
+            <button id="btn-sound" class="sq fx-btn-blue" type="button" title="Sound (M)" aria-label="Sound"><span data-icon="sound"></span></button>
+            <button id="btn-settings" class="sq fx-btn-gray" type="button" title="Settings" aria-label="Settings"><span data-icon="gear"></span></button>
           </div>
         </div>
         <div id="quests" class="quests fx-plaque" role="button" tabindex="0" title="Daily quests"></div>
@@ -33,20 +33,23 @@
           <div id="logo" class="logo"></div>
           <div id="goal" class="goal fx-ribbon"></div>
         </div>
-        <div class="h-bottom">
-          <button id="btn-map" class="bb fx-btn-wood" type="button"><span data-icon="map" class="bi"></span><span class="bl">World<br>Map</span></button>
-          <button id="btn-battle" class="bb big fx-btn-green" type="button"><span class="bt" id="battle-t"></span><small id="next-stage"></small></button>
-          <button id="btn-hatch" class="bb fx-btn-purple" type="button"><span id="hatch-egg" class="bi egg-bob"></span><span class="bl">Hatch</span><i class="badge" hidden></i></button>
+        <div class="actionbar">
+          <nav class="nav nav-l">
+            <button type="button" class="nb fx-btn-wood" data-go="map"><span class="ni" data-icon="map"></span><span class="nl">Map</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-blue" data-go="army"><span class="ni" data-icon="army"></span><span class="nl">Army</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-teal" data-go="lab"><span class="ni" data-icon="lab"></span><span class="nl">Lab</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-dark" data-go="book"><span class="ni" data-icon="book"></span><span class="nl">Book</span><i class="badge" hidden></i></button>
+          </nav>
+          <div class="battle-wrap">
+            <button id="btn-battle" class="bb fx-btn-green" type="button"><span class="bsw" data-icon="battle"></span><span class="bt" id="battle-t"></span><small id="next-stage" class="nopix"></small></button>
+          </div>
+          <nav class="nav nav-r">
+            <button type="button" class="nb fx-btn-pink" data-go="hatch" id="btn-hatch"><span class="ni" id="hatch-egg"></span><span class="nl">Hatch</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Rewards</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-orange" data-go="events"><span class="ni" data-icon="event"></span><span class="nl">Events</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-purple" data-go="medals"><span class="ni" data-icon="medal"></span><span class="nl">Medals</span><i class="badge" hidden></i></button>
+          </nav>
         </div>
-        <nav id="nav" class="nav">
-          <button type="button" data-go="army"><span class="ni" data-icon="army"></span><span>Army</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="lab"><span class="ni" data-icon="lab"></span><span>Lab</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="rewards"><span class="ni" data-icon="gift"></span><span>Rewards</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="events"><span class="ni" data-icon="event"></span><span>Events</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="tower"><span class="ni" data-icon="tower"></span><span>Tower</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="medals"><span class="ni" data-icon="medal"></span><span>Medals</span><i class="badge" hidden></i></button>
-          <button type="button" data-go="book"><span class="ni" data-icon="book"></span><span>Book</span><i class="badge" hidden></i></button>
-        </nav>
       </div>
 
       <!-- Battle HUD -->
@@ -62,8 +65,8 @@
           <div class="acorns fx-plaqueWood"><span data-icon="acorn" class="ai"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
           <div class="bh-row">
             <div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i></div>
-            <button id="btn-speed" class="sq sm fx-btn-dark" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
-            <button id="btn-cam" class="sq sm fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
+            <button id="btn-speed" class="sq fx-btn-dark nopix" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
+            <button id="btn-cam" class="sq fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
           </div>
         </div>
         <div id="bossbar" class="bossbar fx-plaque" hidden><span id="boss-name"></span><div class="bb2 fx-insetDark"><i id="boss-fill"></i></div></div>

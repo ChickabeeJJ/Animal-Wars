@@ -1306,25 +1306,41 @@
     return { c: P.canvas(), s: 4 };
   }
 
-  // Chunky 3D button. 20×22, slice [5,5,8,5]; pressed = shallower.
+  // Glossy 3D pixel button: rounded corners, a banded face (the centre slice stretches with the button, so the
+  // bands keep their proportions), an inner rim and a deep lip. 24×30. Pressed drops the face 3px onto a short lip.
   function frameButton(base, pressed) {
-    const P = grid(20, 22), T = tones(base), ink = '#1a0f12';
-    const depth = pressed ? 1 : 4, top = pressed ? 3 : 0;
-    for (let y = top; y < 22; y++) for (let x = 0; x < 20; x++) {
-      const yy = y - top, H = 22 - top;
-      const corner = (x === 0 || x === 19) && (yy === 0 || yy === H - 1);
-      if (corner) continue;
+    const W = 24, H = 30, top = pressed ? 3 : 0, lip = pressed ? 2 : 6;
+    const P = grid(W, H), ink = '#1a0f12';
+    const shape = (x, y) => {
+      if (y < top || y > H - 1 || x < 0 || x > W - 1) return false;
+      const r = 3, cx = x < r ? r : x > W - 1 - r ? W - 1 - r : x, cy = y < top + r ? top + r : y > H - 1 - r ? H - 1 - r : y;
+      const dx = x - cx, dy = y - cy;
+      return dx * dx + dy * dy <= r * r + 1;
+    };
+    const faceEnd = H - 2 - lip;
+    const band = (y) => {
+      const f = y - top - 1;
+      if (f <= 0) return mix(base, '#ffffff', 0.62);
+      if (f <= 4) return mix(base, '#ffffff', 0.36);
+      if (y >= faceEnd - 1) return mix(base, '#1a0f20', 0.26);
+      const k = (y - (top + 4)) / Math.max(1, faceEnd - 2 - (top + 4));
+      return k < 0.4 ? mix(base, '#ffffff', 0.14) : k < 0.88 ? base : mix(base, '#1a0f20', 0.12);
+    };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!shape(x, y)) continue;
+      const edge = !shape(x - 1, y) || !shape(x + 1, y) || !shape(x, y - 1) || !shape(x, y + 1);
       let c;
-      if (x === 0 || x === 19 || yy === 0 || yy === H - 1) c = ink;
-      else if (yy >= H - 1 - depth) c = mix(base, '#2a0f20', 0.45);
-      else if (yy === 1) c = mix(base, '#ffffff', 0.55);
-      else if (yy === 2) c = mix(base, '#ffffff', 0.25);
-      else if (yy === H - 2 - depth) c = mix(base, '#2a0f20', 0.15);
-      else c = base;
-      if ((x === 1 || x === 18) && yy > 0 && yy < H - 1 - depth) c = mix(c, x === 1 ? '#ffffff' : '#2a0f20', 0.15);
+      if (edge) c = ink;
+      else if (y > faceEnd) c = mix(base, '#2a0f20', y === H - 2 ? 0.66 : 0.52);
+      else {
+        c = band(y);
+        if (!shape(x - 2, y)) c = mix(c, '#ffffff', 0.28);
+        else if (!shape(x + 2, y)) c = mix(c, '#1a0f20', 0.2);
+      }
       P.set(x, y, c);
     }
-    return { c: P.canvas(), s: [5 + top, 5, 8 - (pressed ? 3 : 0), 5] };
+    P.set(4, top + 2, '#ffffff'); P.set(5, top + 2, '#ffffff'); P.set(4, top + 3, mix(base, '#ffffff', 0.8));
+    return { c: P.canvas(), s: pressed ? [7, 4, 5, 4] : [4, 4, 8, 4] };
   }
 
   // Rarity frame for hero cards: coloured border with corner gems for Mythic and Legend. 20×20, slice 6.
@@ -1403,7 +1419,7 @@
     ribbonGold: () => frameRibbon('#e0a030'),
     ribbonBlue: () => frameRibbon('#3b6ad9')
   };
-  const BTN_COLORS = { green: '#5ac54f', gold: '#ffc23d', blue: '#41a6f6', red: '#e04848', purple: '#a884f3', gray: '#c3cbd6', wood: '#b07a4a', pink: '#ff8fb8', dark: '#3a4170' };
+  const BTN_COLORS = { green: '#4fc24a', gold: '#ffb92e', blue: '#3a9cf0', red: '#e5484d', purple: '#9b72ee', gray: '#b9c2cf', wood: '#b57a46', pink: '#ff7fb0', dark: '#3a4170', teal: '#26a69a', orange: '#f5873a' };
   for (const k in BTN_COLORS) { FRAMES['btn_' + k] = () => frameButton(BTN_COLORS[k], false); FRAMES['btnp_' + k] = () => frameButton(BTN_COLORS[k], true); }
   for (let r = 0; r < 5; r++) FRAMES['rar' + r] = ((rr) => () => frameRarity(rr))(r);
 
@@ -1463,7 +1479,13 @@
       }
     }
     P.p = out;
-    return P.canvas();
+    // Trim to the drawn pixels so labels centre exactly.
+    let x0 = P.w, y0 = P.h, x1 = -1, y1 = -1;
+    for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) if (out[y * P.w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return P.canvas();
+    const T = new Painter(x1 - x0 + 1, y1 - y0 + 1);
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) T.p[(y - y0) * T.w + (x - x0)] = out[y * P.w + x];
+    return T.canvas();
   }
   const textCache = {};
   function textUrl(text, o) {
