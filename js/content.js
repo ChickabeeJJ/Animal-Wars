@@ -229,8 +229,8 @@
     { id: 'wrate', name: 'Acorn Hoarders', desc: 'Acorn income +6%', icon: 'acorn', max: 20, base: 200, per: 0.06 },
     { id: 'wcap', name: 'Bigger Pouch', desc: 'Pouch size +6%', icon: 'pouch', max: 20, base: 200, per: 0.06 },
     { id: 'base', name: 'Sturdy Burrow', desc: 'Burrow health +15%', icon: 'burrow', max: 20, base: 250, per: 0.15 },
-    { id: 'rpow', name: 'Mega Roar Power', desc: 'Mega Roar damage +20%', icon: 'roar', max: 20, base: 250, per: 0.2 },
-    { id: 'rchg', name: 'Roar Recharge', desc: 'Mega Roar charges 0.8 s faster', icon: 'charge', max: 20, base: 250, per: 0.8 },
+    { id: 'rpow', name: 'Battle Cry Power', desc: 'Battle Cry attack boost +5%', icon: 'roar', max: 20, base: 250, per: 0.05 },
+    { id: 'rchg', name: 'Cry Recharge', desc: 'Battle Cry charges 0.8 s faster', icon: 'charge', max: 20, base: 250, per: 0.8 },
     { id: 'cd', name: 'Quick Training', desc: 'Hero cooldowns -2%', icon: 'clock', max: 20, base: 300, per: 0.02 },
     { id: 'start', name: 'Head Start', desc: '+60 acorns when a battle starts', icon: 'start', max: 20, base: 150, per: 60 },
     { id: 'coin', name: 'Treasure Nose', desc: 'Coins from battles +6%', icon: 'coin', max: 20, base: 300, per: 0.06 }
@@ -239,7 +239,7 @@
   const ITEMS = [
     { id: 'rush', name: 'Acorn Rush', desc: 'Start with a Level 3 pouch and 600 acorns.', price: 1500 },
     { id: 'armor', name: 'Iron Burrow', desc: 'Your burrow has +60% health.', price: 1500 },
-    { id: 'roar', name: 'Ready Roar', desc: 'Mega Roar starts charged and charges 30% faster.', price: 1200 },
+    { id: 'roar', name: 'Ready Cry', desc: 'Battle Cry starts charged and charges 30% faster.', price: 1200 },
     { id: 'charm', name: 'Lucky Clover', desc: 'Double coins from this battle.', price: 2500 }
   ];
 
@@ -248,7 +248,7 @@
     { id: 'win', text: 'Win {n} battles', stat: 'wins', n: 3, gems: 30 },
     { id: 'deploy', text: 'Deploy {n} heroes', stat: 'deploys', n: 60, gems: 20 },
     { id: 'kills', text: 'Defeat {n} Gloom', stat: 'kills', n: 150, gems: 25 },
-    { id: 'roar', text: 'Use Mega Roar {n} times', stat: 'roars', n: 5, gems: 20 },
+    { id: 'roar', text: 'Use Battle Cry {n} times', stat: 'roars', n: 5, gems: 20 },
     { id: 'hatch', text: 'Hatch {n} egg', stat: 'hatches', n: 1, gems: 30 },
     { id: 'level', text: 'Level up heroes {n} times', stat: 'levelups', n: 3, gems: 25 },
     { id: 'pouch', text: 'Upgrade your pouch {n} times', stat: 'pouches', n: 10, gems: 20 },
@@ -276,7 +276,7 @@
     { stat: 'maxLevel', tiers: [10, 20, 30, 40, 50], name: 'Drill Sergeant', text: 'Get a hero to level {n}', gems: [20, 60, 120, 200, 400] },
     { stat: 'form3', tiers: [1, 5, 15, 30], name: 'Final Form', text: 'Evolve {n} heroes to their third form', gems: [50, 100, 200, 400] },
     { stat: 'tower', tiers: [5, 15, 30, 50, 100], name: 'Tower Climber', text: 'Reach tower floor {n}', gems: [30, 80, 150, 250, 500] },
-    { stat: 'roars', tiers: [10, 100, 500], name: 'Big Voice', text: 'Use Mega Roar {n} times', gems: [20, 60, 120] },
+    { stat: 'roars', tiers: [10, 100, 500], name: 'Big Voice', text: 'Use Battle Cry {n} times', gems: [20, 60, 120] },
     { stat: 'deploys', tiers: [100, 1000, 10000], name: 'Recruiter', text: 'Deploy {n} heroes', gems: [20, 60, 150] },
     { stat: 'logins', tiers: [3, 7, 14, 30, 60], name: 'Regular', text: 'Log in on {n} days', gems: [30, 70, 120, 200, 400] }
   ];

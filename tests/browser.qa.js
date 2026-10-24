@@ -199,11 +199,34 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
 
   await p.close();
 
-  for (const vp of [{ name: 'phone portrait', w: 390, h: 844 }, { name: 'phone landscape', w: 844, h: 390 }, { name: '1920x1080', w: 1920, h: 1080 }]) {
+  await check('locked features explain themselves, mute strikes out the speaker, Battle Cry buffs heroes', async () => {
+    const q = await page();
+    await q.goto(URL);
+    await q.waitForTimeout(500);
+    await S(q, () => { const s = __aw.AW.createState(Date.now()); s.clear[0][0] = 1; s.flags.tutDone = true; s.flags.tutRoar = true; s.login.last = __aw.AW.dayNumber(Date.now()); s.login.count = 1; __aw.state = s; __aw.enterHome(); });
+    await q.waitForTimeout(400);
+    await q.click('.nav [data-go="hatch"]');
+    await q.waitForSelector('#locktip:not([hidden])', { timeout: 2000 });
+    assert(/Clear stage 1-3/.test(await q.textContent('#locktip')), 'popover names the stage that unlocks it');
+    assert(await S(q, () => __aw.mode) === 'home', 'locked panel did not open');
+    await q.click('#btn-sound');
+    assert(await S(q, () => document.getElementById('btn-sound').classList.contains('muted')), 'muted state shown');
+    await q.click('#btn-sound');
+    await S(q, () => { __aw.startBattle(__aw.AW.stageDef(0, 0, 1), {}); });
+    await q.waitForTimeout(400);
+    await S(q, () => { const b = __aw.battle; b.pouch.acorns = 999; __aw.AW.deploy(b, 0, []); __aw.AW.deploy(b, 1, []); b.roar.charge = 1; });
+    await q.keyboard.press('r');
+    assert(await S(q, () => __aw.battle.ents.filter((e) => e.side === 0 && e.buff > 0).length) === 2, 'both heroes buffed');
+    await shot(q, 'battle-cry');
+    await q.close();
+  });
+
+  for (const vp of [{ name: 'phone landscape', w: 844, h: 390 }, { name: '1920x1080', w: 1920, h: 1080 }]) {
     await check(vp.name + ': battle dock and cards fit and work', async () => {
-      const q = await page({ viewport: { width: vp.w, height: vp.h }, hasTouch: vp.w < 1000 });
+      const q = await page({ viewport: { width: vp.w, height: vp.h }, hasTouch: vp.w < 1000, isMobile: vp.w < 1000 });
       await q.goto(URL);
       await q.waitForTimeout(500);
+      assert(await q.locator('#rotate').isHidden(), 'no rotate prompt in landscape');
       const box = await q.locator('#dock').boundingBox();
       assert(box && box.y >= 0 && box.y + box.height <= vp.h + 1, 'dock on screen');
       const card = await q.locator('#cards .card >> nth=0').boundingBox();
@@ -217,6 +240,18 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
       await q.close();
     });
   }
+
+  await check('phone portrait: a rotate prompt covers the game (landscape only)', async () => {
+    const q = await page({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    await q.goto(URL);
+    await q.waitForTimeout(600);
+    assert(await q.locator('#rotate').isVisible(), 'rotate prompt shown');
+    await shot(q, 'vp-390x844');
+    await q.setViewportSize({ width: 844, height: 390 });
+    await q.waitForTimeout(300);
+    assert(await q.locator('#rotate').isHidden(), 'prompt goes away in landscape');
+    await q.close();
+  });
 
   await check('no console or page errors', async () => { assert(errors.length === 0, errors.slice(0, 5).join(' | ')); });
 

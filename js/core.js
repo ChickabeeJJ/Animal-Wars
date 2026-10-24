@@ -30,7 +30,8 @@
     dupeCoins: [0, 2000, 6000, 20000, 60000],
     pouch: { rate: 12, ratePer: 6, max: 450, maxPer: 330, levels: 8, cost: 40 },
     baseHp: 1500,
-    roar: { dmg: 120, charge: 30, minCharge: 12, reach: 320, speed: 520 },
+    // Battle Cry: every hero on the field glows and fights harder for a few seconds.
+    roar: { charge: 30, minCharge: 12, time: 8, atk: 0.5, speed: 0.3, guard: 0.3 },
     kbDist: 28, kbTime: 0.35, bossKbDist: 10,
     allyCap: 30, enemyCap: 40,
     wave: { speed: 340, base: 40, per: 55 },
@@ -117,7 +118,7 @@
       seen: {},
       stats: {},
       flags: {},
-      settings: { music: true, sfx: true, autoCam: true, speed: 1 },
+      settings: { music: true, sfx: true, autoCam: true, speed: 1, muted: false },
       name: ''
     };
     CT.LAB.forEach((l) => { s.lab[l.id] = 0; });
@@ -183,6 +184,7 @@
       s.settings.sfx = raw.settings.sfx !== false;
       s.settings.autoCam = raw.settings.autoCam !== false;
       s.settings.speed = raw.settings.speed === 2 ? 2 : 1;
+      s.settings.muted = raw.settings.muted === true;
     }
     if (typeof raw.name === 'string') s.name = cleanName(raw.name);
     // Starters unlocked by story progress (repairs older or edited saves).
@@ -401,7 +403,7 @@
   function pouchMax(s, lvl) { return (CONFIG.pouch.max + CONFIG.pouch.maxPer * (lvl - 1)) * (1 + labVal(s, 'wcap')); }
   function pouchCost(lvl) { return CONFIG.pouch.cost * (lvl + 1); }
   function roarCharge(s) { return Math.max(CONFIG.roar.minCharge, CONFIG.roar.charge - labVal(s, 'rchg')); }
-  function roarDamage(s) { return Math.round(CONFIG.roar.dmg * (1 + labVal(s, 'rpow')) * (1 + 0.5 * storyCleared(s) / 12)); }
+  function cryBoost(s) { return CONFIG.roar.atk + labVal(s, 'rpow'); }
   function burrowHp(s) { return Math.round(CONFIG.baseHp * (1 + labVal(s, 'base')) * (1 + 0.25 * storyCleared(s) / 12)); }
 
   function enemyStats(id, mag) {
@@ -422,7 +424,7 @@
       def: def, L: def.lane, t: 0, rng: rng, state: 'play', items: items,
       pouch: { lvl: items.rush ? 3 : 1, acorns: CONFIG.pouch.max * 0 + labVal(s, 'start') + (items.rush ? 600 : 0) },
       ally: { hp: 0, max: 0, hitT: 0 }, enemy: { hp: def.baseHp, max: def.baseHp, hitT: 0 },
-      roar: { charge: items.roar ? 1 : 0, time: roarCharge(s) * (items.roar ? 0.7 : 1), dmg: roarDamage(s) },
+      roar: { charge: items.roar ? 1 : 0, time: roarCharge(s) * (items.roar ? 0.7 : 1), atk: cryBoost(s), dur: CONFIG.roar.time, left: 0 },
       slots: [], ents: [], waves: [], lines: def.lines.map((l) => ({ l: l, active: l.trig === undefined, next: l.start, count: 0, fired: false })),
       nextId: 1, seen: {}, stats: { deploys: 0, kills: 0, roars: 0, pouches: 0, bosses: 0, dmg: 0 }, bossOut: false, bossesLeft: 0
     };
@@ -475,8 +477,10 @@
     if (!canRoar(b)) return false;
     b.roar.charge = 0;
     b.stats.roars++;
-    b.waves.push({ side: 0, x: 0, dir: 1, end: CONFIG.roar.reach, speed: CONFIG.roar.speed, dmg: b.roar.dmg, st: { ab: {}, roar: true }, hit: {}, roar: true });
-    if (ev) ev.push({ t: 'roar' });
+    b.roar.left = b.roar.dur;
+    let n = 0;
+    for (const e of b.ents) if (e.side === 0 && e.state !== 'dead' && e.state !== 'down') { e.buff = b.roar.dur; n++; }
+    if (ev) ev.push({ t: 'roar', n: n });
     return true;
   }
 
@@ -484,7 +488,7 @@
     const e = {
       id: b.nextId++, side: side, st: st, x: x, y: Math.floor(b.rng() * 7), hp: st.hp, max: st.hp,
       state: 'walk', t: 0, at: 0, cool: 0, hits: 0, kbi: 0, kbFrom: 0, kbTo: 0, kbT: 0,
-      freeze: 0, slow: 0, weaken: 0, poison: 0, walkT: b.rng() * 2, boss: !!boss, revived: false, survived: false, burrowed: false, burrowLeft: 0, flash: 0
+      freeze: 0, slow: 0, weaken: 0, poison: 0, buff: 0, walkT: b.rng() * 2, boss: !!boss, revived: false, survived: false, burrowed: false, burrowLeft: 0, flash: 0
     };
     b.ents.push(e);
     return e;
@@ -558,6 +562,7 @@
       if (matches(e.st.ab.resist, tr)) dmg *= 0.25;
       else if (matches(e.st.ab.strong, tr)) dmg *= 0.5;
       if (tr.indexOf('toxic') >= 0) e.poison = 3;
+      if (e.buff > 0) dmg *= 1 - CONFIG.roar.guard;
     }
     if (att && att.weaken > 0) dmg *= 0.5;
     dmg = Math.max(1, Math.round(dmg));
@@ -621,6 +626,7 @@
     // Pouch, roar, cooldowns.
     b.pouch.acorns = Math.min(b.pouch.max, b.pouch.acorns + b.pouch.rate * dt);
     b.roar.charge = Math.min(1, b.roar.charge + dt / b.roar.time);
+    b.roar.left = Math.max(0, b.roar.left - dt);
     for (const sl of b.slots) if (sl && sl.cd > 0) sl.cd = Math.max(0, sl.cd - dt);
     b.ally.hitT = Math.max(0, b.ally.hitT - dt);
     b.enemy.hitT = Math.max(0, b.enemy.hitT - dt);
@@ -669,6 +675,7 @@
       }
       if (e.weaken > 0) e.weaken -= dt;
       if (e.slow > 0) e.slow -= dt;
+      if (e.buff > 0) e.buff -= dt;
       if (e.freeze > 0) { e.freeze -= dt; continue; }
       e.cool -= dt;
       const dir = e.side === 0 ? 1 : -1;
@@ -689,7 +696,7 @@
         e.at += dt;
         const multi = e.st.ab.multi || 1;
         while (e.hits < multi && e.at >= e.st.fore + e.hits * 0.15) {
-          const dmg = e.st.atk / multi * (e.weaken > 0 ? 0.5 : 1);
+          const dmg = e.st.atk / multi * (e.weaken > 0 ? 0.5 : 1) * (e.buff > 0 ? 1 + b.roar.atk : 1);
           const tg = findTargets(b, e, e.st.area);
           let landed = false;
           for (const t of tg) if (strike(b, e.side, e.st, t, dmg, ev, null)) landed = true;
@@ -716,14 +723,14 @@
         else e.state = 'idle';
       } else {
         e.state = 'walk';
-        const sp = e.st.spd * (e.slow > 0 ? 0.25 : 1);
+        const sp = e.st.spd * (e.slow > 0 ? 0.25 : 1) * (e.buff > 0 ? 1 + CONFIG.roar.speed : 1);
         e.x += dir * sp * dt;
         e.walkT += dt * (0.6 + sp / 30);
         if (e.side === 0) e.x = Math.min(e.x, L - 4); else e.x = Math.max(e.x, 4);
       }
     }
 
-    // Waves (hero and Gloom shock waves, and the Mega Roar).
+    // Shock waves from heroes and the Gloom.
     for (const w of b.waves) {
       const x0 = w.x;
       w.x += w.dir * w.speed * dt;
@@ -732,11 +739,7 @@
         if (e.side === w.side || w.hit[e.id] || !targetable(e)) continue;
         if (e.x < lo || e.x > hi) continue;
         w.hit[e.id] = 1;
-        if (w.roar) {
-          applyDamage(b, e, w.dmg, ev, w.st, false);
-          if (e.state !== 'dead' && e.state !== 'down') knock(b, e, CONFIG.kbDist * 1.4, ev);
-          if (ev) ev.push({ t: 'hit', x: e.x, y: e.y, side: 0, big: true, id: e.id });
-        } else strike(b, w.side, w.st, e, w.dmg, ev, null);
+        strike(b, w.side, w.st, e, w.dmg, ev, null);
       }
       if ((w.end - w.x) * w.dir <= 0) w.done = true;
     }
@@ -1050,7 +1053,7 @@
     levelMult, heroStats, levelCost, canLevel, levelUp, evolveNeed, canEvolve, evolve, ownedCount, unlockStoryHeroes,
     labCost, buyLab, labVal,
     stageKey, starCount, totalStars, regionStars, storyCleared, clearedAll, regionOpen, stageOpen, stageDef, towerDef, eventDef, eventOpen,
-    pouchRate, pouchMax, pouchCost, roarCharge, roarDamage, burrowHp, enemyStats,
+    pouchRate, pouchMax, pouchCost, roarCharge, cryBoost, burrowHp, enemyStats,
     createBattle, canDeploy, deploy, canPouch, upgradePouch, canRoar, roar, step, revive, starsFor, finishBattle,
     featured, bannerCost, canHatch, hatch, grantHero, freeEggReady, claimFreeEgg, welcomeReady, claimWelcome,
     ensureDaily, missionInfo, claimMission, missionBonusReady, claimMissionBonus, loginReady, loginReward, claimLogin,

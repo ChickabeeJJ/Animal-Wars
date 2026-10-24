@@ -77,6 +77,33 @@ test('deploying costs acorns and starts the cooldown; the pouch levels up', () =
   assert.equal(AW.roar(b), true);
 });
 
+test('Battle Cry buffs every hero on the field: more damage, faster, tougher, then wears off', () => {
+  const s = AW.createState(0);
+  function duel(cry) {
+    const b = AW.createBattle(s, emptyStage(), {});
+    b.pouch.acorns = 1000;
+    AW.deploy(b, 0);
+    const hero = b.ents[0];
+    run(b, 1);
+    const x1 = hero.x;
+    const foe = spawnEnemy(b, 'gloop', hero.x + 30, 100000);
+    foe.st.atk = 3; foe.st.kb = 1;
+    if (cry) { b.roar.charge = 1; assert.equal(AW.roar(b), true); assert.ok(hero.buff > 0, 'hero glows'); }
+    run(b, 4);
+    return { hero, foe, b, x1 };
+  }
+  const plain = duel(false), cried = duel(true);
+  assert.ok(plain.foe.max - plain.foe.hp < cried.foe.max - cried.foe.hp, 'buffed hero deals more damage');
+  assert.ok(cried.hero.max - cried.hero.hp < plain.hero.max - plain.hero.hp, 'buffed hero takes less damage');
+  run(cried.b, AW.CONFIG.roar.time);
+  assert.ok(cried.hero.buff <= 0 && cried.b.roar.left === 0, 'the cry wears off');
+  // Heroes deployed after the cry are not buffed.
+  const b = AW.createBattle(s, emptyStage(), {});
+  b.roar.charge = 1; AW.roar(b);
+  b.pouch.acorns = 1000; AW.deploy(b, 0);
+  assert.ok(!(b.ents[0].buff > 0));
+});
+
 test('Armored takes 10% unless the hit is critical or the hero is strong against it', () => {
   const s = AW.createState(0);
   s.heroes.ronin = { lvl: 1, plus: 0, form: 0 };

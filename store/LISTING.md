@@ -26,13 +26,13 @@ Animal Wars
 
 ## Short description
 
-Send an army of cute pixel animals to smash the Gloom! Deploy heroes, fire the Mega Roar, hatch rare animals and free 8 lands.
+Send an army of cute pixel animals to smash the Gloom! Deploy heroes, rally them with a Battle Cry, hatch rare animals and free 8 lands.
 
 ## Description
 
 The Gloom has taken over the world, and only your animals can stop it!
 
-Deploy heroes down the battlefield, keep your acorn pouch growing, and blast the Gloom back with your Mega Roar. Smash their tower before they reach your burrow!
+Deploy heroes down the battlefield, keep your acorn pouch growing, and rally your army with a mighty Battle Cry. Smash their tower before they reach your burrow!
 
 - **50 animal heroes** in five rarities, from brave Pip the hamster to Legendary dragons and griffins, each with 3 forms to evolve into
 - **288 stages** across 8 lands (meadows, deserts, snowy peaks, swamps, volcanoes, robot cities, sky islands and the moon) on Normal, Hard and Nightmare
@@ -49,9 +49,9 @@ Every gem and egg is earned by playing.
 
 - **Tap a hero card** (or **1-0**): deploy a hero
 - **Tap the pouch** (or **E**): upgrade your acorn pouch
-- **Tap Mega Roar** (or **R** / **Space**): blast the Gloom back
+- **Tap Battle Cry** (or **R** / **Space**): every hero on the field glows gold and fights harder for 8 seconds
 - **Drag or scroll**: look around the battlefield · **F**: speed ×2 · **P**: pause · **M**: mute
-- Works with touch on phones and tablets
+- Works with touch on phones and tablets (landscape)
 
 ## Before you submit
 

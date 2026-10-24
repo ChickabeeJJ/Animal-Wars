@@ -68,7 +68,68 @@
       if (w0 >= 0 && w1 >= 0 && 1 - w0 - w1 >= 0) this.set(x, y, typeof c === 'function' ? c(x, y) : c);
     }
   };
+  // Pixel-art clean-up, run before the outline: fills pinholes, removes stray pixels and one-pixel nubs on the
+  // silhouette (but keeps deliberate thin lines such as staffs and whiskers), and merges lone low-contrast
+  // shading pixels into the colour around them (high-contrast glints and eye highlights stay).
+  Painter.prototype.clean = function () {
+    const w = this.w, h = this.h;
+    const on = (x, y) => !!this.get(x, y);
+    const n4 = (x, y) => (on(x - 1, y) ? 1 : 0) + (on(x + 1, y) ? 1 : 0) + (on(x, y - 1) ? 1 : 0) + (on(x, y + 1) ? 1 : 0);
+    const n8 = (x, y) => n4(x, y) + (on(x - 1, y - 1) ? 1 : 0) + (on(x + 1, y - 1) ? 1 : 0) + (on(x - 1, y + 1) ? 1 : 0) + (on(x + 1, y + 1) ? 1 : 0);
+    const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]], D8 = D4.concat([[1, 1], [-1, 1], [1, -1], [-1, -1]]);
+    for (let pass = 0; pass < 2; pass++) {
+      const next = this.p.slice();
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const c = this.get(x, y);
+        if (!c) {
+          // Pinhole: an empty pixel walled in on three or four sides.
+          if (n4(x, y) >= 3) { const cnt = {}; let best = null; for (const [dx, dy] of D4) { const q = this.get(x + dx, y + dy); if (q) { cnt[q] = (cnt[q] || 0) + 1; if (!best || cnt[q] > cnt[best]) best = q; } } next[y * w + x] = best; }
+          continue;
+        }
+        const a = n4(x, y);
+        if (a === 0) {
+          // Stray, or hanging off a solid area by one corner.
+          const b = n8(x, y);
+          let nub = b === 0;
+          if (b === 1) for (const [dx, dy] of D8) if (on(x + dx, y + dy) && n4(x + dx, y + dy) >= 3) nub = true;
+          if (nub) next[y * w + x] = null;
+        } else if (a === 1) {
+          // A one-pixel bump on a solid edge (a thin line's end pixel has a thin neighbour and is kept).
+          for (const [dx, dy] of D4) if (on(x + dx, y + dy) && n4(x + dx, y + dy) >= 3 && n8(x, y) <= 2) next[y * w + x] = null;
+        }
+      }
+      this.p = next;
+    }
+    // Specks: tiny islands of a few pixels that touch nothing else.
+    const seen = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (seen[y * w + x] || !this.get(x, y)) continue;
+      const stack = [[x, y]], comp = [];
+      seen[y * w + x] = 1;
+      while (stack.length) {
+        const [cx, cy] = stack.pop(); comp.push(cx + cy * w);
+        for (const [dx, dy] of D8) { const nx = cx + dx, ny = cy + dy; if (nx >= 0 && ny >= 0 && nx < w && ny < h && !seen[ny * w + nx] && this.get(nx, ny)) { seen[ny * w + nx] = 1; stack.push([nx, ny]); } }
+      }
+      if (comp.length < 5) for (const i of comp) this.p[i] = null;
+    }
+    // Lone shading pixels.
+    const lum = (hex) => { const r = hexRgb(hex); return (r[0] * 0.3 + r[1] * 0.59 + r[2] * 0.11) / 255; };
+    const next = this.p.slice();
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const c = this.get(x, y);
+      if (!c) continue;
+      const cnt = {}; let same = 0, best = null, opaque = 0;
+      for (const [dx, dy] of D4) { const q = this.get(x + dx, y + dy); if (!q) continue; opaque++; if (q === c) same++; cnt[q] = (cnt[q] || 0) + 1; if (!best || cnt[q] > cnt[best]) best = q; }
+      if (same || opaque < 4 || cnt[best] < 3) continue;
+      let diag = false;
+      for (const [dx, dy] of D8) if (dx && dy && this.get(x + dx, y + dy) === c) diag = true;
+      if (diag) continue;  // part of a diagonal line
+      if (Math.abs(lum(c) - lum(best)) < 0.22) next[y * w + x] = best;
+    }
+    this.p = next;
+  };
   Painter.prototype.outline = function (ink) {
+    this.clean();
     const out = this.p.slice();
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
       if (this.get(x, y)) continue;
@@ -244,7 +305,12 @@
       const Q = tones(c.c), F = tones(c.b);
       const L = k.lean;
       k.leg(9, 22, 3, 2.2, Q.deep, -1); k.leg(17, 22, 3, 2.2, Q.deep, -1);
-      for (let a = 0; a < 9; a++) { const ang = Math.PI * (0.55 + a * 0.11), x = 13 + L * 0.3 + Math.cos(ang) * 8, y = 18 - Math.sin(ang) * 7; k.tri(x - 1.5, y + 1, x + 1.5, y + 1, x - Math.cos(ang) * -3, y - Math.sin(ang) * 3.2, Q.dark); }
+      // Quill crest: a dark mantle with a clean saw-tooth edge (teeth at least 2 pixels wide).
+      for (let a = 0; a < 6; a++) {
+        const ang = Math.PI * (0.42 + a * 0.15), cx = 13 + L * 0.3, cy = 18, ux = Math.cos(ang), uy = -Math.sin(ang);
+        const bx = cx + ux * 6.5, by = cy + uy * 5.2, px = -uy * 1.9, py = ux * 1.9;
+        k.tri(bx - px, by - py, bx + px, by + py, cx + ux * 11.5, cy + uy * 10, a % 2 ? Q.deep : Q.dark);
+      }
       k.ball(13 + L * 0.3, 18, 8, 6.5, Q);
       k.ball(21 + L, 18.5, 4.5, 4, F);
       k.tri(24 + L, 17.5, 24 + L, 20.5, 27.5 + L, 19, F.base); k.px(27.5 + L, 19, INK);
@@ -735,12 +801,6 @@
   }
 
   // Third forms: a soft rarity aura of sparkles.
-  function aura(P, col) {
-    const w = P.w, h = P.h;
-    const pts = [[0.1, 0.15], [0.9, 0.2], [0.05, 0.6], [0.95, 0.55], [0.5, 0.05]];
-    for (const [fx, fy] of pts) { const x = Math.round(fx * (w - 3)) + 1, y = Math.round(fy * (h - 3)) + 1; if (!P.get(x, y)) { P.set(x, y, '#ffffff'); P.set(x + 1, y, col); P.set(x, y + 1, col); } }
-  }
-
   function heroCanvas(def, form, frame) {
     const s = def.look.s;
     const u = s / 24;
@@ -753,8 +813,8 @@
     const anchor = fn(k, T, look) || { hx: 20, hy: 12, hr: 5, top: 7, bx: 14, by: 18, handX: 24, handY: 18 };
     gear(k, anchor, look.g[form], look);
     if (form >= 1) gear(k, anchor, extraGear(look.g[form]), look);
-    P.outline();
-    if (form === 2) aura(P, ['#c3cfdb', '#73eff7', '#c9b3ff', '#ffe066', '#ff9fd8'][def.rarity]);
+    // Third forms get an outline tinted with their rarity colour instead of floating sparkles.
+    P.outline(form === 2 ? ['#1e2a40', '#0e1e58', '#2e0e52', '#4a2400', '#500a3a'][def.rarity] : undefined);
     return P.canvas();
   }
   function extraGear(g) { return { knight: 'sword', ninja: null, shogun: null, master: 'staff' }[g] || null; }
@@ -1114,8 +1174,53 @@
   // ---------------------------------------------------------------------------
   // Bases
   // ---------------------------------------------------------------------------
-  // The Burrow: a tree-stump fortress with a round door and a flag. dmg 0..1 adds cracks.
+  // Painted assets (js/assets.js, written by tools/assets.py): decoded once at boot into canvases.
+  const ASSET = {};
+  function loadAssets() {
+    const A = root.AW_ASSETS || {};
+    if (typeof Image === 'undefined' || typeof document === 'undefined') return Promise.resolve();
+    return Promise.all(Object.keys(A).map(function (k) {
+      return new Promise(function (res) {
+        const im = new Image();
+        im.onload = function () { const c = makeCanvas(im.width, im.height); c.getContext('2d').drawImage(im, 0, 0); ASSET[k] = c; res(); };
+        im.onerror = function () { res(); };
+        im.src = A[k].src;
+      });
+    })).then(function () {
+      for (const k in cache) if (/^burrow_/.test(k)) delete cache[k];
+      for (const k in urlCache) if (/^burrow_/.test(k)) delete urlCache[k];
+    });
+  }
+  function asset(k) { return ASSET[k] || null; }
+
+  // The Burrow: the painted tree house, with scorch marks, cracks and a torn flag as it takes damage.
+  function treeBase(dmg) {
+    const src = ASSET.base, w = src.width, h = src.height;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    g.drawImage(src, 0, 0);
+    const lvl = Math.round(dmg * 3);
+    if (!lvl) return c;
+    const d = g.getImageData(0, 0, w, h), p = d.data;
+    const solid = function (x, y) { return x >= 0 && y >= 0 && x < w && y < h && p[(y * w + x) * 4 + 3] > 0; };
+    const tint = function (x, y, k, to) { if (!solid(x, y)) return; const i = (y * w + x) * 4; for (let j = 0; j < 3; j++) p[i + j] = Math.round(p[i + j] + (to[j] - p[i + j]) * k); };
+    // Scorch marks: clean two-tone ellipses (no dithering noise).
+    const spots = [[0.3, 0.62, 4], [0.68, 0.7, 3.5], [0.5, 0.35, 4.5], [0.2, 0.4, 3], [0.78, 0.4, 3.5], [0.42, 0.82, 3], [0.6, 0.2, 4], [0.32, 0.18, 3], [0.85, 0.85, 3]];
+    for (let i = 0; i < Math.min(spots.length, lvl * 3); i++) {
+      const cx = Math.round(spots[i][0] * w), cy = Math.round(spots[i][1] * h), r = spots[i][2] + lvl * 0.5;
+      for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+        const q = ((x + 0.5 - cx) * (x + 0.5 - cx) + (y + 0.5 - cy) * (y + 0.5 - cy)) / (r * r);
+        if (q <= 1) tint(x, y, q < 0.4 ? 0.62 : 0.4, [34, 20, 26]);
+      }
+    }
+    // Cracks down the trunk.
+    const crack = function (pts) { for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i]; const n = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); for (let t = 0; t <= n; t++) tint(Math.round(w * (a[0] + (b[0] - a[0]) * t / n) / 100), Math.round(h * (a[1] + (b[1] - a[1]) * t / n) / 100), 0.85, [26, 14, 20]); } };
+    if (lvl >= 2) { crack([[28, 52], [31, 60], [29, 68], [33, 76]]); crack([[72, 56], [69, 64], [72, 72]]); }
+    if (lvl >= 3) { crack([[44, 50], [47, 56], [45, 62]]); crack([[60, 74], [63, 80], [61, 88]]); }
+    g.putImageData(d, 0, 0);
+    return c;
+  }
   function burrowCanvas(dmg) {
+    if (ASSET.base) return treeBase(dmg);
     const P = new Painter(54, 72);
     const bark = tones('#9a6a4a'), wood = tones('#e8c08a'), leaf = tones('#38b764');
     // Trunk.
@@ -1144,28 +1249,66 @@
     return P.canvas();
   }
 
-  // The Gloom Tower: a crooked spire with a glowing eye, tinted per region.
-  const TOWER_TINT = ['#5a4a7a', '#8a6a5a', '#6a7a9a', '#4a5a4a', '#5a3a3a', '#5a6478', '#6a6a9a', '#3a2a5a'];
+  // The Gloom Tower: a tapered stone keep with battlements, a crystal-tipped spire and a glowing eye, tinted per
+  // region. Bricks are laid in staggered courses and shaded light-left / dark-right; damage cracks the stone and
+  // knocks merlons and bricks out.
+  const TOWER_TINT = ['#6a5a8a', '#9a7a5a', '#7a8aaa', '#5a6a54', '#6a4444', '#5e6a82', '#7a7aa8', '#4a3a6a'];
   function towerCanvas(theme, dmg) {
-    const P = new Painter(54, 80);
+    const W = 64, H = 96, P = new Painter(W, H);
     const T = tones(TOWER_TINT[theme % TOWER_TINT.length]);
-    const glow = ['#ff6bd0', '#ffcd4d', '#73eff7', '#a7f070', '#ef7d57', '#ff5a5a', '#ffe066', '#ff6bd0'][theme % 8];
-    P.tri(6, 80, 48, 80, 27, 8, T.base);
-    P.tri(6, 80, 22, 80, 27, 8, T.dark);
-    P.tri(34, 80, 48, 80, 27, 8, T.light);
-    for (let y = 24; y < 80; y += 8) P.line(14 + (80 - y) * 0.05, y, 40 - (80 - y) * 0.05, y + 1, T.deep);
-    // Spikes.
-    P.tri(9, 50, 13, 46, 2, 40, T.dark); P.tri(41, 50, 45, 46, 52, 38, T.light); P.tri(12, 68, 16, 64, 3, 60, T.dark); P.tri(38, 68, 42, 64, 51, 58, T.light);
+    const glow = ['#ff6bd0', '#ffcd4d', '#73eff7', '#a7f070', '#ef7d57', '#ff5a5a', '#ffe066', '#c08aff'][theme % 8];
+    const lvl = Math.round(dmg * 3);
+    const cx = 32, top = 30, bot = H;
+    const half = (y) => 13 + (y - top) * 0.11;  // half-width of the keep at row y
+    const mortar = mix(T.deep, '#000000', 0.15);
+    // Keep body: staggered brick courses.
+    for (let y = top; y < bot; y++) {
+      const hw = Math.round(half(y)), row = Math.floor((y - top) / 6), inRow = (y - top) % 6;
+      for (let x = cx - hw; x < cx + hw; x++) {
+        const rel = (x - (cx - hw)) / (2 * hw);
+        const off = row % 2 ? 4 : 0;
+        const joint = ((x - (cx - hw) + off) % 9) === 0;
+        let c = rel < 0.22 ? T.light : rel > 0.7 ? T.dark : T.base;
+        if (inRow === 5 || joint) c = mortar;
+        else if (inRow === 0 && rel < 0.7) c = mix(c, '#ffffff', 0.12);
+        P.set(x, y, c);
+      }
+    }
+    // Battlements.
+    const bw = Math.round(half(top)) + 3;
+    P.rect(cx - bw, top - 4, bw * 2, 4, T.base); P.rect(cx - bw, top - 4, bw * 2, 1, T.light); P.rect(cx - bw, top - 1, bw * 2, 1, mortar);
+    for (let i = 0; i < 4; i++) {
+      if (lvl >= 3 && i === 3) continue;
+      const mx = cx - bw + 1 + i * Math.round((bw * 2 - 6) / 3);
+      P.rect(mx, top - 9, 5, 5, i < 2 ? T.base : T.dark); P.rect(mx, top - 9, 5, 1, T.light);
+    }
+    // Spire roof and crystal.
+    P.tri(cx - 11, top - 9, cx + 11, top - 9, cx, 8, T.deep);
+    P.tri(cx - 11, top - 9, cx, top - 9, cx, 8, mix(T.deep, '#ffffff', 0.12));
+    P.tri(cx - 3, 9, cx + 3, 9, cx, -1, glow);
+    P.tri(cx - 3, 9, cx, 9, cx, -1, mix(glow, '#ffffff', 0.45));
+    P.tri(cx - 3, 9, cx + 3, 9, cx, 14, mix(glow, '#1a0a2a', 0.45));
+    // Side thorns.
+    for (const [y, l] of [[46, 7], [64, 8], [82, 9]]) {
+      const hw = Math.round(half(y));
+      P.tri(cx - hw, y - 3, cx - hw, y + 3, cx - hw - l, y - 4, T.dark);
+      P.tri(cx + hw, y - 3, cx + hw, y + 3, cx + hw + l, y - 4, T.deep);
+    }
     // Eye.
-    P.ell(27, 38, 7, 5, '#1a0a2a'); P.ell(27, 38, 5, 3.6, glow); P.ell(27.5, 38, 1.6, 3, '#1a0a2a');
-    P.line(19, 31, 34, 33, '#1a0a2a');
-    // Crystal.
-    P.tri(23, 10, 31, 10, 27, -1, glow); P.tri(23, 10, 27, 10, 27, -1, mix(glow, '#ffffff', 0.4)); P.tri(24, 10, 30, 10, 27, 16, mix(glow, '#1a0a2a', 0.4));
-    // Gate.
-    P.ell(27, 72, 6, 7, '#1a0a2a'); P.rect(21, 72, 12, 8, '#1a0a2a');
-    for (let x = 23; x < 32; x += 3) P.rect(x, 66, 1, 14, T.deep);
-    if (dmg > 0.33) { P.line(15, 50, 20, 58, '#140a1e'); P.line(20, 58, 17, 64, '#140a1e'); }
-    if (dmg > 0.66) { P.line(37, 26, 33, 34, '#140a1e'); P.line(36, 56, 40, 66, '#140a1e'); P.tri(40, 18, 46, 24, 44, 14, null); }
+    P.ell(cx, 50, 9, 6, '#1a0a2a');
+    P.ell(cx, 50, 7, 4.2, glow);
+    P.ell(cx - 1.5, 49, 2.5, 1.6, mix(glow, '#ffffff', 0.55));
+    P.ell(cx + 0.5, 50.5, 1.8, 3.4, '#1a0a2a');
+    P.rect(cx - 9, 43, 18, 2, '#1a0a2a');
+    // Gate with portcullis.
+    P.ell(cx, 84, 7, 8, '#140a1e'); P.rect(cx - 7, 84, 14, 12, '#140a1e');
+    for (let x = cx - 5; x <= cx + 5; x += 3) P.rect(x, 78, 1, 18, mix(T.dark, '#000000', 0.2));
+    P.rect(cx - 7, 86, 14, 1, mix(T.dark, '#000000', 0.2));
+    // Battle damage: cracks and knocked-out bricks.
+    const crack = (pts) => { for (let i = 1; i < pts.length; i++) P.line(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], '#140a1e'); };
+    if (lvl >= 1) { crack([[22, 60], [25, 66], [23, 72]]); P.rect(38, 68, 4, 3, T.deep); }
+    if (lvl >= 2) { crack([[40, 34], [37, 40], [39, 46]]); crack([[44, 76], [41, 82]]); P.rect(20, 38, 4, 3, T.deep); P.rect(26, 88, 4, 3, T.deep); }
+    if (lvl >= 3) { crack([[30, 58], [27, 64], [29, 70], [26, 76]]); P.rect(34, 36, 5, 3, null); P.tri(cx + 4, top - 9, cx + 11, top - 9, cx + 9, top - 15, null); }
     P.outline('#0a0614');
     return P.canvas();
   }
@@ -1187,8 +1330,73 @@
     return P.canvas();
   }
 
+  // Hand-drawn icons: one character per pixel ('.' is empty), offset so the outline fits the 16×16 canvas.
+  function pix(P, rows, pal, ox, oy) {
+    for (let y = 0; y < rows.length; y++) for (let x = 0; x < rows[y].length; x++) { const c = pal[rows[y][x]]; if (c) P.set(x + (ox || 0), y + (oy || 0), c); }
+  }
+  const STAR = [
+    '......L......',
+    '.....LHB.....',
+    '.....LHB.....',
+    '....LLHBB....',
+    'LLLLLLHBBBBBB',
+    '.BBLLLLBBBDD.',
+    '..BBLLLBBDD..',
+    '...BBLBBBD...',
+    '...BBBBDDD...',
+    '..BBBB.BDDD..',
+    '..BBB...DDD..',
+    '.BBB.....DDD.',
+    '.BB.......DD.'
+  ];
+  const COIN = [
+    '...OOOOOO...',
+    '..OLLLLLBO..',
+    '.OLHLLLBBDO.',
+    'OLHLLEELBBDO',
+    'OLLLEBBELBDO',
+    'OLLLEBBEBBDO',
+    'OLLLEBBEBBDO',
+    'OLLLEBBEBBDO',
+    'OLLBLEEBBBDO',
+    '.OLBBBBBBDO.',
+    '..OBBBBDDO..',
+    '...OOOOOO...'
+  ];
+  const SPEAKER = [
+    '.......#......',
+    '......##......',
+    '.....###......',
+    '....####......',
+    '########......',
+    '#HHH####......',
+    '#H######......',
+    '#H######......',
+    '########......',
+    '########......',
+    '....####......',
+    '.....###......',
+    '......##......',
+    '.......#......'
+  ];
+  const WAVES = [
+    '..............',
+    '..............',
+    '...........#..',
+    '............#.',
+    '.........#..#.',
+    '..........#..#',
+    '..........#..#',
+    '..........#..#',
+    '..........#..#',
+    '.........#..#.',
+    '............#.',
+    '...........#..',
+    '..............',
+    '..............'
+  ];
   const ICONS = {
-    coin: (P) => { const T = tones('#ffcd4d'); P.ball(8, 8, 6, 6, T); P.ell(8, 8, 3.6, 3.6, T.dark); P.ell(8, 8, 2.8, 2.8, T.base); P.rect(7, 5, 2, 6, T.light); },
+    coin: (P) => pix(P, COIN, { O: '#c8862a', L: '#ffe58a', H: '#fffbe0', B: '#ffcd4d', D: '#e8962a', E: '#d8902a' }, 2, 2),
     gem: (P) => { P.tri(2, 6, 14, 6, 8, 15, '#41a6f6'); P.rect(4, 3, 8, 3, '#73eff7'); P.tri(2, 6, 4, 3, 4, 6, '#73eff7'); P.tri(12, 3, 14, 6, 12, 6, '#3b5dc9'); P.tri(5, 6, 11, 6, 8, 13, '#9ff6ff'); P.set(5, 4, '#ffffff'); },
     silver: (P) => { const T = tones('#c9d2e3'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.ell(10, 8, 1, 1, '#94b0c2'); },
     gold: (P) => { const T = tones('#ffcd4d'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.rect(3, 9, 11, 1, '#ef7d57'); },
@@ -1196,14 +1404,26 @@
     fruit: (P) => { const T = tones('#ffcd4d'); P.ball(8, 9, 5.5, 5.5, T); P.line(8, 4, 9, 1, '#8a5a3a'); P.ell(11, 2.5, 2.2, 1.2, '#38b764'); for (const [x, y] of [[6, 7], [10, 10], [7, 12]]) P.set(x, y, '#fff6c8'); P.set(5, 6, '#ffffff'); },
     acorn: (P) => { const T = tones('#c8804a'); P.ball(8, 10, 4.6, 5, T); P.ell(8, 5.5, 5.5, 2.6, '#7a5a3a'); for (let x = 4; x < 13; x += 2) P.set(x, 5, '#5a3a2a'); P.line(8, 3, 9, 1, '#5a3a2a'); },
     pouch: (P) => { const T = tones('#b07a4a'); P.ball(8, 10, 6, 5, T); P.rect(5, 4, 6, 2, T.dark); P.tri(4, 3, 7, 5, 4, 6, T.base); P.tri(12, 3, 9, 5, 12, 6, T.base); P.ell(8, 10, 1.6, 1.6, '#ffcd4d'); },
-    roar: (P) => { P.ell(6, 8, 4, 4, '#ffcd4d'); P.ell(6, 8, 2.4, 2.4, '#ef7d57'); for (let i = 0; i < 3; i++) { P.line(10 + i * 2, 3 + i, 10 + i * 2, 13 - i, i % 2 ? '#ffcd75' : '#ffffff'); } },
+    roar: (P) => pix(P, [
+      '..........##',
+      '........##LL',
+      '......##LLLL',
+      '##..##LLLLHL',
+      'LLGGLLLLLLHL',
+      'BBGGBBBBBBHB',
+      'DDGGBBBBBBBB',
+      '##..##BBBBBB',
+      '......##DDDD',
+      '........##DD',
+      '..........##'
+    ], { '#': '#c8862a', L: '#ffe58a', H: '#fffbe0', B: '#ffcd4d', D: '#e8962a', G: '#ef7d57' }, 2, 3),
     charge: (P) => { P.tri(9, 1, 3, 9, 8, 9, '#ffcd4d'); P.tri(7, 7, 13, 7, 6, 15, '#ffcd4d'); P.line(9, 2, 5, 8, '#fff0b0'); },
     burrow: (P) => { P.ball(8, 6, 6, 4, tones('#38b764')); P.rect(4, 8, 8, 7, '#9a6a4a'); P.ell(8, 12, 2, 2.5, '#5a3a2a'); P.rect(6, 12, 4, 3, '#5a3a2a'); },
     train: (P) => { P.rect(1, 7, 3, 3, '#566c86'); P.rect(12, 7, 3, 3, '#566c86'); P.rect(3, 5, 2, 7, '#94b0c2'); P.rect(11, 5, 2, 7, '#94b0c2'); P.rect(5, 8, 6, 1, '#c9d2e3'); },
     clock: (P) => { P.ball(8, 8, 6, 6, tones('#f4f4f4')); P.line(8, 8, 8, 4, INK); P.line(8, 8, 11, 9, INK); P.rect(7, 1, 2, 1, '#ef7d57'); },
     start: (P) => { P.tri(3, 2, 13, 8, 3, 14, '#a7f070'); P.tri(4, 4, 9, 8, 4, 12, '#d6ffb8'); },
-    star: (P) => { P.tri(8, 0, 11, 6, 5, 6, '#ffcd4d'); P.tri(1, 6, 15, 6, 8, 11, '#ffcd4d'); P.tri(8, 9, 3, 15, 5, 8, '#ffcd4d'); P.tri(8, 9, 13, 15, 11, 8, '#ffcd4d'); P.set(8, 4, '#fff6c8'); },
-    starOff: (P) => { P.tri(8, 0, 11, 6, 5, 6, '#333c57'); P.tri(1, 6, 15, 6, 8, 11, '#333c57'); P.tri(8, 9, 3, 15, 5, 8, '#333c57'); P.tri(8, 9, 13, 15, 11, 8, '#333c57'); },
+    star: (P) => pix(P, STAR, { H: '#fffbe0', L: '#ffe58a', B: '#ffcd4d', D: '#e8962a' }, 1, 1),
+    starOff: (P) => pix(P, STAR, { H: '#6a7498', L: '#545e82', B: '#434c6e', D: '#333a58' }, 1, 1),
     rush: (P) => { ICONS.acorn(P); P.line(13, 2, 13, 7, '#ffcd4d'); P.line(11, 4, 15, 4, '#ffcd4d'); },
     armor: (P) => { P.tri(2, 3, 14, 3, 8, 15, '#94b0c2'); P.rect(2, 2, 12, 3, '#c9d2e3'); P.tri(4, 5, 8, 5, 8, 12, '#c9d2e3'); },
     charm: (P) => { for (const [x, y] of [[5, 5], [11, 5], [5, 10], [11, 10]]) P.ball(x, y, 3, 3, tones('#38b764')); P.line(8, 9, 10, 15, '#257179'); },
@@ -1218,8 +1438,23 @@
     lab: (P) => { P.rect(6, 1, 4, 5, '#dff6ff'); P.ell(8, 11, 5, 4.5, '#dff6ff'); P.ell(8, 12, 4, 3, '#a7f070'); P.set(6, 11, '#ffffff'); P.rect(5, 1, 6, 1, '#9a6a3a'); },
     nest: (P) => { P.ell(8, 12, 7, 3, '#9a6a3a'); for (let x = 2; x < 15; x += 2) P.set(x, 11, '#c8905a'); P.ell(8, 7, 3.6, 4.6, '#ffd36b'); P.set(7, 5, '#ffffff'); },
     gear: (P) => { for (let a = 0; a < 6.28; a += 0.785) P.rect(Math.round(8 + Math.cos(a) * 5.5) - 1, Math.round(8 + Math.sin(a) * 5.5) - 1, 3, 3, '#94b0c2'); P.ball(8, 8, 4.5, 4.5, tones('#94b0c2')); P.ell(8, 8, 1.6, 1.6, INK); },
-    sound: (P) => { P.rect(2, 6, 3, 4, '#f4f4f4'); P.tri(5, 6, 9, 2, 9, 14, '#f4f4f4'); P.line(11, 5, 11, 11, '#f4f4f4'); P.line(13, 3, 13, 13, '#f4f4f4'); },
-    lock: (P) => { P.ell(8, 5, 3.5, 3.5, '#9aa3b2'); P.ell(8, 5, 2, 2, null); P.rect(3, 7, 10, 7, '#ffcd4d'); P.rect(3, 7, 10, 1, '#fff0b0'); P.rect(7, 9, 2, 3, '#7a5a20'); },
+    sound: (P) => { pix(P, SPEAKER, { '#': '#f4f4f4', H: '#ffffff' }, 1, 1); pix(P, WAVES, { '#': '#f4f4f4' }, 1, 1); },
+    soundOff: (P) => { pix(P, SPEAKER, { '#': '#b8c0d0', H: '#d8dee8' }, 1, 1); for (let i = 0; i < 12; i++) { P.set(2 + i, 13 - i, '#ff5a5a'); P.set(3 + i, 13 - i, '#e03a4a'); } },
+    lock: (P) => pix(P, [
+      '...####...',
+      '..#SSSS#..',
+      '.#S#..#S#.',
+      '.#S#..#S#.',
+      '.#S#..#S#.',
+      '##########',
+      '#LLLLLLLL#',
+      '#LBBBBBBB#',
+      '#LBBKKBBB#',
+      '#LBBKKBBD#',
+      '#LBBBKBBD#',
+      '#BBBBBBDD#',
+      '##########'
+    ], { '#': '#8a5a10', S: '#c9d2e3', L: '#ffe58a', B: '#ffcd4d', D: '#e8962a', K: '#5a3a10' }, 3, 1),
     heart: (P) => { P.ell(5, 6, 3.4, 3.4, '#e04848'); P.ell(11, 6, 3.4, 3.4, '#e04848'); P.tri(2, 7, 14, 7, 8, 14, '#e04848'); P.set(4, 4, '#ffb0b0'); P.set(5, 4, '#ff8a8a'); },
     sword: (P) => { P.line(3, 13, 12, 4, '#e8f0ff'); P.line(4, 13, 13, 4, '#9aa8c0'); P.line(12, 3, 13, 3, '#ffffff'); P.line(2, 10, 6, 14, '#b07a4a'); P.rect(2, 13, 2, 2, '#ffcd4d'); },
     boot: (P) => { P.rect(5, 2, 5, 8, '#b07a4a'); P.rect(5, 9, 9, 4, '#b07a4a'); P.rect(5, 12, 9, 2, '#5a3420'); P.rect(5, 2, 5, 1, '#e8b07a'); P.line(1, 6, 3, 6, '#ffffff'); P.line(0, 9, 3, 9, '#ffffff'); },
@@ -1528,10 +1763,23 @@
     return c;
   }
 
+  // A sprite cropped to its visible pixels (for portraits that should fill their frame).
+  function trimmed(name) {
+    const key = name + '#t';
+    if (cache[key]) return cache[key];
+    const src = get(name), w = src.width, h = src.height;
+    const d = src.getContext('2d').getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    let c = src;
+    if (x1 >= 0) { c = makeCanvas(x1 - x0 + 1, y1 - y0 + 1); c.getContext('2d').drawImage(src, -x0, -y0); }
+    cache[key] = c;
+    return c;
+  }
   const urlCache = {};
   function url(name) {
     if (urlCache[name]) return urlCache[name];
-    const c = get(name);
+    const c = /#t$/.test(name) ? trimmed(name.slice(0, -2)) : get(name);
     urlCache[name] = c ? c.toDataURL() : '';
     return urlCache[name];
   }
@@ -1544,5 +1792,5 @@
   function heroImg(id, form, scale, cls) { return img('hero_' + id + '_' + (form || 0) + '_0', scale, cls); }
   function enemyImg(id, scale, cls) { return img('enemy_' + id + '_0', scale, cls); }
 
-  root.AWSprites = { PAL, tones, mix, RARITY_HEX, get, url, img, heroImg, enemyImg, setContent, HERO_ART, ENEMY_ART, ICONS: Object.keys(ICONS), installFrames, pixelText, textUrl, textImg };
+  root.AWSprites = { PAL, tones, mix, RARITY_HEX, get, url, trimmed, asset, loadAssets, img, heroImg, enemyImg, setContent, HERO_ART, ENEMY_ART, ICONS: Object.keys(ICONS), installFrames, pixelText, textUrl, textImg };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

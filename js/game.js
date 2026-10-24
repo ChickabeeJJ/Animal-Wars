@@ -69,6 +69,15 @@
     return SPR.textImg(String(text).toUpperCase(), scale || 3, { size: size || 8, fill: P.fill, shadow: P.shadow, outline: '#1a0f12' }, cls);
   }
   function rarFrame(r) { return 'fx-rar' + r; }
+  // Portraits at the largest whole-number scale that fits a box, so every art pixel stays square and even.
+  // cap keeps lists even: small heroes are not blown up past the scale the others get.
+  function fitImg(name, maxW, maxH, cls, cap) {
+    const c = SPR.trimmed(name);
+    const k = Math.max(1, Math.min(cap || 2, Math.floor(Math.min(maxW / c.width, maxH / c.height) + 0.2)));
+    return '<img class="px fit ' + (cls || '') + '" src="' + SPR.url(name + '#t') + '" style="width:' + c.width * k + 'px;height:' + c.height * k + 'px" alt="">';
+  }
+  function heroFit(id, form, maxW, maxH, cls, cap) { return fitImg('hero_' + id + '_' + (form || 0) + '_0', maxW, maxH, cls, cap); }
+  function enemyFit(id, maxW, maxH, cls, cap) { return fitImg('enemy_' + id + '_0', maxW, maxH, cls, cap); }
 
   function toast(html, cls, ms) {
     const t = document.createElement('div');
@@ -77,6 +86,38 @@
     $('toasts').appendChild(t);
     while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
     setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 250); }, ms || 2400);
+  }
+
+  // Locked features: a small popover anchored to what was tapped, saying what unlocks it.
+  let lockTimer = 0;
+  function lockTip(el, text) {
+    AU.deny();
+    const tip = $('locktip'), app = $('app').getBoundingClientRect(), r = el.getBoundingClientRect();
+    tip.innerHTML = icon('lock') + '<span>' + text + '</span>';
+    tip.hidden = false; tip.classList.remove('show', 'below');
+    const tw = tip.offsetWidth, th = tip.offsetHeight, cx = r.left + r.width / 2 - app.left;
+    const x = Math.max(6, Math.min(app.width - tw - 6, cx - tw / 2));
+    let y = r.top - app.top - th - 12;
+    if (y < 6) { y = r.bottom - app.top + 12; tip.classList.add('below'); }
+    tip.style.left = Math.round(x) + 'px'; tip.style.top = Math.round(y) + 'px';
+    tip.style.setProperty('--ax', Math.round(Math.max(16, Math.min(tw - 16, cx - x))) + 'px');
+    void tip.offsetWidth; tip.classList.add('show');
+    clearTimeout(lockTimer); lockTimer = setTimeout(hideLockTip, 2600);
+  }
+  function hideLockTip() { $('locktip').hidden = true; }
+  // "Clear stage 1-3" for a number of cleared story stages.
+  function stageReq(n) { return 'Clear stage ' + (Math.floor((n - 1) / 12) + 1) + '-' + ((n - 1) % 12 + 1); }
+
+  // Pixel labels never spill out of their button: if one is too wide it is redrawn smaller.
+  function fitLabels(root) {
+    (root || document).querySelectorAll('[class*="fx-btn-"] .blbl img.ptxt').forEach((img) => {
+      const btn = img.closest('[class*="fx-btn-"]');
+      if (!btn || !btn.offsetWidth) return;
+      const cs = getComputedStyle(btn), room = btn.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 2;
+      if (img.offsetWidth <= room) return;
+      const w = parseFloat(img.style.width), h = parseFloat(img.style.height);
+      if (h > 9) { img.style.width = (w / 2) + 'px'; img.style.height = (h / 2) + 'px'; }
+    });
   }
 
   // Short screen fade between modes.
@@ -151,7 +192,7 @@
     if (!n) return icon('crown') + 'Every land is free! Try Hard mode and the Tower.';
     for (const h of CT.HEROES) {
       if (h.rarity === 0 && h.unlock && !state.heroes[h.id] && (h.unlock[0] > n.r || (h.unlock[0] === n.r && h.unlock[1] >= n.i))) {
-        return SPR.heroImg(h.id, 0, 1) + 'Clear ' + (h.unlock[0] + 1) + '-' + (h.unlock[1] + 1) + ' to recruit ' + esc(h.names[0]) + '!';
+        return heroFit(h.id, 0, 48, 28) + 'Clear ' + (h.unlock[0] + 1) + '-' + (h.unlock[1] + 1) + ' to recruit ' + esc(h.names[0]) + '!';
       }
     }
     if (AW.storyCleared(state) < 3) return icon('nest') + 'Clear 1-3 to open the Hatchery';
@@ -166,17 +207,18 @@
     $('prank-fill').style.width = (rk.frac * 100) + '%';
     const lead = leadHero();
     $('avatar').className = 'avatar ' + rarFrame(AW.HERO[lead].rarity);
-    $('avatar').innerHTML = SPR.heroImg(lead, state.heroes[lead] ? state.heroes[lead].form : 0, 2);
+    $('avatar').innerHTML = heroFit(lead, state.heroes[lead] ? state.heroes[lead].form : 0, 40, 36);
     if (!$('logo').firstChild) $('logo').innerHTML = title('Animal', 4, 'cream') + '<div class="paws">' + icon('paw') + icon('paw') + icon('paw') + '</div>' + title('Wars', 7, 'gold');
     $('goal').innerHTML = nextGoal();
     const n = nextStory();
     $('battle-t').innerHTML = title('Battle!', 4, 'cream');
     $('next-stage').innerHTML = n ? esc(stageLabel(n) + '  ' + n.name) : 'Hard mode is open!';
     $('btn-battle').classList.toggle('pulse', AW.storyCleared(state) < 4);
-    if (!$('hatch-egg').firstChild) $('hatch-egg').innerHTML = SPR.img('egg_3', 2);
+    if (!$('hatch-egg').firstChild) $('hatch-egg').innerHTML = icon('gold');
     renderQuests();
     renderSide();
     updateBadges();
+    requestAnimationFrame(() => fitLabels($('home')));
   }
 
   function curPills(small) {
@@ -204,19 +246,23 @@
 
   function renderSide() {
     const t = now(), out = [];
-    const sb = (id, ic, label, sub, ready) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + '" data-side="' + id + '"><span class="sbi fx-btn-' + (ready ? 'gold' : 'wood') + '">' + icon(ic) + '</span><span class="sbl">' + label + '</span><span class="sbt">' + sub + '</span></button>');
+    const sb = (id, ic, label, sub, ready, lock) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + (lock ? ' locked' : '') + '" data-side="' + id + '"' + (lock ? ' data-lock="' + esc(lock) + '"' : '') + '><span class="sbi fx-btn-' + (lock ? 'dark' : ready ? 'gold' : 'wood') + '">' + icon(ic) + (lock ? '<span class="nlk">' + icon('lock') + '</span>' : '') + '</span><span class="sbl">' + label + '</span><span class="sbt">' + sub + '</span></button>');
     if (AW.storyCleared(state) >= 1) {
       const lr = AW.loginReady(state, t);
       sb('login', 'gift', 'Daily Gift', lr ? 'Claim!' : timeLeft(nextMidnight() - t), lr);
       const fp = AW.farmPending(state, t);
       sb('farm', 'farm', 'Acorn Farm', fp.coins ? '+' + fmt(fp.coins) : 'Growing', fp.hours >= 1);
     }
-    if (AW.storyCleared(state) >= 3) { const fe = AW.freeEggReady(state, t); sb('egg', 'silver', 'Free Egg', fe ? 'Ready!' : timeLeft(state.gacha.freeAt - t), fe); }
-    if (AW.storyCleared(state) >= 12) sb('tower', 'tower', 'Tower', 'Floor ' + (state.tower + 1), false);
+    const sc = AW.storyCleared(state);
+    if (sc >= 3) { const fe = AW.freeEggReady(state, t); sb('egg', 'silver', 'Free Egg', fe ? 'Ready!' : timeLeft(state.gacha.freeAt - t), fe); }
+    else if (sc >= 1) sb('egg', 'silver', 'Free Egg', 'Locked', false, stageReq(3) + ' to unlock free eggs');
+    if (sc >= 12) sb('tower', 'tower', 'Tower', 'Floor ' + (state.tower + 1), false);
+    else if (sc >= 1) sb('tower', 'tower', 'Tower', 'Locked', false, stageReq(12) + ' to unlock the Gloom Tower');
     $('side').innerHTML = out.join('');
     $('side').querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => {
-      AU.click();
+      if (!b.getAttribute('data-lock')) AU.click();
       const k = b.getAttribute('data-side');
+      if (b.getAttribute('data-lock')) { lockTip(b, b.getAttribute('data-lock')); return; }
       if (k === 'login') { if (AW.loginReady(state, now())) loginPrompt(); else openPanel('rewards'); }
       else if (k === 'farm') openPanel('rewards');
       else if (k === 'egg') openPanel('hatch');
@@ -249,9 +295,12 @@
     document.querySelectorAll('.nav [data-go]').forEach((b) => {
       const k = b.getAttribute('data-go'), n = c[k] || 0, el = b.querySelector('.badge');
       el.hidden = !n; el.textContent = n > 9 ? '9+' : n;
-      // Locked features stay greyed out until they unlock.
+      // Locked features show a padlock; tapping one says what unlocks it.
       const locked = AW.storyCleared(state) < NEED[k] && !DEBUG;
-      b.disabled = locked; b.title = locked ? 'Unlocks after stage ' + Math.floor(NEED[k] / 12 + 1) + '-' + (NEED[k] % 12 || 12) : '';
+      if (!b.querySelector('.nlk')) b.insertAdjacentHTML('beforeend', '<span class="nlk">' + icon('lock') + '</span>');
+      b.classList.toggle('locked', locked);
+      b.title = locked ? stageReq(NEED[k]) + ' to unlock' : '';
+      if (locked) el.hidden = true;
     });
   }
 
@@ -297,10 +346,20 @@
     $('cards').innerHTML = battle.slots.map((sl, i) => {
       if (!sl) return '<div class="card empty fx-cardDark"></div>';
       const h = state.heroes[sl.id];
-      return '<button type="button" class="card ' + rarFrame(sl.st.rarity) + '" data-slot="' + i + '" title="' + esc(sl.st.name) + '">' + SPR.heroImg(sl.id, h.form, 2) +
+      return '<button type="button" class="card r' + sl.st.rarity + ' ' + rarFrame(sl.st.rarity) + '" data-slot="' + i + '" title="' + esc(sl.st.name) + '"><i class="cbg"></i><span class="cart"></span>' +
         '<span class="key">' + KEYS[i] + '</span><span class="cost num">' + SPR.img('icon_acorn', 1) + sl.st.cost + '</span><i class="cdv"></i><b class="cds"></b></button>';
     }).join('');
     $('cards').querySelectorAll('.card[data-slot]').forEach((el) => { el._last = ''; el._ready = true; });
+    fitCardArt();
+  }
+  // Card portraits at a whole-number scale that fits the card (re-fitted when the screen size changes).
+  function fitCardArt() {
+    if (!battle) return;
+    $('cards').querySelectorAll('.card[data-slot]').forEach((el) => {
+      const sl = battle.slots[Number(el.getAttribute('data-slot'))], art = el.querySelector('.cart');
+      if (!sl || !art || !el.clientHeight) return;
+      art.innerHTML = heroFit(sl.id, state.heroes[sl.id].form, el.clientWidth - 6, el.clientHeight - 16);
+    });
   }
 
   function tryDeploy(i) {
@@ -329,7 +388,7 @@
         case 'kb': AU.kb(); break;
         case 'die': if (e.side === 1) { AU.pop(); if (e.drop) AU.acorn(); } else AU.heroDown(); break;
         case 'pouch': AU.pouch(); break;
-        case 'roar': AU.roar(); break;
+        case 'roar': AU.roar(); callout('Battle Cry!', e.n ? e.n + (e.n === 1 ? ' hero' : ' heroes') + ' powered up' : 'No heroes on the field!', 'gold'); break;
         case 'wave': AU.wave(); break;
         case 'towerHit': AU.tower(); break;
         case 'status': if (e.k === 'freeze') AU.freeze(); break;
@@ -386,9 +445,11 @@
     pb.classList.toggle('max', pmax);
     pb.style.setProperty('--p', pmax ? 1 : Math.min(1, b.pouch.acorns / AW.pouchCost(b.pouch.lvl)));
     const rb = $('btn-roar'), ready = b.roar.charge >= 1 && b.state === 'play';
-    rb.style.setProperty('--p', b.roar.charge);
-    rb.classList.toggle('ready', ready);
-    $('roar-t').textContent = ready ? 'READY!' : Math.floor(b.roar.charge * 100) + '%';
+    const active = b.roar.left > 0;
+    rb.style.setProperty('--p', active ? b.roar.left / b.roar.dur : b.roar.charge);
+    rb.classList.toggle('ready', ready && !active);
+    rb.classList.toggle('active', active);
+    $('roar-t').textContent = active ? Math.ceil(b.roar.left) + 's' : ready ? 'READY!' : Math.floor(b.roar.charge * 100) + '%';
     const cards = $('cards').children;
     for (let i = 0; i < cards.length; i++) {
       const sl = b.slots[i], el = cards[i];
@@ -428,8 +489,8 @@
     if (s === 'deploy') pointAt($('cards').children[0], 'Tap Pip to send him into battle!');
     else if (s === 'pouchWait') { $('tut').hidden = true; if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
     else if (s === 'pouch') pointAt($('btn-pouch'), 'Upgrade your pouch to earn acorns faster!');
-    else if (s === 'roarWait' || s === 'watchRoar') { $('tut').hidden = true; if (b.roar.charge >= 1 && b.ents.some((e) => e.side === 1 && e.state !== 'dead' && e.x < 260)) tutorial.step = 'roar'; }
-    else if (s === 'roar') pointAt($('btn-roar'), 'Mega Roar is ready! Blast the Gloom back!');
+    else if (s === 'roarWait' || s === 'watchRoar') { $('tut').hidden = true; if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
+    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Power up every hero on the field!');
   }
 
   function pause(on) {
@@ -438,7 +499,7 @@
     if (on) {
       PF.gameplayStop();
       openModal('Paused', settingsToggles() +
-        '<p class="tip-line">Drag the battlefield to look around · 1-0 deploy · E pouch · R roar · F speed</p>',
+        '<p class="tip-line">Drag the battlefield to look around · 1-0 deploy · E pouch · R Battle Cry · F speed</p>',
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
         () => { paused = false; PF.gameplayStart(); });
       bindToggles();
@@ -463,7 +524,7 @@
 
   function defeatPrompt() {
     AU.play('home');
-    openModal('', '<div class="res-head">' + title('Defeat', 5, 'gray', 8, 'result-title lose') + '</div><p style="text-align:center">Your burrow fell! Watch an ad for a <b>Second Wind</b>: your burrow is restored to 60%, every enemy is blown back and Mega Roar is charged.</p>',
+    openModal('', '<div class="res-head">' + title('Defeat', 5, 'gray', 8, 'result-title lose') + '</div><p style="text-align:center">Your burrow fell! Watch an ad for a <b>Second Wind</b>: your burrow is restored to 60%, every enemy is blown back and Battle Cry is charged.</p>',
       [['No thanks', 'gray', () => { closeModal(); finishAndShow(); }], ['Second Wind', 'gold ad', () => {
         PF.rewarded((ok) => {
           if (ok && AW.revive(battle)) { closeModal(); ended = false; endT = 0; AU.play('battle'); PF.gameplayStart(); toast('<b>Second Wind!</b> Back into the fight', 'green'); }
@@ -498,7 +559,7 @@
     if (res.fruit) loot.push(lootTile('fruit', '+' + res.fruit, 'star fruit', true));
     res.items.forEach((it) => loot.push(lootTile(it, '+1', CT.ITEMS.find((x) => x.id === it).name, true)));
     if (loot.length) html += '<div class="loot">' + loot.join('') + '</div>';
-    res.unlocked.forEach((id) => { html += '<div class="loot"><div class="lt ' + rarFrame(0) + ' new" style="flex-direction:row;gap:10px;padding:2px 10px">' + SPR.heroImg(id, 0, 2) + '<span>' + esc(AW.HERO[id].names[0]) + ' joined your army!</span></div></div>'; });
+    res.unlocked.forEach((id) => { html += '<div class="loot"><div class="lt ' + rarFrame(0) + ' new" style="flex-direction:row;gap:10px;padding:2px 10px">' + heroFit(id, 0, 72, 48) + '<span>' + esc(AW.HERO[id].names[0]) + ' joined your army!</span></div></div>'; });
     if (res.regionClear) html += '<p class="tip-line"><b>' + esc(CT.REGIONS[def.r].name) + ' is free!</b> ' + (def.d === 0 && def.r < 7 ? esc(CT.REGIONS[def.r + 1].name) + ' and Hard mode are open.' : 'The next difficulty is open.') + '</p>';
     if (!won) html += '<p class="tip-line">' + defeatTip() + '</p>';
     const acts = [];
@@ -514,7 +575,7 @@
   }
 
   function defeatTip() {
-    const tips = ['Level up your heroes in the Army.', 'Upgrade the Lab: Training Grounds makes every hero stronger.', 'Hatch eggs for stronger heroes.', 'Keep cheap walls like Pip and Shelly coming while saving for big hitters.', 'Upgrade your pouch early to earn acorns faster.', 'Save Mega Roar for when the Gloom reaches your burrow.'];
+    const tips = ['Level up your heroes in the Army.', 'Upgrade the Lab: Training Grounds makes every hero stronger.', 'Hatch eggs for stronger heroes.', 'Keep cheap walls like Pip and Shelly coming while saving for big hitters.', 'Upgrade your pouch early to earn acorns faster.', 'Use Battle Cry when lots of heroes are on the field: they all hit harder, move faster and take less damage.'];
     return tips[Math.floor(Math.random() * tips.length)];
   }
 
@@ -559,6 +620,7 @@
     modalOnClose = onClose || null;
     $('modal').hidden = false;
     fillIcons($('modal'));
+    fitLabels($('modal'));
   }
   function closeModal() {
     if ($('modal').hidden) return;
@@ -604,11 +666,22 @@
     rerender();
     $('panel-body').scrollTop = 0;
   }
+  // Painted region art in menus: zoomed by a whole number to cover its box (anchored at the ground).
+  function fitBgs(root) {
+    root.querySelectorAll('[data-art]').forEach((el) => {
+      const [w, h] = el.getAttribute('data-art').split('x').map(Number);
+      if (!el.clientWidth) return;
+      const k = Math.max(1, Math.ceil(Math.max(el.clientWidth / w, el.clientHeight / h)));
+      el.style.backgroundSize = w * k + 'px ' + h * k + 'px';
+    });
+  }
   function rerender() {
     if (!panelName) return;
     const top = $('panel-body').scrollTop;
     PANELS[panelName].render($('panel-body'));
     fillIcons($('panel-body'));
+    fitLabels($('panel-body'));
+    fitBgs($('panel-body'));
     renderCurrencies();
     $('panel-body').scrollTop = top;
   }
@@ -666,11 +739,11 @@
     }).join('') + '</div><span class="grow"></span><span class="sub">' + icon('star') + ' <b>' + AW.totalStars(state) + '</b> stars</span></div>';
     h += '<div class="regions">' + CT.REGIONS.map((Rg, i) => {
       const open = AW.regionOpen(state, d, i);
-      return '<button type="button" data-region="' + i + '" class="rg fx-cardDark' + (i === r ? ' on' : '') + (open ? '' : ' locked') + '"><span class="rgi" style="background-image:url(' + R.themeArt(Rg.theme, 132, 58, false) + ')"></span>' +
-        (open ? '<span class="rgs">' + AW.regionStars(state, d, i) + '★</span>' : '<span class="lk">' + icon('lock') + '</span>') + '<span class="rgn">' + (i + 1) + '. ' + esc(Rg.name) + '</span></button>';
+      return '<button type="button" data-region="' + i + '" class="rg fx-cardDark' + (i === r ? ' on' : '') + (open ? '' : ' locked') + '"><span class="rgi" data-art="160x60" style="background-image:url(' + R.themeArt(Rg.theme, 160, 60, false) + ')"></span>' +
+        '<span class="rgk">' + (i + 1) + '</span>' + (open ? '<span class="rgs">' + SPR.img('icon_star', 1) + AW.regionStars(state, d, i) + '</span>' : '<span class="lk">' + icon('lock') + '</span>') + '<span class="rgn">' + esc(Rg.name) + '</span></button>';
     }).join('') + '</div>';
     const pts = ROAD.map((p) => p[0] + ',' + p[1]).join(' ');
-    h += '<div class="mapscroll"><div class="mapview" style="background-image:url(' + R.themeArt(R0.theme, 480, 200, true) + ')">' +
+    h += '<div class="mapscroll"><div class="mapview" data-art="480x200" style="background-image:url(' + R.themeArt(R0.theme, 480, 200, true) + ')">' +
       '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="#2a160c" vector-effect="non-scaling-stroke" stroke-linejoin="round" style="stroke-width:14px"/><polyline points="' + pts + '" fill="none" stroke="#f3e2bc" stroke-dasharray="10 8" vector-effect="non-scaling-stroke" style="stroke-width:6px"/></svg>' +
       '<div class="mv-title">' + title(R0.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + icon('star') + AW.regionStars(state, d, r) + ' / 36</div>';
     for (let i = 0; i < 12; i++) {
@@ -678,7 +751,7 @@
       const cleared = state.clear[d][r] > i, next = open && !cleared;
       const boss = i === 11, brute = i === 5;
       const col = cleared ? 'green' : next ? 'gold' : 'gray';
-      const art = boss ? SPR.enemyImg(R0.boss, 2) : brute ? SPR.enemyImg(R0.pool.c[0], 1) : '';
+      const art = boss ? enemyFit(R0.boss, 96, 64, '', 3) : brute ? enemyFit(R0.pool.c[0], 64, 44) : '';
       h += '<button type="button" class="node sq fx-btn-' + col + (boss ? ' boss' : '') + (next ? ' next' : '') + '" data-stage="' + i + '" style="left:' + ROAD[i][0] + '%;top:' + ROAD[i][1] + '%" title="' + esc(R0.names[i]) + '">' +
         (art ? '<span class="nb">' + art + '</span>' : '') + (open ? (i + 1) : '<span class="lockic">' + SPR.img('icon_lock', 2) + '</span>') +
         (cleared ? '<span class="ns">' + [1, 2, 4].map((m) => '<img class="px" src="' + SPR.url((mask & m) ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span>' : '') + '</button>';
@@ -691,12 +764,12 @@
       return '<button type="button" class="chest fx-card' + (done ? ' done' : ready ? ' pulse' : '') + '" data-chest="' + k + '"' + (ready ? '' : ' data-locked="1"') + '>' + icon('chest') + '<span class="grow"><span class="cr">' + need + '★ chest: ' + rewardText(chestReward(d, r, k)) + (done ? ' ✓' : '') + '</span>' + bar(Math.min(1, stars / need), 'cbar') + '</span></button>';
     }).join('') + '</div>';
     el.innerHTML = h;
-    on(el, '[data-diff]', (b) => { const v = Number(b.getAttribute('data-diff')); if (!AW.regionOpen(state, v, 0)) { toast('Clear ' + CT.REGIONS[0].name + ' on ' + CT.DIFFICULTIES[v - 1].name + ' first', 'pink'); return; } ui.mapDiff = v; rerender(); });
-    on(el, '[data-region]', (b) => { const v = Number(b.getAttribute('data-region')); if (!AW.regionOpen(state, d, v)) { toast('Beat the boss of ' + CT.REGIONS[Math.max(0, v - 1)].name + (d ? ' on ' + CT.DIFFICULTIES[d - 1].name : '') + ' first', 'pink'); return; } ui.mapRegion = v; rerender(); });
-    on(el, '[data-stage]', (b) => { const i = Number(b.getAttribute('data-stage')); if (!AW.stageOpen(state, d, r, i)) { AU.deny(); toast('Clear the stage before it first', 'pink'); return; } openStage(AW.stageDef(d, r, i)); });
+    on(el, '[data-diff]', (b) => { const v = Number(b.getAttribute('data-diff')); if (!AW.regionOpen(state, v, 0)) { lockTip(b, 'Clear all of ' + CT.REGIONS[0].name + ' on ' + CT.DIFFICULTIES[v - 1].name + ' to unlock ' + CT.DIFFICULTIES[v].name); return; } ui.mapDiff = v; rerender(); });
+    on(el, '[data-region]', (b) => { const v = Number(b.getAttribute('data-region')); if (!AW.regionOpen(state, d, v)) { const pr = CT.REGIONS[Math.max(0, v - 1)]; lockTip(b, 'Beat ' + AW.ENEMY[pr.boss].name + ' at ' + v + '-12' + (d ? ' on ' + CT.DIFFICULTIES[d].name : '') + ' to unlock'); return; } ui.mapRegion = v; rerender(); });
+    on(el, '[data-stage]', (b) => { const i = Number(b.getAttribute('data-stage')); if (!AW.stageOpen(state, d, r, i)) { lockTip(b, 'Clear stage ' + (r + 1) + '-' + i + ' first'); return; } openStage(AW.stageDef(d, r, i)); });
     on(el, '[data-chest]', (b) => {
-      if (b.getAttribute('data-locked')) { AU.deny(); return; }
       const k = Number(b.getAttribute('data-chest'));
+      if (b.getAttribute('data-locked')) { if (!state.flags['chest' + d + r + k]) lockTip(b, 'Collect ' + CHEST_TIERS[k] + ' stars in ' + R0.name + ' to open'); return; }
       const rw = chestReward(d, r, k);
       state.flags['chest' + d + r + k] = true; grant(rw); AU.claim(); save();
       toast('Star chest: ' + rewardText(rw), 'green'); rerender();
@@ -716,14 +789,14 @@
   function foesHtml(def) {
     return '<div class="foes">' + foesOf(def).map((f) => {
       const e = AW.ENEMY[f.id], known = state.seen[f.id];
-      return '<div class="foe fx-cardDark' + (f.boss ? ' boss' : '') + '"><span class="fi">' + SPR.enemyImg(f.id, 2, known ? '' : 'unk') + '</span><span>' + (known ? esc(e.name) : '???') + '</span>' + (known ? '<span>' + traitChips(e.traits) + '</span>' : '') + '</div>';
+      return '<div class="foe fx-cardDark' + (f.boss ? ' boss' : '') + '"><span class="fi">' + enemyFit(f.id, 74, 44, known ? '' : 'unk') + '</span><span>' + (known ? esc(e.name) : '???') + '</span>' + (known ? '<span>' + traitChips(e.traits) + '</span>' : '') + '</div>';
     }).join('') + '</div>';
   }
   function itemsHtml() {
-    return '<div class="items">' + CT.ITEMS.map((it) => '<button type="button" class="item fx-card' + (ui.items[it.id] ? ' on' : '') + (state.items[it.id] ? '' : ' none') + '" data-item="' + it.id + '" title="' + esc(it.desc) + '">' + icon(it.id) + '<span><b>' + esc(it.name) + '</b><br><span class="muted">' + esc(it.desc) + '</span></span><span class="ic">×' + state.items[it.id] + '</span></button>').join('') + '</div>';
+    return '<div class="items">' + CT.ITEMS.map((it) => '<button type="button" class="item fx-card' + (ui.items[it.id] ? ' on' : '') + (state.items[it.id] ? '' : ' none') + '" data-item="' + it.id + '" title="' + esc(it.desc) + '">' + icon(it.id) + '<span><b>' + esc(it.name) + '</b><span class="muted">' + esc(it.desc) + '</span></span><span class="ic">×' + state.items[it.id] + '</span></button>').join('') + '</div>';
   }
   function lineupMini() {
-    return '<div class="lineup-mini">' + state.lineup.map((id) => id ? '<span class="lm ' + rarFrame(AW.HERO[id].rarity) + '">' + SPR.heroImg(id, state.heroes[id].form, 1) + '</span>' : '<span class="lm empty fx-cardDark"></span>').join('') + '</div>';
+    return '<div class="lineup-mini">' + state.lineup.map((id) => id ? '<span class="lm ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, state.heroes[id].form, 40, 30) + '</span>' : '<span class="lm empty fx-cardDark"></span>').join('') + '</div>';
   }
 
   function openStage(def) {
@@ -746,7 +819,7 @@
     openModal(label, h, [['Edit lineup', 'wood', () => { closeModal(); openPanel('army'); }], [title('Battle!', 3, 'cream'), 'green pulse', () => startBattle(def, { items: Object.assign({}, ui.items) })]]);
     on($('modal-body'), '[data-item]', (b) => {
       const k = b.getAttribute('data-item');
-      if (!state.items[k]) { toast('Buy boosts in Rewards, or find them in battle', 'pink'); return; }
+      if (!state.items[k]) { lockTip(b, 'You have none yet. Buy boosts in Rewards'); return; }
       ui.items[k] = !ui.items[k]; b.classList.toggle('on', ui.items[k]);
     });
   }
@@ -758,9 +831,9 @@
     let h = '';
     if (AW.welcomeReady(state)) h += '<div class="tile fx-cardHot row"><span>' + SPR.img('egg_3', 2) + '</span><div class="grow"><h4>Welcome gift!</h4><span class="muted">A free ×10 Royal hatch with at least one Epic hero.</span></div><button type="button" class="bt2 fx-btn-gold pulse" id="welcome">Hatch ×10 free</button></div>';
     const fe = [f.legend, f.mythic, f.epic].filter(Boolean);
-    h += '<div class="banner fx-windark"><div class="bn-art">' + (fe[1] ? SPR.heroImg(fe[1], 0, 2, 'fh l') : '') + SPR.img('egg_3', 4, 'egg-big') + (fe[0] ? SPR.heroImg(fe[0], 0, 2, 'fh r') : '') + '</div><div class="bn-info">' +
+    h += '<div class="banner fx-windark"><div class="bn-art">' + (fe[1] ? heroFit(fe[1], 0, 90, 76, 'fh l') : '') + SPR.img('egg_3', 4, 'egg-big') + (fe[0] ? heroFit(fe[0], 0, 90, 76, 'fh r') : '') + '</div><div class="bn-info">' +
       title('Royal Nest', 3, 'gold') + '<p>' + esc(royal.desc) + '</p>' +
-      '<div class="feat">' + fe.map((id) => '<span class="fx-plaque">' + SPR.heroImg(id, 0, 1) + '<b style="color:' + SPR.RARITY_HEX[AW.HERO[id].rarity] + '">' + esc(AW.HERO[id].names[0]) + '</b>&nbsp;RATE UP</span>').join('') + '</div>' +
+      '<div class="feat">' + fe.map((id) => '<span class="fx-plaque">' + heroFit(id, 0, 32, 28) + '<b style="color:' + SPR.RARITY_HEX[AW.HERO[id].rarity] + '">' + esc(AW.HERO[id].names[0]) + '</b>&nbsp;RATE UP</span>').join('') + '</div>' +
       '<div class="pity">Mythic or better within ' + (royal.pity.mythic - state.gacha.sinceMythic) + ' hatches · Legend within ' + (royal.pity.legend - state.gacha.sinceLegend) + '</div>' + bar(state.gacha.sinceMythic / royal.pity.mythic, 'pitybar') +
       '<div class="bn-btns"><button type="button" class="bt2 fx-btn-pink" data-hatch="royal" data-n="1">×1 ' + (state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + royal.cost) + '</button>' +
       '<button type="button" class="bt2 lg fx-btn-gold" data-hatch="royal" data-n="10">×10 ' + (state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + royal.cost10) + '</button></div></div></div>';
@@ -836,7 +909,7 @@
       const def = AW.HERO[r.id];
       rays.style.setProperty('--rc', SPR.RARITY_HEX[r.rarity]);
       rays.classList.toggle('on', r.rarity >= 1);
-      st.innerHTML = '<div class="got">' + SPR.heroImg(r.id, 0, def.look.s >= 36 ? 4 : 6) + '<div class="pedestal"></div></div>';
+      st.innerHTML = '<div class="got">' + heroFit(r.id, 0, 300, Math.min(220, innerHeight * 0.34), '', 8) + '<div class="pedestal"></div></div>';
       if (r.rarity >= 2) sparkles(SPR.RARITY_HEX[r.rarity]);
       info.innerHTML = title(rarityName(r.rarity), 3, RAR_PAL[r.rarity]) + title(def.names[0], 4, 'cream') + '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + (r.isNew ? 'NEW HERO!' : r.plus ? 'Duplicate: +1 level' : '+' + fmt(r.coins) + ' coins') + '</div>';
       AU.reveal(r.rarity);
@@ -851,7 +924,7 @@
     const q = hatchQ;
     if (q.list.length === 1) { endHatch(); return; }
     $('h-rays').classList.remove('on');
-    $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r) => '<div class="hero ' + rarFrame(r.rarity) + '"><div class="hi">' + SPR.heroImg(r.id, 0, 2) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '') + '</div>').join('') + '</div>';
+    $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r) => '<div class="hero ' + rarFrame(r.rarity) + '"><div class="hi">' + heroFit(r.id, 0, 96, 64) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '') + '</div>').join('') + '</div>';
     const best = Math.max.apply(null, q.list.map((r) => r.rarity));
     $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]);
     setBtnText($('h-next'), 'OK'); $('h-skip').hidden = true;
@@ -863,7 +936,7 @@
   function heroLvl(id) { const h = state.heroes[id]; return h.lvl + h.plus; }
   function renderArmy(el) {
     let h = head('army', 'Lineup', swapPick ? 'Tap a slot for <b>' + esc(heroName(swapPick)) + '</b>' : 'Tap a hero to remove it');
-    h += '<div class="shelf fx-inset"><div class="lineup">' + state.lineup.map((id, i) => id ? '<button type="button" class="slot ' + rarFrame(AW.HERO[id].rarity) + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">' + SPR.heroImg(id, state.heroes[id].form, 2) + '<span class="lv">' + heroLvl(id) + '</span></button>' : '<button type="button" class="slot empty fx-cardDark' + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">+</button>').join('') + '</div></div>';
+    h += '<div class="shelf fx-inset"><div class="lineup">' + state.lineup.map((id, i) => id ? '<button type="button" class="slot ' + rarFrame(AW.HERO[id].rarity) + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">' + heroFit(id, state.heroes[id].form, 88, 72) + '<span class="lv">' + heroLvl(id) + '</span></button>' : '<button type="button" class="slot empty fx-cardDark' + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">+</button>').join('') + '</div></div>';
     h += '<div class="row"><div class="seg fx-insetDark">' + [-1, 0, 1, 2, 3, 4].map((r) => '<button type="button" data-filter="' + r + '" class="bt2 sm fx-btn-' + (ui.armyFilter === r ? 'gold' : 'dark') + '">' + (r < 0 ? 'All' : rarityName(r)) + '</button>').join('') + '</div><span class="grow"></span><span class="sub">' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + ' heroes</span><button type="button" class="bt2 sm fx-btn-blue" id="autofill">Auto-fill</button></div>';
     const list = CT.HEROES.filter((d) => ui.armyFilter < 0 || d.rarity === ui.armyFilter).slice().sort((a, b) => {
       const oa = state.heroes[a.id] ? 1 : 0, ob = state.heroes[b.id] ? 1 : 0;
@@ -890,11 +963,11 @@
   }
   function heroTile(d) {
     const h = state.heroes[d.id];
-    if (!h) return '<button type="button" class="hero locked fx-cardDark" data-hero="' + d.id + '"><div class="hi">' + SPR.heroImg(d.id, 0, 2) + '</div><div class="hn" style="color:' + SPR.RARITY_HEX[d.rarity] + '">' + rarityName(d.rarity) + '</div></button>';
+    if (!h) return '<button type="button" class="hero locked fx-cardDark" data-hero="' + d.id + '"><div class="hi">' + heroFit(d.id, 0, 96, 64) + '</div><div class="hn" style="color:' + SPR.RARITY_HEX[d.rarity] + '">' + rarityName(d.rarity) + '</div></button>';
     const inl = state.lineup.indexOf(d.id) >= 0;
     const up = AW.canLevel(state, d.id) || AW.canEvolve(state, d.id);
     return '<button type="button" class="hero ' + rarFrame(d.rarity) + '" data-hero="' + d.id + '">' + (inl ? '<span class="inl">IN</span>' : '') + (up ? '<span class="up"></span>' : '') +
-      '<div class="hi">' + SPR.heroImg(d.id, h.form, 2) + '</div><div class="hn">' + esc(d.names[h.form]) + '</div><span class="hst">' + [0, 1, 2].map((f) => '<img class="px" src="' + SPR.url(f <= h.form ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span><span class="lv">Lv ' + h.lvl + (h.plus ? '+' + h.plus : '') + '</span></button>';
+      '<div class="hi">' + heroFit(d.id, h.form, 96, 64) + '</div><div class="hn">' + esc(d.names[h.form]) + '</div><span class="hst">' + [0, 1, 2].map((f) => '<img class="px" src="' + SPR.url(f <= h.form ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span><span class="lv">Lv ' + h.lvl + (h.plus ? '+' + h.plus : '') + '</span></button>';
   }
   function autoFill() {
     const ids = Object.keys(state.heroes);
@@ -932,11 +1005,11 @@
     const def = AW.HERO[id], own = state.heroes[id];
     const form = own ? own.form : 0;
     const st = AW.heroStats(state, id);
-    let h = '<div class="hd"><div class="hd-art ' + rarFrame(def.rarity) + '"><span class="hd-r fx-ribbon' + (def.rarity >= 3 ? 'Gold' : def.rarity >= 1 ? 'Blue' : '') + '">' + rarityName(def.rarity).toUpperCase() + '</span>' + SPR.heroImg(id, form, def.look.s >= 36 ? 3 : 5, own ? '' : 'unk') + '<div class="pedestal"></div></div><div class="hd-info">';
+    let h = '<div class="hd"><div class="hd-art ' + rarFrame(def.rarity) + '"><span class="hd-r fx-ribbon' + (def.rarity >= 3 ? 'Gold' : def.rarity >= 1 ? 'Blue' : '') + '">' + rarityName(def.rarity).toUpperCase() + '</span>' + heroFit(id, form, 196, innerHeight <= 520 ? 104 : 156, own ? '' : 'unk', 6) + '<div class="pedestal"></div></div><div class="hd-info">';
     h += '<div class="hd-name">' + esc(def.names[form]) + '</div>';
     if (own) {
       h += '<div class="lvbar">Lv ' + own.lvl + (own.plus ? ' <span class="good">+' + own.plus + '</span>' : '') + bar(own.lvl / AW.CONFIG.maxLevel, 'bar') + AW.CONFIG.maxLevel + '</div>';
-      h += '<div class="forms">' + [0, 1, 2].map((f) => '<span class="fx-card' + (f > form ? ' lock' : '') + '" title="' + esc(def.names[f]) + '">' + SPR.heroImg(id, f, 1) + (f === form ? '▲' : '') + '</span>').join('') + '</div>';
+      h += '<div class="forms">' + [0, 1, 2].map((f) => '<span class="fx-card' + (f > form ? ' lock' : '') + '" title="' + esc(def.names[f]) + '">' + heroFit(id, f, 44, 36) + (f === form ? '▲' : '') + '</span>').join('') + '</div>';
     } else h += '<p class="muted">' + (def.rarity === 0 && def.unlock ? 'Joins after you clear stage ' + (def.unlock[0] + 1) + '-' + (def.unlock[1] + 1) + '.' : 'Hatch it in the ' + (def.rarity === 4 ? 'Royal Nest' : 'Royal or Meadow Nest') + '.') + '</p>';
     h += '<p class="muted">' + esc(def.desc) + '</p>';
     const nxt = own && own.lvl < AW.CONFIG.maxLevel ? AW.heroStats(state, id, { lvl: own.lvl + 1, plus: own.plus, form: own.form }) : null;
@@ -955,7 +1028,7 @@
           (n.seeds ? '<span' + ok(state.seeds >= n.seeds) + '>' + SPR.img('icon_seed', 1) + state.seeds + '/' + n.seeds + '</span>' : '') + (n.fruit ? '<span' + ok(state.fruit >= n.fruit) + '>' + SPR.img('icon_fruit', 1) + state.fruit + '/' + n.fruit + '</span>' : '') + '</div><span class="muted">' + (own.form === 0 ? '+12% stats and a new look' : '+16% stats and a stronger ability') + '</span></div></div>';
         acts.push(['Evolve', AW.canEvolve(state, id) ? 'purple pulse' : 'purple', () => {
           if (!AW.evolve(state, id)) { AU.deny(); toast('Not ready to evolve yet', 'pink'); return; }
-          AU.reveal(Math.max(2, def.rarity)); PF.happytime(); save(); openHero(id); if (panelName) rerender(); toast(SPR.heroImg(id, own.form, 1) + '<b>' + esc(def.names[own.form]) + '</b> evolved!', 'violet');
+          AU.reveal(Math.max(2, def.rarity)); PF.happytime(); save(); openHero(id); if (panelName) rerender(); toast(heroFit(id, own.form, 48, 28) + '<b>' + esc(def.names[own.form]) + '</b> evolved!', 'violet');
         }]);
       }
       const inl = state.lineup.indexOf(id) >= 0;
@@ -978,9 +1051,12 @@
     for (const l of CT.LAB) {
       const lv = state.lab[l.id], max = lv >= l.max, cost = max ? 0 : AW.labCost(l.id, lv);
       const val = (n) => l.id === 'start' ? '+' + n * l.per : l.id === 'rchg' ? '-' + (n * l.per).toFixed(1) + 's' : '+' + Math.round(n * l.per * 100) + '%';
-      h += '<div class="lr fx-card"><span class="li fx-insetDark">' + icon(l.icon) + '</span><span class="ln">' + esc(l.name) + ' <span class="muted">Lv ' + lv + '/' + l.max + '</span></span>' +
-        '<span class="lx">' + esc(l.desc) + ' · <em>' + val(lv) + (max ? '' : ' → ' + val(lv + 1)) + '</em></span><span class="pips">' + Array.from({ length: l.max }, (_, i) => '<i class="' + (i < lv ? 'on' : '') + '"></i>').join('') + '</span>' +
-        '<button type="button" class="btn bt2 sm fx-btn-' + (max ? 'gray' : state.coins >= cost ? 'gold' : 'gray') + '" data-lab="' + l.id + '"' + (max ? ' disabled' : '') + '>' + (max ? 'MAX' : SPR.img('icon_coin', 1) + fmt(cost)) + '</button></div>';
+      h += '<div class="lr fx-card"><span class="li fx-insetDark">' + icon(l.icon) + '</span><div class="lmain">' +
+        '<div class="lhead"><b class="ln">' + esc(l.name) + '</b><span class="lvl num">Lv ' + lv + '<small>/' + l.max + '</small></span></div>' +
+        '<div class="lx">' + esc(l.desc) + '</div>' +
+        '<div class="lbar fx-insetDark"><i style="width:' + (100 * lv / l.max) + '%"></i></div>' +
+        '<div class="lfx"><span class="now">' + val(lv) + '</span>' + (max ? '<span class="mx">MAX</span>' : '<span class="arrow">▶</span><span class="nxt">' + val(lv + 1) + '</span>') +
+        '<button type="button" class="btn bt2 sm fx-btn-' + (max ? 'gray' : state.coins >= cost ? 'gold' : 'gray') + '" data-lab="' + l.id + '"' + (max ? ' disabled' : '') + '>' + (max ? 'MAX' : SPR.img('icon_coin', 1) + fmt(cost)) + '</button></div></div></div>';
     }
     el.innerHTML = h + '</div>';
     on(el, '[data-lab]', (b) => { if (AW.buyLab(state, b.getAttribute('data-lab'))) { AU.level(); markDirty(); rerender(); } else { AU.deny(); toast('Not enough coins', 'pink'); } });
@@ -1023,7 +1099,8 @@
     const fp = AW.farmPending(state, t);
     h += '<div class="tile fx-card">' + head('farm', 'Acorn Farm', fmt(AW.farmRate(state)) + ' coins/hour · holds 8 hours') + '<div class="farm">' + icon('coin') + '<div class="grow"><div class="fv">' + fmt(fp.coins) + '</div><span class="muted">' + (fp.full ? 'The farm is full! Collect it.' : 'Coins keep growing while you are away.') + '</span>' + bar(fp.hours / 8, 'cbar') + '</div>' +
       '<button type="button" class="bt2 fx-btn-green" id="farm"' + (fp.coins > 0 ? '' : ' disabled') + '>Collect</button>' + (PF.canRewarded() && fp.coins > 0 ? '<button type="button" class="bt2 fx-btn-gold ad" id="farm2">×2</button>' : '') + '</div></div>';
-    h += '<div class="tile fx-card">' + head('charge', 'Boost Shop', 'Use boosts before a battle') + '<div class="items">' + CT.ITEMS.map((it) => '<button type="button" class="item fx-card" data-buy="' + it.id + '" title="' + esc(it.desc) + '">' + icon(it.id) + '<span><b>' + esc(it.name) + '</b><br><span class="muted">' + esc(it.desc) + '</span><br><b>' + SPR.img('icon_coin', 1) + fmt(it.price) + '</b></span><span class="ic">×' + state.items[it.id] + '</span></button>').join('') + '</div></div>';
+    h += '<div class="tile fx-card">' + head('charge', 'Boost Shop', 'Use boosts before a battle') + '<div class="shop">' + CT.ITEMS.map((it) => '<div class="ware fx-card"><div class="wtop"><span class="wi fx-insetDark">' + icon(it.id) + '</span><div class="grow"><b>' + esc(it.name) + '</b><span class="own">Owned ×' + state.items[it.id] + '</span></div></div><p>' + esc(it.desc) + '</p>' +
+      '<button type="button" class="bt2 sm wide fx-btn-' + (state.coins >= it.price ? 'gold' : 'gray') + '" data-buy="' + it.id + '">' + SPR.img('icon_coin', 1) + fmt(it.price) + '</button></div>').join('') + '</div></div>';
     el.innerHTML = h;
     const lg = el.querySelector('#login'); if (lg) lg.addEventListener('click', () => { claimLoginNow(); rerender(); });
     on(el, '[data-mis]', (b) => { const g = AW.claimMission(state, Number(b.getAttribute('data-mis'))); if (g) { AU.claim(); toast(icon('gem') + '<b>+' + g + '</b> gems', 'green'); save(); rerender(); } });
@@ -1039,12 +1116,12 @@
     let h = '<p class="panel-note">Entries refill every day at midnight.</p>';
     for (const E of CT.EVENTS) {
       const left = AW.eventEntriesLeft(state, E.id), open = AW.eventOpen(state, E.id, 0);
-      h += '<div class="tile fx-card"><div class="mapview" style="height:110px;background-image:url(' + R.themeArt(E.theme, 360, 90, true) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' ' + E.unlock + ' stages') + '</div></div><p class="muted">' + esc(E.desc) + '</p>';
+      h += '<div class="tile fx-card"><div class="mapview" data-art="320x48" style="height:140px;background-image:url(' + R.themeArt(E.theme, 320, 48, false, 160) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' ' + E.unlock + ' stages') + '</div></div><p class="muted">' + esc(E.desc) + '</p>';
       if (open) {
-        h += '<div class="tiles">';
+        h += '<div class="evls">';
         for (let l = 0; l < 5; l++) {
           const ok = AW.eventOpen(state, E.id, l), def = AW.eventDef(E.id, l);
-          h += '<button type="button" class="tile fx-' + (ok && left > 0 ? 'card' : 'cardDark') + '" data-ev="' + E.id + '" data-lv="' + l + '"><h4' + (ok ? '' : ' style="color:#c9a66b"') + '>Level ' + (l + 1) + '</h4><span class="cr">' + (ok ? rewardText(def.rewards) : SPR.img('icon_lock', 1) + ' ' + AW.EVENT_LEVELS[l].need + ' stages') + '</span></button>';
+          h += '<button type="button" class="evl fx-' + (ok && left > 0 ? 'card' : 'cardDark') + (ok ? '' : ' locked') + '" data-ev="' + E.id + '" data-lv="' + l + '"><b>Level ' + (l + 1) + '</b><span class="cr">' + (ok ? rewardText(def.rewards) : SPR.img('icon_lock', 1) + ' ' + Math.max(E.unlock, AW.EVENT_LEVELS[l].need) + ' stages') + '</span></button>';
         }
         h += '</div>';
       }
@@ -1053,7 +1130,7 @@
     el.innerHTML = h;
     on(el, '[data-ev]', (b) => {
       const id = b.getAttribute('data-ev'), l = Number(b.getAttribute('data-lv'));
-      if (!AW.eventOpen(state, id, l)) { AU.deny(); return; }
+      if (!AW.eventOpen(state, id, l)) { lockTip(b, 'Clear ' + Math.max(AW.EVENT[id].unlock, AW.EVENT_LEVELS[l].need) + ' story stages to unlock'); return; }
       if (AW.eventEntriesLeft(state, id) <= 0) { toast('No entries left today. Come back tomorrow!', 'pink'); return; }
       openStage(AW.eventDef(id, l));
     });
@@ -1062,7 +1139,7 @@
   // --- Tower ----------------------------------------------------------------------
   function renderTower(el) {
     const f = state.tower + 1, def = AW.towerDef(f);
-    let h = '<div class="mapview" style="height:200px;background-image:url(' + R.themeArt(7, 420, 170, true) + ')"><div class="mv-title">' + title('Floor ' + f, 5, 'gold') + '</div><div class="mv-stars fx-plaque">Best: ' + state.tower + '</div></div>';
+    let h = '<div class="mapview" data-art="320x80" style="height:220px;background-image:url(' + R.themeArt(7, 320, 80, true, 168) + ')"><div class="mv-title">' + title('Floor ' + f, 5, 'gold') + '</div><div class="mv-stars fx-plaque">Best: ' + state.tower + '</div></div>';
     h += '<p class="panel-note">The tower never ends and every floor gets tougher. ' + (PF.canLeaderboard() ? 'Your best floor is posted to the CrazyGames leaderboard.' : 'Climb as high as you can!') + '</p>';
     h += '<div class="tile fx-card">' + head('tower', 'Floor ' + f + (def.boss ? ' · BOSS' : '')) + foesHtml(def) + '<div class="loot" style="justify-content:flex-start">' + rewardTiles({ coins: def.coins, gems: def.gems, gold: def.gold }) + '</div><button type="button" class="bt2 lg wide fx-btn-green" id="climb">' + title('Climb!', 3, 'cream') + '</button></div>';
     h += '<div class="tiles">' + [1, 2, 3, 4, 5].map((k) => { const ff = f + k, dd = AW.towerDef(ff); return '<div class="tile fx-cardDark" style="color:#fff"><h4>Floor ' + ff + (dd.boss ? ' · BOSS' : '') + '</h4><span>' + rewardText({ coins: dd.coins, gems: dd.gems, gold: dd.gold }) + '</span></div>'; }).join('') + '</div>';
@@ -1072,10 +1149,15 @@
 
   // --- Medals -----------------------------------------------------------------------
   function renderMedals(el) {
-    let h = '<div class="tiles" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">';
+    let h = '<div class="labg">';
     for (const it of AW.medalList(state)) {
-      h += '<div class="lr fx-' + (it.ready ? 'cardHot' : 'card') + '"' + (it.done ? ' style="opacity:.6"' : '') + '><span class="li fx-insetDark">' + icon('medal') + '</span><span class="ln">' + esc(it.m.name) + '</span><span class="lx">' + (it.done ? 'Complete!' : esc(it.text) + ' · ' + fmt(Math.min(it.value, it.target)) + '/' + fmt(it.target)) + '</span><span class="pips">' + it.m.tiers.map((_, i) => '<i class="' + (i < it.claimed ? 'on' : '') + '"></i>').join('') + '</span>' +
-        (it.ready ? '<button type="button" class="btn bt2 sm fx-btn-gold pulse" data-medal="' + it.m.stat + '">' + SPR.img('icon_gem', 1) + it.gems + '</button>' : it.done ? '<span></span>' : '<span class="mr muted">' + SPR.img('icon_gem', 1) + it.gems + '</span>') + '</div>';
+      const frac = it.done ? 1 : Math.min(1, it.value / it.target);
+      h += '<div class="lr fx-' + (it.ready ? 'cardHot' : 'card') + (it.done ? ' done' : '') + '"><span class="li fx-insetDark">' + icon('medal') + '</span><div class="lmain">' +
+        '<div class="lhead"><b class="ln">' + esc(it.m.name) + '</b><span class="tiers">' + it.m.tiers.map((_, i) => '<img class="px" src="' + SPR.url(i < it.claimed ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span></div>' +
+        '<div class="lx">' + (it.done ? 'Every tier complete!' : esc(it.text)) + '</div>' +
+        '<div class="lbar fx-insetDark"><i style="width:' + (100 * frac) + '%"></i></div>' +
+        '<div class="lfx"><span class="now num">' + (it.done ? 'Done' : fmt(Math.min(it.value, it.target)) + ' / ' + fmt(it.target)) + '</span>' +
+        (it.ready ? '<button type="button" class="btn bt2 sm fx-btn-gold pulse" data-medal="' + it.m.stat + '">' + SPR.img('icon_gem', 1) + it.gems + '</button>' : it.done ? '' : '<span class="mr">' + SPR.img('icon_gem', 1) + it.gems + '</span>') + '</div></div></div>';
     }
     el.innerHTML = h + '</div>';
     on(el, '[data-medal]', (b) => { const g = AW.claimMedal(state, b.getAttribute('data-medal')); if (g) { AU.claim(); toast(icon('gem') + '<b>+' + g + '</b> gems', 'green'); save(); rerender(); } });
@@ -1088,7 +1170,7 @@
     else {
       h += '<div class="roster">' + CT.ENEMIES.map((e) => {
         const k = state.seen[e.id];
-        return '<button type="button" class="hero fx-cardDark' + (k ? '' : ' locked') + '" data-enemy="' + e.id + '" style="color:#fff"><div class="hi">' + SPR.enemyImg(e.id, 2) + '</div><div class="hn" style="color:#fff">' + (k ? esc(e.name) : '???') + '</div><div>' + (k ? traitChips(e.traits) : '') + '</div></button>';
+        return '<button type="button" class="hero fx-cardDark' + (k ? '' : ' locked') + '" data-enemy="' + e.id + '" style="color:#fff"><div class="hi">' + enemyFit(e.id, 96, 64) + '</div><div class="hn" style="color:#fff">' + (k ? esc(e.name) : '???') + '</div><div>' + (k ? traitChips(e.traits) : '') + '</div></button>';
       }).join('') + '</div>';
       h += '<div class="rates fx-inset">' + Object.keys(CT.TRAITS).map((t) => traitChips([t]) + ' ' + esc(CT.TRAITS[t].desc)).join('<br>') + '</div>';
     }
@@ -1098,7 +1180,7 @@
     on(el, '[data-enemy]', (b) => {
       const e = AW.ENEMY[b.getAttribute('data-enemy')];
       if (!state.seen[e.id]) { AU.deny(); return; }
-      openModal(e.name, '<div class="hd"><div class="hd-art fx-cardDark">' + SPR.enemyImg(e.id, e.look.s >= 40 ? 3 : 5) + '<div class="pedestal"></div></div><div class="hd-info"><div>' + (e.traits.length ? traitChips(e.traits) : '<span class="muted">No trait</span>') + '</div><p class="muted">' + esc(e.desc) + '</p>' +
+      openModal(e.name, '<div class="hd"><div class="hd-art fx-cardDark">' + enemyFit(e.id, 196, innerHeight <= 520 ? 104 : 156, '', 6) + '<div class="pedestal"></div></div><div class="hd-info"><div>' + (e.traits.length ? traitChips(e.traits) : '<span class="muted">No trait</span>') + '</div><p class="muted">' + esc(e.desc) + '</p>' +
         '<div class="stats"><div class="stat">' + icon('heart') + '<span>Health</span><b>' + fmt(e.hp) + '</b></div><div class="stat">' + icon('sword') + '<span>Attack</span><b>' + fmt(e.atk) + '</b></div><div class="stat">' + icon('target') + '<span>Reach</span><b>' + e.rng + '</b></div><div class="stat">' + icon('boot') + '<span>Speed</span><b>' + e.spd + '</b></div><div class="stat">' + icon('acorn') + '<span>Acorns</span><b>' + e.drop + '</b></div></div><p class="muted">Base stats; stages make the Gloom stronger.</p></div></div>', []);
     });
   }
@@ -1106,7 +1188,7 @@
   // --- Settings ---------------------------------------------------------------------
   function openSettings() {
     openModal('Settings', settingsToggles() +
-      '<p class="tip-line">Tap a hero card (or 1-0) to deploy · E pouch · R or Space Mega Roar · F speed · drag or scroll to look around · P or Esc pause</p>' +
+      '<p class="tip-line">Tap a hero card (or 1-0) to deploy · E pouch · R or Space Battle Cry · F speed · drag or scroll to look around · P or Esc pause</p>' +
       '<p class="tip-line">Animal Wars v1.1 · Fonts: Pixelify Sans and Silkscreen (SIL Open Font License) · Music and sound are synthesized in your browser.</p>',
       [['Reset progress', 'red', () => {
         openModal('Reset?', '<p style="text-align:center">This deletes your heroes, stages and everything else. It cannot be undone.</p>', [['Cancel', 'wood', closeModal], ['Delete everything', 'red', () => { PF.remove(SAVE_KEY); state = AW.createState(now()); AW.ensureDaily(state, now()); closeModal(); save(); startFirstBattle(); }]]);
@@ -1122,14 +1204,17 @@
     $('quests').addEventListener('click', () => { AU.click(); openPanel('rewards'); });
     $('profile').addEventListener('click', () => { AU.click(); openPanel('medals'); });
     document.querySelectorAll('.nav [data-go]').forEach((b) => b.addEventListener('click', () => {
-      AU.unlock(); AU.click();
+      AU.unlock();
       const k = b.getAttribute('data-go');
+      if (b.classList.contains('locked')) { lockTip(b, stageReq(NEED[k]) + ' to unlock ' + PANELS[k].title); return; }
+      AU.click();
       if (k === 'map') { const n = nextStory(); if (n) { ui.mapRegion = n.r; ui.mapDiff = 0; } }
       openPanel(k);
     }));
     $('panel-back').addEventListener('click', () => { AU.click(); closePanel(); });
     $('btn-settings').addEventListener('click', () => { AU.click(); openSettings(); });
     $('btn-sound').addEventListener('click', () => { AU.unlock(); setMuted(!AU.muted); });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#locktip')) hideLockTip(); }, true);
     $('modal-x').addEventListener('click', () => { AU.click(); closeModal(); });
     $('modal').addEventListener('click', (e) => { if (e.target === $('modal') && !$('modal-x').hidden) closeModal(); });
     $('cards').addEventListener('pointerdown', (e) => { const c = e.target.closest('[data-slot]'); if (c) { e.preventDefault(); AU.unlock(); tryDeploy(Number(c.getAttribute('data-slot'))); } });
@@ -1180,12 +1265,36 @@
       if (document.hidden) { AU.suspend(); save(); if (mode === 'battle' && battle && !ended && !paused) pause(true); PF.gameplayStop(); }
       else { AU.resume(); if (mode === 'battle' && battle && !paused && !ended) PF.gameplayStart(); }
     });
-    window.addEventListener('resize', () => R.resize());
+    window.addEventListener('resize', () => { R.resize(); checkOrientation(); if (mode === 'battle') fitCardArt(); });
+    // Landscape only on phones and tablets: in portrait a rotate prompt covers the game and battles pause.
+    const portrait = window.matchMedia ? window.matchMedia('(orientation: portrait) and (pointer: coarse)') : null;
+    function checkOrientation() {
+      const rot = !!(portrait && portrait.matches);
+      $('rotate').hidden = !rot;
+      if (rot && mode === 'battle' && battle && !ended && !paused) pause(true);
+    }
+    if (portrait) { if (portrait.addEventListener) portrait.addEventListener('change', checkOrientation); else if (portrait.addListener) portrait.addListener(checkOrientation); }
+    checkOrientation();
+    // Ask the browser to keep landscape (works in fullscreen / installed web apps; ignored elsewhere).
+    document.addEventListener('pointerdown', function lockOnce() {
+      document.removeEventListener('pointerdown', lockOnce);
+      try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not supported */ }
+    });
     window.addEventListener('pagehide', save);
   }
 
   function toggleSpeed() { state.settings.speed = state.settings.speed === 2 ? 1 : 2; $('speed-t').textContent = state.settings.speed; $('btn-speed').classList.toggle('on', state.settings.speed === 2); AU.click(); markDirty(); }
-  function setMuted(m) { AU.setMuted(m); $('btn-sound').classList.toggle('off', m); }
+  // Mute: the speaker icon is struck out while muted (and the choice is remembered).
+  function setMuted(m) {
+    AU.setMuted(m);
+    const b = $('btn-sound');
+    b.classList.toggle('muted', m);
+    b.classList.toggle('fx-btn-red', m); b.classList.toggle('fx-btn-blue', !m);
+    b.innerHTML = icon(m ? 'soundOff' : 'sound');
+    b.setAttribute('aria-pressed', m ? 'true' : 'false');
+    b.title = m ? 'Sound is off (M)' : 'Sound is on (M)';
+    if (state && !!state.settings.muted !== m) { state.settings.muted = m; markDirty(); }
+  }
 
   // ---------------------------------------------------------------------------
   // Loop
@@ -1196,6 +1305,7 @@
     const dt = Math.min(0.1, (t - (lastT || t)) / 1000);
     lastT = t;
     try {
+      if (mode === 'battle' && battle && !ended && !paused && !$('rotate').hidden) pause(true);
       if (mode === 'battle') battleTick(dt);
       R.frame(paused && mode === 'battle' ? 0 : dt);
     } catch (e) { if (DEBUG) console.error(e); }
@@ -1220,6 +1330,7 @@
     state = L.state;
     AW.ensureDaily(state, now());
     AU.setSfx(state.settings.sfx); AU.setMusic(state.settings.music);
+    setMuted(!!state.settings.muted);
     R.init({ canvas: $('cv'), container: $('view') });
     fillIcons(document);
     bindInput();
@@ -1267,9 +1378,9 @@
     $('dock').hidden = true; $('bhud').hidden = true;
     const logo = document.createElement('div');
     logo.className = 'logo';
-    const ls = Math.max(3, Math.round(innerWidth / 240));
+    const ls = Math.max(3, Math.round(innerHeight > innerWidth ? innerWidth / 150 : innerWidth / 240));
     logo.innerHTML = title('Animal', ls, 'cream') + '<div class="paws">' + icon('paw') + icon('paw') + icon('paw') + '</div>' + title('Wars', Math.round(ls * 1.8), 'gold');
-    logo.style.cssText = 'position:absolute;left:50%;top:6%;transform:translateX(-50%);z-index:5;animation:none';
+    logo.style.cssText = 'position:absolute;left:50%;top:' + (innerHeight > innerWidth * 1.2 ? 16 : 6) + '%;transform:translateX(-50%);z-index:5;animation:none';
     $('view').appendChild(logo);
     R.resize();
     R.setMinimap(false);
@@ -1287,5 +1398,5 @@
 
   // Titles are drawn with the pixel font, so wait for it (briefly) before the first paint.
   const fontsReady = document.fonts && document.fonts.load ? Promise.race([Promise.all([document.fonts.load('700 8px AWPixel'), document.fonts.load('700 16px Cozy')]), new Promise((r) => setTimeout(r, 1500))]) : Promise.resolve();
-  fontsReady.then(boot, boot);
+  Promise.all([fontsReady.catch(() => {}), SPR.loadAssets().catch(() => {})]).then(boot, boot);
 })();

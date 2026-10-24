@@ -168,7 +168,14 @@
     acorn: function () { if (this.ok() && this.gate('acorn', 0.07)) { this.tone('square', 1568, 1568, 0.04, 0.02); this.tone('square', 2093, 2093, 0.06, 0.02, this.ctx.currentTime + 0.04); } },
     heroDown: function () { if (this.ok() && this.gate('down', 0.1)) this.tone('triangle', 500, 200, 0.18, 0.06); },
     pouch: function () { if (this.ok()) this.arp([523, 659, 784, 1047], 0.05, 0.08, 0.04); },
-    roar: function () { if (!this.ok()) return; this.tone('sawtooth', 110, 40, 0.9, 0.12, undefined, null, 900); this.tone('square', 220, 55, 0.6, 0.06, undefined, null, 1400); this.hiss(0.9, 0.12, 1200); },
+    // Battle Cry: a rising war-horn call over a crowd's shout.
+    roar: function () {
+      if (!this.ok()) return;
+      const t = this.ctx.currentTime;
+      this.tone('sawtooth', 196, 196, 0.22, 0.09, t, null, 1600); this.tone('sawtooth', 262, 262, 0.22, 0.09, t + 0.2, null, 1800);
+      this.tone('sawtooth', 392, 400, 0.6, 0.1, t + 0.4, null, 2200); this.tone('square', 196, 200, 0.6, 0.04, t + 0.4, null, 1200);
+      this.hiss(0.5, 0.06, 1500);
+    },
     wave: function () { if (this.ok() && this.gate('wave', 0.12)) { this.hiss(0.25, 0.05, 2400); this.tone('sine', 300, 900, 0.2, 0.04); } },
     boss: function () { if (!this.ok()) return; for (let i = 0; i < 3; i++) this.tone('sawtooth', 90, 70, 0.3, 0.12, this.ctx.currentTime + i * 0.35, null, 700); this.hiss(1, 0.06, 500); },
     tower: function () { if (this.ok() && this.gate('tower', 0.12)) { this.tone('sine', 90, 45, 0.18, 0.2); this.hiss(0.08, 0.05, 900); } },
