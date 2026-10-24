@@ -1395,11 +1395,16 @@
     '..............',
     '..............'
   ];
+  const GIFT = ['...YY....YY...', '..YyyY..YyyY..', '..YyyYYYYyyY..', '...YYYYYYYY...', 'HHHHHHYYHHHHHH', 'RRRRRRYYRRRRRR', 'rrrrrrYyrrrrrr', '.RRRRRYYRRRRr.', '.RRRRRYYRRRrr.', '.RRRRRYYRRRrr.', '.RRRRRYYRRRrr.', '.rrrrryyrrrrr.'];
+  const BARN = ['......RR......', '.....RRRR.....', '....RRHHRR....', '...RRHHHHRR...', '..RRRRRRRRRR..', '.RRRRRRRRRRRR.', 'WWWWWWWWWWWWWW', '.BBBBBBBBBBBB.', '.BBBWWWWWWBBB.', '.BBBWDDDDWBBB.', '.BBBWDWWDWBBB.', '.BBBWDDDDWBBB.', '.GGGGGGGGGGGG.'];
+  const SPIRE = ['.....gg.....', '....gGGg....', '.....GG.....', '....dDDd....', '...dDDDDd...', '..M.MM.MM.M.', '..MMMMMMMMM.', '..LSSSSSSD..', '..LSEEESSD..', '..LSEPESSD..', '..LSSSSSSD..', '.LLSSSSSSDD.', '.LSSSKKSSSD.', '.LSSKKKKSSD.', 'LLSSKKKKSSDD'];
+  const EGG = ['...LLLL...', '..LHHLLS..', '.LHHLLLSS.', '.LHLLLLSS.', 'LLLLLLLSSD', 'LLLLLLSSSD', 'LLLLLLSSSD', 'LLLLLSSSDD', '.LLLSSSSD.', '.SSSSSSDD.', '..SSSDDD..', '...DDDD...'];
+  const HAND = ['....WW.......', '...WWWW......', '...WWWW......', '...WWWW......', '...WWWWWWW...', '...WWWSWWSWW.', '.WWWWWSWWSWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWS', '.WWWWWWWWWWSS', '..WWWWWWWWSS.', '...WWWWWWWS..', '...SSSSSSS...'];
   const ICONS = {
     coin: (P) => pix(P, COIN, { O: '#c8862a', L: '#ffe58a', H: '#fffbe0', B: '#ffcd4d', D: '#e8962a', E: '#d8902a' }, 2, 2),
     gem: (P) => { P.tri(2, 6, 14, 6, 8, 15, '#41a6f6'); P.rect(4, 3, 8, 3, '#73eff7'); P.tri(2, 6, 4, 3, 4, 6, '#73eff7'); P.tri(12, 3, 14, 6, 12, 6, '#3b5dc9'); P.tri(5, 6, 11, 6, 8, 13, '#9ff6ff'); P.set(5, 4, '#ffffff'); },
-    silver: (P) => { const T = tones('#c9d2e3'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.ell(10, 8, 1, 1, '#94b0c2'); },
-    gold: (P) => { const T = tones('#ffcd4d'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.rect(3, 9, 11, 1, '#ef7d57'); },
+    silver: (P) => pix(P, EGG, { H: '#ffffff', L: '#dfe6f2', S: '#b8c2d6', D: '#8a96b0' }, 3, 2),
+    gold: (P) => pix(P, EGG, { H: '#fffbe0', L: '#ffe58a', S: '#ffcd4d', D: '#e8962a' }, 3, 2),
     seed: (P) => { P.ell(8, 10, 4, 5, '#a0704a'); P.ell(7, 9, 2, 3, '#c8905a'); P.line(8, 5, 8, 2, '#38b764'); P.ell(10, 2.5, 2, 1.2, '#a7f070'); P.ell(6, 3, 1.6, 1, '#38b764'); },
     fruit: (P) => { const T = tones('#ffcd4d'); P.ball(8, 9, 5.5, 5.5, T); P.line(8, 4, 9, 1, '#8a5a3a'); P.ell(11, 2.5, 2.2, 1.2, '#38b764'); for (const [x, y] of [[6, 7], [10, 10], [7, 12]]) P.set(x, y, '#fff6c8'); P.set(5, 6, '#ffffff'); },
     acorn: (P) => { const T = tones('#c8804a'); P.ball(8, 10, 4.6, 5, T); P.ell(8, 5.5, 5.5, 2.6, '#7a5a3a'); for (let x = 4; x < 13; x += 2) P.set(x, 5, '#5a3a2a'); P.line(8, 3, 9, 1, '#5a3a2a'); },
@@ -1428,9 +1433,10 @@
     armor: (P) => { P.tri(2, 3, 14, 3, 8, 15, '#94b0c2'); P.rect(2, 2, 12, 3, '#c9d2e3'); P.tri(4, 5, 8, 5, 8, 12, '#c9d2e3'); },
     charm: (P) => { for (const [x, y] of [[5, 5], [11, 5], [5, 10], [11, 10]]) P.ball(x, y, 3, 3, tones('#38b764')); P.line(8, 9, 10, 15, '#257179'); },
     trophy: (P) => { const T = tones('#ffcd4d'); P.rect(4, 2, 8, 6, T.base); P.ell(8, 7, 4, 3, T.base); P.rect(4, 2, 2, 6, T.light); P.set(2, 3, T.dark); P.set(2, 4, T.dark); P.set(13, 3, T.dark); P.set(13, 4, T.dark); P.rect(7, 10, 2, 3, T.dark); P.rect(5, 13, 6, 2, '#9a6a3a'); },
-    gift: (P) => { P.rect(2, 6, 12, 9, '#ef4f6b'); P.rect(1, 4, 14, 3, '#ff6b8a'); P.rect(7, 4, 2, 11, '#ffd36b'); P.tri(4, 1, 8, 4, 4, 4, '#ffd36b'); P.tri(12, 1, 8, 4, 12, 4, '#ffd36b'); },
+    gift: (P) => pix(P, GIFT, { R: '#ef4f6b', r: '#b02a48', H: '#ff8aa0', Y: '#ffd36b', y: '#e8962a' }, 1, 2),
+    hand: (P) => pix(P, HAND, { W: '#ffffff', S: '#c9d2e3' }, 1, 1),
     map: (P) => { P.rect(1, 3, 14, 11, '#e8d8b0'); P.rect(1, 3, 14, 1, '#c8b890'); P.line(3, 11, 6, 7, '#b13e53'); P.line(6, 7, 9, 9, '#b13e53'); P.line(9, 9, 12, 5, '#b13e53'); P.rect(11, 4, 3, 3, '#38b764'); },
-    tower: (P) => { P.tri(3, 15, 13, 15, 8, 1, '#5a4a7a'); P.tri(3, 15, 7, 15, 8, 1, '#3a2a5a'); P.ell(8, 8, 2, 1.4, '#ff6bd0'); },
+    tower: (P) => pix(P, SPIRE, { g: '#ffb0e8', G: '#ff6bd0', d: '#3a2a5a', D: '#4a3a6a', M: '#7a6a9a', L: '#8a7aaa', S: '#6a5a8a', E: '#ff6bd0', P: '#1a0a2a', K: '#1a0a2a' }, 2, 0),
     event: (P) => { P.rect(2, 3, 12, 11, '#f4f4f4'); P.rect(2, 3, 12, 3, '#ef4f6b'); P.rect(4, 1, 1, 3, '#566c86'); P.rect(11, 1, 1, 3, '#566c86'); P.rect(5, 8, 2, 2, '#41a6f6'); P.rect(9, 8, 2, 2, '#ffcd4d'); P.rect(5, 11, 2, 2, '#a7f070'); },
     medal: (P) => { P.tri(4, 0, 8, 0, 8, 7, '#3b5dc9'); P.tri(8, 0, 12, 0, 8, 7, '#b13e53'); P.ball(8, 10, 4.6, 4.6, tones('#ffcd4d')); P.set(8, 10, '#fff6c8'); },
     book: (P) => { P.rect(2, 2, 12, 12, '#3b5dc9'); P.rect(4, 2, 10, 12, '#41a6f6'); P.rect(5, 4, 7, 1, '#f4f4f4'); P.rect(5, 6, 5, 1, '#f4f4f4'); P.rect(2, 2, 2, 12, '#29366f'); },
@@ -1468,7 +1474,7 @@
     crown: (P) => { P.rect(2, 8, 12, 5, '#ffcd4d'); P.tri(2, 8, 5, 8, 2, 2, '#ffcd4d'); P.tri(6, 8, 10, 8, 8, 1, '#ffcd4d'); P.tri(11, 8, 14, 8, 14, 2, '#ffcd4d'); P.rect(2, 11, 12, 1, '#d08a20'); P.set(8, 10, '#e04848'); P.set(5, 10, '#41a6f6'); P.set(11, 10, '#a7f070'); },
     quest: (P) => { P.rect(3, 1, 10, 14, '#f3e2bc'); P.rect(3, 1, 10, 2, '#c9a66b'); for (let y = 5; y < 13; y += 3) { P.rect(5, y, 2, 2, '#38b764'); P.rect(8, y, 4, 1, '#8a6a48'); } },
     timer: (P) => { P.ball(8, 9, 6, 6, tones('#f4f4f4')); P.rect(6, 1, 4, 2, '#ef7d57'); P.line(8, 9, 8, 5, INK); P.line(8, 9, 11, 10, INK); },
-    farm: (P) => { P.rect(1, 9, 14, 6, '#9a6438'); P.tri(0, 9, 8, 2, 16, 9, '#e04848'); P.rect(6, 10, 4, 5, '#5a3420'); P.ell(8, 5, 1, 1, '#ffffff'); },
+    farm: (P) => pix(P, BARN, { R: '#c83e4e', H: '#ff6b7a', W: '#f4f0e8', B: '#a0583a', D: '#5a3020', G: '#5ac54f' }, 1, 2),
     battle: (P) => { P.line(2, 2, 13, 13, '#e8f0ff'); P.line(13, 2, 2, 13, '#e8f0ff'); P.line(3, 2, 14, 13, '#9aa8c0'); P.line(14, 2, 3, 13, '#9aa8c0'); P.rect(1, 12, 3, 3, '#b07a4a'); P.rect(12, 12, 3, 3, '#b07a4a'); },
     close: (P) => { P.line(3, 3, 12, 12, '#ffffff'); P.line(4, 3, 13, 12, '#ffffff'); P.line(12, 3, 3, 12, '#ffffff'); P.line(13, 3, 4, 12, '#ffffff'); },
     back: (P) => { P.tri(1, 8, 8, 2, 8, 14, '#ffffff'); P.rect(8, 6, 6, 4, '#ffffff'); },
@@ -1477,6 +1483,20 @@
     pouchLv: (P) => { ICONS.pouch(P); },
     skull: (P) => { P.ball(8, 7, 5.5, 5, tones('#f4f4f4')); P.rect(5, 11, 6, 3, '#f4f4f4'); P.rect(5, 6, 2, 2, INK); P.rect(9, 6, 2, 2, INK); P.set(6, 12, INK); P.set(9, 12, INK); }
   };
+  // Logo emblem: a gold-rimmed shield with a paw over crossed swords.
+  function emblemCanvas() {
+    const P = new Painter(30, 32);
+    const steel = '#dfe6f2', steelD = '#8a96b0', hilt = '#b07a4a';
+    for (const [a, b2] of [[[2, 2], [27, 28]], [[27, 2], [2, 28]]]) { P.line(a[0], a[1], b2[0], b2[1], steel); P.line(a[0] + 1, a[1], b2[0] + 1, b2[1], steelD); }
+    P.rect(0, 26, 4, 4, hilt); P.rect(26, 26, 4, 4, hilt); P.rect(1, 1, 3, 3, '#ffcd4d'); P.rect(26, 1, 3, 3, '#ffcd4d');
+    const shield = (inset, c) => { P.rect(5 + inset, 4 + inset, 20 - inset * 2, 13 - inset, c); P.tri(5 + inset, 16, 25 - inset, 16, 15, 30 - inset * 1.4, c); };
+    shield(0, '#e8962a'); shield(1, '#ffcd4d'); shield(3, '#3b5dc9');
+    P.rect(8, 7, 14, 2, '#5a7ae0');
+    P.ell(15, 19.5, 4.4, 3.6, '#ffffff'); for (const [x, y] of [[9.5, 14], [12.8, 11.6], [17.2, 11.6], [20.5, 14]]) P.ell(x, y, 1.5, 1.8, '#ffffff');
+    P.ell(15, 20.2, 2.2, 1.5, '#ffa8c5');
+    P.outline('#1a0f12');
+    return P.canvas();
+  }
   function iconCanvas(k) { const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
 
 
@@ -1758,6 +1778,7 @@
     else if ((m = /^tower_(\d)_(\d)$/.exec(name))) c = towerCanvas(Number(m[1]), Number(m[2]) / 3);
     else if ((m = /^egg_(\d)(_c)?$/.exec(name))) c = eggCanvas(Number(m[1]), !!m[2]);
     else if ((m = /^icon_(\w+)$/.exec(name))) c = iconCanvas(m[1]);
+    else if (name === 'emblem') c = emblemCanvas();
     else throw new Error('unknown sprite ' + name);
     cache[name] = c;
     return c;

@@ -31,6 +31,7 @@
         </div>
         <div id="quests" class="quests fx-plaque" role="button" tabindex="0" title="Daily quests"></div>
         <div id="side" class="side"></div>
+        <div id="feature" class="feature" hidden></div>
         <div class="h-center">
           <div id="logo" class="logo"></div>
           <div id="goal" class="goal fx-ribbon"></div>
@@ -47,7 +48,7 @@
           </div>
           <nav class="nav nav-r">
             <button type="button" class="nb fx-btn-pink" data-go="hatch" id="btn-hatch"><span class="ni" id="hatch-egg"></span><span class="nl">Hatch</span><i class="badge" hidden></i></button>
-            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Rewards</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Prizes</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-orange" data-go="events"><span class="ni" data-icon="event"></span><span class="nl">Events</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-purple" data-go="medals"><span class="ni" data-icon="medal"></span><span class="nl">Medals</span><i class="badge" hidden></i></button>
           </nav>
@@ -60,20 +61,19 @@
           <button id="btn-pause" class="sq fx-btn-wood" type="button" title="Pause (P)" aria-label="Pause"><span data-icon="pause"></span></button>
           <div class="bh-plate fx-plaque">
             <div id="bh-name" class="bh-name"></div>
-            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i></div>
+            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i><b id="bh-ally-t" class="num"></b></div>
           </div>
         </div>
         <div class="bh-right">
           <div class="acorns fx-plaqueWood"><span data-icon="acorn" class="ai"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
           <div class="bh-row">
-            <div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i></div>
-            <button id="btn-speed" class="sq fx-btn-dark nopix" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
-            <button id="btn-cam" class="sq fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
+            <div class="tplate fx-plaque"><span data-icon="tower" class="ti"></span><div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i><b id="bh-enemy-t" class="num"></b></div></div>
+            <button id="btn-speed" class="sq tog fx-btn-dark nopix" type="button" title="Speed (F)" aria-pressed="false"><span data-icon="fast"></span><b id="speed-t">×1</b></button>
+            <button id="btn-cam" class="sq tog fx-btn-dark nopix" type="button" title="Camera follows the front line" aria-pressed="false"><span data-icon="cam"></span><b id="cam-t">FREE</b></button>
           </div>
         </div>
         <div id="bossbar" class="bossbar fx-plaque" hidden><span id="boss-name"></span><div class="bb2 fx-insetDark"><i id="boss-fill"></i></div></div>
         <div id="callout" class="callout"></div>
-        <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
       </div>
       <div id="toasts" class="toasts" aria-live="polite"></div>
     </main>
@@ -121,6 +121,9 @@
       <div id="modal-actions" class="modal-actions"></div>
     </div>
   </div>
+  <div id="spot" class="spot" hidden></div>
+  <div id="hand" class="hand" hidden></div>
+  <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
   <div id="locktip" class="locktip" role="status" hidden></div>
   <div id="rotate" class="rotate" hidden>
     <div class="rot-phone"><i></i></div>
