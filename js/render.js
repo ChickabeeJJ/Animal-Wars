@@ -37,7 +37,7 @@
     DPR = Math.min(2.5, root.devicePixelRatio || 1);
     W = Math.max(1, container.clientWidth); H = Math.max(1, container.clientHeight);
     // About 140-180 art pixels tall, whole-number scale; at least ~280 wide so the action fits.
-    PXS = Math.max(1, Math.round(H / 155));
+    PXS = Math.max(1, Math.round(H / (mode === 'home' ? 205 : 155)));
     if (W / PXS < 280) PXS = Math.max(1, Math.floor(W / 185));
     BW = Math.ceil(W / PXS); BH = Math.ceil(H / PXS);
     KK = Math.max(1, Math.round(PXS * DPR));
@@ -99,6 +99,27 @@
     if (th.name === 'meadow' || th.name === 'bog') for (let x = 0; x < gw; x += 6 + Math.floor(r() * 8)) { gg.fillStyle = mix(th.ground, '#ffffff', 0.3); gg.fillRect(x, -0, 1, 2); gg.fillRect(x + 1, 0, 1, 1); }
     layers = { sky: sky, far: far, mid: mid, ground: ground };
   }
+  // A still picture of a region (sky, hills, props, ground) for menus. Cached per theme and size.
+  const artCache = {};
+  function themeArt(t, w, h, withBases) {
+    const key = t + ':' + w + 'x' + h + ':' + (withBases ? 1 : 0);
+    if (artCache[key]) return artCache[key];
+    const save = { BW: BW, BH: BH, GY: GY, theme: theme, themeIdx: themeIdx, layers: layers, mode: mode, battle: battle };
+    BW = w; BH = h; GY = h - Math.max(8, Math.round(h * 0.16)); theme = THEMES[t % THEMES.length]; themeIdx = t % THEMES.length; mode = 'art'; battle = null;
+    buildLayers();
+    const c = mk(w, h), g = c.getContext('2d');
+    g.drawImage(layers.sky, 0, 0, 1, h, 0, 0, w, h);
+    g.drawImage(layers.far, -20, 0);
+    g.drawImage(layers.mid, -30, 0);
+    for (let x = 0; x < w; x += layers.ground.width) g.drawImage(layers.ground, x, GY);
+    if (withBases) {
+      const tw = SPR.get('tower_' + (t % 8) + '_0');
+      g.drawImage(tw, w - tw.width + 6, GY - tw.height + 3);
+    }
+    artCache[key] = c.toDataURL();
+    BW = save.BW; BH = save.BH; GY = save.GY; theme = save.theme; themeIdx = save.themeIdx; layers = save.layers; mode = save.mode; battle = save.battle;
+    return artCache[key];
+  }
   function hexA(h, a) { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
   function blob(g, cx, cy, rx, ry) { for (let y = -ry; y <= ry; y++) { const w = rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry))); g.fillRect(Math.round(cx - w), Math.round(cy + y), Math.round(w * 2), 1); } }
   function ridge(g, w, base, amp, col, r, kind) {
@@ -147,12 +168,13 @@
     themeIdx = t || 0; theme = THEMES[themeIdx];
     parts.length = 0; floats.length = 0; rings.length = 0;
     strollers.length = 0;
+    resize();
     const ids = state.lineup.filter(Boolean);
     ids.forEach(function (id, i) { strollers.push({ id: id, x: 60 + i * 26 + Math.random() * 10, dir: Math.random() < 0.5 ? 1 : -1, t: Math.random() * 3, walk: 0, pause: Math.random() * 2, y: Math.floor(Math.random() * 6) }); });
     cam.x = cam.target = homeCam();
     buildLayers();
   }
-  function homeCam() { return Math.round(-58 + Math.min(0, (BW - 380) / 2)); }
+  function homeCam() { return -62; }
   function minCam() { return -62; }
   function maxCam() { return battle ? Math.max(minCam(), battle.L + 62 - BW) : 0; }
 
@@ -420,6 +442,14 @@
 
   function drawFloats(dt, cx) {
     ctx.textAlign = 'center';
+    if (mode === 'battle' && battle) {
+      const size = Math.round(6 * KK);
+      ctx.font = '700 ' + size + 'px Cozy, monospace';
+      const lab = (x, y, txt, col) => { ctx.fillStyle = '#0b0b16'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(txt, x + dx * KK * 0.5, y + dy * KK * 0.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
+      const bur = SPR.get('burrow_0'), tw = SPR.get('tower_0_0');
+      lab((-bur.width / 2 + 8 - cx) * KK, (GY - bur.height - 2) * KK, Math.ceil(battle.ally.hp) + ' / ' + battle.ally.max, '#9fd8ff');
+      lab((battle.L - 8 + tw.width / 2 - cx) * KK, (GY - tw.height - 2) * KK, Math.ceil(battle.enemy.hp) + ' / ' + battle.enemy.max, '#ffb0a0');
+    }
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i]; f.t += dt;
       if (f.t > f.life) { floats.splice(i, 1); continue; }
@@ -464,5 +494,5 @@
 
   function screenToWorld(px) { return px / PXS + cam.x; }
 
-  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, lookAt, setMinimap, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
+  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, lookAt, setMinimap, themeArt, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

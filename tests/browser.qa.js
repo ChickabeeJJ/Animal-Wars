@@ -99,7 +99,7 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
   await check('winning shows Victory with stars and saves progress', async () => {
     await S(p, () => { __aw.battle.enemy.hp = 0; });
     await p.waitForSelector('.result-title', { timeout: 4000 });
-    assert(/Victory/.test(await p.textContent('.result-title')));
+    assert(/Victory/i.test(await p.getAttribute('.result-title', 'alt')));
     assert((await p.locator('.rstars img').count()) === 3, 'three star slots');
     const st = await S(p, () => ({ c: __aw.state.clear[0][0], gems: __aw.state.gems, saved: !!localStorage.getItem('animal-wars-save-v1') }));
     assert(st.c === 1 && st.gems >= 20 && st.saved, JSON.stringify(st));
@@ -190,6 +190,7 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
     const e1 = await S(p, () => ({ left: __aw.AW.eventEntriesLeft(__aw.state, 'coins'), coins: __aw.state.coins }));
     assert(e1.left === e0.left - 1 && e1.coins > e0.coins, JSON.stringify([e0, e1]));
     await p.click('#modal-actions .btn:has-text("Home")');
+    await p.waitForTimeout(400);
     await S(p, () => __aw.startBattle(__aw.AW.towerDef(__aw.state.tower + 1), {}));
     await S(p, () => { __aw.battle.enemy.hp = 0; });
     await p.waitForSelector('.result-title', { timeout: 4000 });

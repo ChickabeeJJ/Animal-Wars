@@ -1220,9 +1220,262 @@
     gear: (P) => { for (let a = 0; a < 6.28; a += 0.785) P.rect(Math.round(8 + Math.cos(a) * 5.5) - 1, Math.round(8 + Math.sin(a) * 5.5) - 1, 3, 3, '#94b0c2'); P.ball(8, 8, 4.5, 4.5, tones('#94b0c2')); P.ell(8, 8, 1.6, 1.6, INK); },
     sound: (P) => { P.rect(2, 6, 3, 4, '#f4f4f4'); P.tri(5, 6, 9, 2, 9, 14, '#f4f4f4'); P.line(11, 5, 11, 11, '#f4f4f4'); P.line(13, 3, 13, 13, '#f4f4f4'); },
     lock: (P) => { P.ell(8, 5, 3.5, 3.5, '#9aa3b2'); P.ell(8, 5, 2, 2, null); P.rect(3, 7, 10, 7, '#ffcd4d'); P.rect(3, 7, 10, 1, '#fff0b0'); P.rect(7, 9, 2, 3, '#7a5a20'); },
+    heart: (P) => { P.ell(5, 6, 3.4, 3.4, '#e04848'); P.ell(11, 6, 3.4, 3.4, '#e04848'); P.tri(2, 7, 14, 7, 8, 14, '#e04848'); P.set(4, 4, '#ffb0b0'); P.set(5, 4, '#ff8a8a'); },
+    sword: (P) => { P.line(3, 13, 12, 4, '#e8f0ff'); P.line(4, 13, 13, 4, '#9aa8c0'); P.line(12, 3, 13, 3, '#ffffff'); P.line(2, 10, 6, 14, '#b07a4a'); P.rect(2, 13, 2, 2, '#ffcd4d'); },
+    boot: (P) => { P.rect(5, 2, 5, 8, '#b07a4a'); P.rect(5, 9, 9, 4, '#b07a4a'); P.rect(5, 12, 9, 2, '#5a3420'); P.rect(5, 2, 5, 1, '#e8b07a'); P.line(1, 6, 3, 6, '#ffffff'); P.line(0, 9, 3, 9, '#ffffff'); },
+    target: (P) => { P.ell(8, 8, 6.5, 6.5, '#e04848'); P.ell(8, 8, 4.5, 4.5, '#ffffff'); P.ell(8, 8, 2.5, 2.5, '#e04848'); P.rect(7, 7, 2, 2, '#ffffff'); },
+    shield: (P) => { P.tri(2, 3, 14, 3, 8, 15, '#3b5dc9'); P.rect(2, 2, 12, 4, '#3b5dc9'); P.tri(4, 4, 8, 4, 8, 12, '#73a0ff'); P.rect(7, 3, 2, 10, '#ffcd4d'); },
+    paw: (P) => { P.ell(8, 10.5, 4, 3.4, '#f4f4f4'); for (const [x, y] of [[3, 6], [6, 3.5], [10, 3.5], [13, 6]]) P.ell(x, y, 1.7, 2, '#f4f4f4'); P.ell(8, 11, 2, 1.4, '#ffa8c5'); },
+    chest: (P) => { P.rect(1, 6, 14, 8, '#9a6438'); P.rect(1, 3, 14, 4, '#c08a52'); P.rect(1, 6, 14, 1, '#5a3420'); P.rect(7, 5, 2, 4, '#ffcd4d'); P.rect(1, 3, 1, 11, '#ffcd4d'); P.rect(14, 3, 1, 11, '#ffcd4d'); },
+    play: (P) => { P.tri(4, 2, 13, 8, 4, 14, '#f4f4f4'); },
+    fast: (P) => { P.tri(1, 3, 8, 8, 1, 13, '#f4f4f4'); P.tri(8, 3, 15, 8, 8, 13, '#f4f4f4'); },
+    cam: (P) => { P.rect(1, 5, 11, 8, '#f4f4f4'); P.tri(12, 7, 15, 4, 15, 13, '#f4f4f4'); P.ell(6.5, 9, 2.4, 2.4, '#333c57'); P.rect(3, 3, 3, 2, '#f4f4f4'); },
+    crown: (P) => { P.rect(2, 8, 12, 5, '#ffcd4d'); P.tri(2, 8, 5, 8, 2, 2, '#ffcd4d'); P.tri(6, 8, 10, 8, 8, 1, '#ffcd4d'); P.tri(11, 8, 14, 8, 14, 2, '#ffcd4d'); P.rect(2, 11, 12, 1, '#d08a20'); P.set(8, 10, '#e04848'); P.set(5, 10, '#41a6f6'); P.set(11, 10, '#a7f070'); },
+    quest: (P) => { P.rect(3, 1, 10, 14, '#f3e2bc'); P.rect(3, 1, 10, 2, '#c9a66b'); for (let y = 5; y < 13; y += 3) { P.rect(5, y, 2, 2, '#38b764'); P.rect(8, y, 4, 1, '#8a6a48'); } },
+    timer: (P) => { P.ball(8, 9, 6, 6, tones('#f4f4f4')); P.rect(6, 1, 4, 2, '#ef7d57'); P.line(8, 9, 8, 5, INK); P.line(8, 9, 11, 10, INK); },
+    farm: (P) => { P.rect(1, 9, 14, 6, '#9a6438'); P.tri(0, 9, 8, 2, 16, 9, '#e04848'); P.rect(6, 10, 4, 5, '#5a3420'); P.ell(8, 5, 1, 1, '#ffffff'); },
+    battle: (P) => { P.line(2, 2, 13, 13, '#e8f0ff'); P.line(13, 2, 2, 13, '#e8f0ff'); P.line(3, 2, 14, 13, '#9aa8c0'); P.line(14, 2, 3, 13, '#9aa8c0'); P.rect(1, 12, 3, 3, '#b07a4a'); P.rect(12, 12, 3, 3, '#b07a4a'); },
+    close: (P) => { P.line(3, 3, 12, 12, '#ffffff'); P.line(4, 3, 13, 12, '#ffffff'); P.line(12, 3, 3, 12, '#ffffff'); P.line(13, 3, 4, 12, '#ffffff'); },
+    back: (P) => { P.tri(1, 8, 8, 2, 8, 14, '#ffffff'); P.rect(8, 6, 6, 4, '#ffffff'); },
+    plus: (P) => { P.rect(6, 2, 4, 12, '#ffffff'); P.rect(2, 6, 12, 4, '#ffffff'); },
+    pause: (P) => { P.rect(3, 2, 4, 12, '#f4f4f4'); P.rect(9, 2, 4, 12, '#f4f4f4'); },
+    pouchLv: (P) => { ICONS.pouch(P); },
     skull: (P) => { P.ball(8, 7, 5.5, 5, tones('#f4f4f4')); P.rect(5, 11, 6, 3, '#f4f4f4'); P.rect(5, 6, 2, 2, INK); P.rect(9, 6, 2, 2, INK); P.set(6, 12, INK); P.set(9, 12, INK); }
   };
   function iconCanvas(k) { const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
+
+
+  // ---------------------------------------------------------------------------
+  // UI kit: 9-slice frames (used as CSS border-images) and pixel-font titles.
+  // Each frame returns { c: canvas, s: slice } or { c, s: [top, right, bottom, left] }.
+  // ---------------------------------------------------------------------------
+  function grid(w, h) { return new Painter(w, h); }
+  function hash2(x, y) { let n = (x * 374761393 + y * 668265263) >>> 0; n = (n ^ (n >>> 13)) * 1274126177 >>> 0; return (n & 1023) / 1023; }
+
+  // Wooden window with a parchment centre. 26×26, slice 9.
+  function frameWindow(inner, wood) {
+    const P = grid(26, 26), W = 26;
+    const T = tones(wood || '#9a6438');
+    const out = '#2a160c', line = '#3a2214';
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+      const e = Math.min(x, y, W - 1 - x, W - 1 - y);
+      let c;
+      if (e === 0) c = out;
+      else if (e <= 6) {
+        const top = y < 7 && y <= x && y <= W - 1 - x, left = x < 7 && x < y && x < W - 1 - y;
+        const bottom = y > W - 8 && W - 1 - y < x && W - 1 - y < W - 1 - x;
+        c = e === 1 ? (top || left ? T.light : T.dark) : (bottom ? T.dark : T.base);
+        if (e > 1 && hash2(x, y) > 0.82) c = mix(c, '#3a2214', 0.35);
+        if (e === 6) c = mix(c, '#2a160c', 0.25);
+      } else if (e === 7) c = line;
+      else if (e === 8) c = mix(inner, '#7a5030', y < 13 ? 0.22 : 0.08);
+      else c = inner;
+      if (!((x === 0 || x === W - 1) && (y === 0 || y === W - 1))) P.set(x, y, c);
+    }
+    for (const [x, y] of [[3, 3], [W - 4, 3], [3, W - 4], [W - 4, W - 4]]) { P.set(x, y, '#ffe9a0'); P.set(x + 1, y + 1, '#8a5a20'); P.set(x + 1, y, '#d8a848'); P.set(x, y + 1, '#d8a848'); }
+    return { c: P.canvas(), s: 9 };
+  }
+
+  // A lifted card: outline, highlight, base, two rows of shade. 14×14, slice [4,4,5,4].
+  function frameCard(base, edge) {
+    const P = grid(14, 14), T = tones(base), O = edge || mix(base, '#2a160c', 0.7);
+    for (let y = 0; y < 14; y++) for (let x = 0; x < 14; x++) {
+      const corner = (x === 0 || x === 13) && (y === 0 || y === 13);
+      if (corner) continue;
+      let c = T.base;
+      if (x === 0 || y === 0 || x === 13 || y === 13) c = O;
+      else if (y === 1) c = mix(base, '#ffffff', 0.45);
+      else if (y >= 11) c = mix(base, '#3a2214', 0.28);
+      else if (x === 1) c = mix(base, '#ffffff', 0.2);
+      P.set(x, y, c);
+    }
+    return { c: P.canvas(), s: [4, 4, 5, 4] };
+  }
+
+  // Inset well (for bars, slots): shadow at the top. 12×12, slice 4.
+  function frameInset(base) {
+    const P = grid(12, 12);
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+      let c = base;
+      if (x === 0 || y === 0 || x === 11 || y === 11) c = mix(base, '#2a160c', 0.6);
+      else if (y === 1) c = mix(base, '#2a160c', 0.35);
+      else if (y === 2 || x === 1) c = mix(base, '#2a160c', 0.15);
+      else if (y === 10) c = mix(base, '#ffffff', 0.25);
+      P.set(x, y, c);
+    }
+    return { c: P.canvas(), s: 4 };
+  }
+
+  // Chunky 3D button. 20×22, slice [5,5,8,5]; pressed = shallower.
+  function frameButton(base, pressed) {
+    const P = grid(20, 22), T = tones(base), ink = '#1a0f12';
+    const depth = pressed ? 1 : 4, top = pressed ? 3 : 0;
+    for (let y = top; y < 22; y++) for (let x = 0; x < 20; x++) {
+      const yy = y - top, H = 22 - top;
+      const corner = (x === 0 || x === 19) && (yy === 0 || yy === H - 1);
+      if (corner) continue;
+      let c;
+      if (x === 0 || x === 19 || yy === 0 || yy === H - 1) c = ink;
+      else if (yy >= H - 1 - depth) c = mix(base, '#2a0f20', 0.45);
+      else if (yy === 1) c = mix(base, '#ffffff', 0.55);
+      else if (yy === 2) c = mix(base, '#ffffff', 0.25);
+      else if (yy === H - 2 - depth) c = mix(base, '#2a0f20', 0.15);
+      else c = base;
+      if ((x === 1 || x === 18) && yy > 0 && yy < H - 1 - depth) c = mix(c, x === 1 ? '#ffffff' : '#2a0f20', 0.15);
+      P.set(x, y, c);
+    }
+    return { c: P.canvas(), s: [5 + top, 5, 8 - (pressed ? 3 : 0), 5] };
+  }
+
+  // Rarity frame for hero cards: coloured border with corner gems for Mythic and Legend. 20×20, slice 6.
+  function frameRarity(r) {
+    const col = RARITY_HEX[r], T = tones(col);
+    const inner = mix(col, '#fff8e8', r === 0 ? 0.55 : 0.72);
+    const P = grid(20, 20);
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) {
+      const e = Math.min(x, y, 19 - x, 19 - y);
+      if ((x === 0 || x === 19) && (y === 0 || y === 19)) continue;
+      let c;
+      if (e === 0) c = '#1a0f12';
+      else if (e === 1) c = (y < 10 && y <= x && y <= 19 - x) || (x < 10 && x < y) ? T.light : T.base;
+      else if (e === 2) c = T.base;
+      else if (e === 3) c = T.dark;
+      else if (e === 4) c = mix(inner, '#7a5030', 0.18);
+      else c = inner;
+      P.set(x, y, c);
+    }
+    if (r >= 3) for (const [x, y] of [[1, 1], [16, 1], [1, 16], [16, 16]]) { P.rect(x, y, 3, 3, r === 4 ? '#ff9fd8' : '#fff0a0'); P.set(x + 1, y + 1, '#ffffff'); }
+    return { c: P.canvas(), s: 6 };
+  }
+
+  // Dark translucent HUD plaque. 12×12, slice 4.
+  function framePlaque(base, alpha) {
+    const P = grid(12, 12);
+    const a = alpha === undefined ? 0.85 : alpha;
+    const rgba = (h, al) => { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + al + ')'; };
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+      if ((x === 0 || x === 11) && (y === 0 || y === 11)) continue;
+      let c = rgba(base, a);
+      if (x === 0 || y === 0 || x === 11 || y === 11) c = '#0b0b16';
+      else if (y === 1) c = rgba(mix(base, '#ffffff', 0.3), 1);
+      else if (y === 10) c = rgba(mix(base, '#000000', 0.4), 1);
+      P.set(x, y, c);
+    }
+    return { c: P.canvas(), s: 4 };
+  }
+
+  // Ribbon banner with folded tails: 3-slice horizontally. 40×20, slice [3,14,5,14].
+  function frameRibbon(base) {
+    const P = grid(40, 20), T = tones(base), ink = '#1a0f12';
+    // Tails.
+    for (const side of [0, 1]) {
+      const x0 = side ? 30 : 0;
+      for (let y = 6; y < 20; y++) for (let x = 0; x < 10; x++) {
+        const xx = side ? 9 - x : x;
+        const notch = y >= 9 && y <= 16 && xx < 4 - Math.abs(y - 12.5) * 0.9;
+        if (notch) continue;
+        P.set(x0 + x, y, (y === 6 || y === 19 || xx === 0) ? ink : T.dark);
+      }
+    }
+    // Body.
+    for (let y = 2; y < 17; y++) for (let x = 5; x < 35; x++) {
+      let c = T.base;
+      if (y === 2 || y === 16 || x === 5 || x === 34) c = ink;
+      else if (y === 3) c = T.light;
+      else if (y === 15) c = T.dark;
+      P.set(x, y, c);
+    }
+    for (let x = 6; x < 34; x += 2) { P.set(x, 4, mix(base, '#ffffff', 0.18)); P.set(x + 1, 14, mix(base, '#000000', 0.15)); }
+    return { c: P.canvas(), s: [3, 14, 5, 14] };
+  }
+
+  const FRAMES = {
+    win: () => frameWindow('#f3e2bc'),
+    windark: () => frameWindow('#2a2240', '#7a4a2a'),
+    card: () => frameCard('#f8ead0'),
+    cardDark: () => frameCard('#3a3358', '#120e1e'),
+    cardHot: () => frameCard('#fff2b8', '#a0601a'),
+    inset: () => frameInset('#e2cb9a'),
+    insetDark: () => frameInset('#1a1830'),
+    plaque: () => framePlaque('#1d2240'),
+    plaqueWood: () => framePlaque('#5a3420', 0.92),
+    ribbon: () => frameRibbon('#c83e4e'),
+    ribbonGold: () => frameRibbon('#e0a030'),
+    ribbonBlue: () => frameRibbon('#3b6ad9')
+  };
+  const BTN_COLORS = { green: '#5ac54f', gold: '#ffc23d', blue: '#41a6f6', red: '#e04848', purple: '#a884f3', gray: '#c3cbd6', wood: '#b07a4a', pink: '#ff8fb8', dark: '#3a4170' };
+  for (const k in BTN_COLORS) { FRAMES['btn_' + k] = () => frameButton(BTN_COLORS[k], false); FRAMES['btnp_' + k] = () => frameButton(BTN_COLORS[k], true); }
+  for (let r = 0; r < 5; r++) FRAMES['rar' + r] = ((rr) => () => frameRarity(rr))(r);
+
+  // Installs every frame as CSS custom properties: --f-<name> (image) and --fs-<name> (slice).
+  function installFrames(rootEl) {
+    if (typeof document === 'undefined') return;
+    const st = (rootEl || document.documentElement).style;
+    for (const k in FRAMES) {
+      const f = FRAMES[k]();
+      if (!f.c) continue;
+      const sl = Array.isArray(f.s) ? f.s.join(' ') : String(f.s);
+      st.setProperty('--f-' + k, 'url(' + f.c.toDataURL() + ')');
+      st.setProperty('--fs-' + k, sl);
+    }
+  }
+
+  // Pixel-font text: rendered small, alpha-thresholded so every pixel is crisp, then filled with a
+  // vertical gradient, outlined and given a drop shadow. Returns a canvas (scale it up with CSS).
+  function pixelText(text, o) {
+    o = o || {};
+    if (typeof document === 'undefined') return null;
+    const size = o.size || 16, font = o.font || 'AWPixel';
+    const m = makeCanvas(4, 4).getContext('2d');
+    m.font = '700 ' + size + 'px ' + font + ', monospace';
+    const w = Math.ceil(m.measureText(text).width) + 4, h = Math.ceil(size * 1.25) + 2;
+    const c = makeCanvas(w, h), g = c.getContext('2d');
+    g.font = m.font; g.textBaseline = 'top'; g.fillStyle = '#000';
+    g.fillText(text, 2, 1);
+    const data = g.getImageData(0, 0, w, h).data;
+    const pad = 3, P = new Painter(w + pad * 2, h + pad * 2);
+    let minY = h, maxY = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3] >= 110) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    const fill = o.fill || ['#fff6c8', '#ffcd4d', '#ef7d57'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] < 110) continue;
+      const k = (y - minY) / Math.max(1, maxY - minY);
+      const col = fill[Math.min(fill.length - 1, Math.floor(k * fill.length))];
+      P.set(x + pad, y + pad, (y === minY || (o.shine && k < 0.18)) ? mix(col, '#ffffff', 0.5) : col);
+    }
+    const letters = P.p.slice();
+    // Outline (8-neighbour) and drop shadow.
+    const ink = o.outline || '#2a160c';
+    const out = letters.slice();
+    for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) {
+      if (letters[y * P.w + x]) continue;
+      let near = false;
+      for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < P.w && yy < P.h && letters[yy * P.w + xx]) { near = true; break; } }
+      if (near) out[y * P.w + x] = ink;
+    }
+    if (o.shadow !== false) {
+      const sh = o.shadow || '#b13e53';
+      const base = out.slice();
+      for (let y = P.h - 1; y >= 0; y--) for (let x = P.w - 1; x >= 0; x--) {
+        if (base[y * P.w + x]) continue;
+        const sx = x - 1, sy = y - 2;
+        if (sx >= 0 && sy >= 0 && base[sy * P.w + sx]) out[y * P.w + x] = sh;
+      }
+    }
+    P.p = out;
+    return P.canvas();
+  }
+  const textCache = {};
+  function textUrl(text, o) {
+    const key = text + '|' + JSON.stringify(o || {});
+    if (!textCache[key]) { const c = pixelText(text, o); textCache[key] = c ? { url: c.toDataURL(), w: c.width, h: c.height } : { url: '', w: 0, h: 0 }; }
+    return textCache[key];
+  }
+  // <img> of pixel text at an integer scale.
+  function textImg(text, scale, o, cls) {
+    const t = textUrl(text, o);
+    return '<img class="px ptxt ' + (cls || '') + '" src="' + t.url + '" style="width:' + t.w * scale + 'px;height:' + t.h * scale + 'px" alt="' + String(text).replace(/"/g, '') + '">';
+  }
 
   // ---------------------------------------------------------------------------
   // Cache
@@ -1269,5 +1522,5 @@
   function heroImg(id, form, scale, cls) { return img('hero_' + id + '_' + (form || 0) + '_0', scale, cls); }
   function enemyImg(id, scale, cls) { return img('enemy_' + id + '_0', scale, cls); }
 
-  root.AWSprites = { PAL, tones, mix, RARITY_HEX, get, url, img, heroImg, enemyImg, setContent, HERO_ART, ENEMY_ART, ICONS: Object.keys(ICONS) };
+  root.AWSprites = { PAL, tones, mix, RARITY_HEX, get, url, img, heroImg, enemyImg, setContent, HERO_ART, ENEMY_ART, ICONS: Object.keys(ICONS), installFrames, pixelText, textUrl, textImg };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

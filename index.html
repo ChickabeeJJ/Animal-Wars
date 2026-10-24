@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1a1c2c">
+<meta name="theme-color" content="#2a160c">
 <title>Animal Wars</title>
 <meta name="description" content="Command an army of 50 cute pixel animals against the Gloom. Deploy heroes, smash towers across 8 lands and 288 stages, hatch rare heroes and climb the Gloom Tower.">
 <link rel="stylesheet" href="css/style.css">
@@ -14,26 +14,31 @@
     <main id="view">
       <canvas id="cv" aria-label="Battlefield"></canvas>
 
-      <!-- Currency bar (home and menus) -->
-      <div id="topbar" class="topbar">
-        <div class="cur" id="cur-coins" title="Coins: level up heroes and the Lab"><span class="ci" data-icon="coin"></span><b class="num">0</b></div>
-        <div class="cur" id="cur-gems" title="Gems: hatch eggs in the Royal Nest"><span class="ci" data-icon="gem"></span><b class="num">0</b></div>
-        <div class="cur" id="cur-silver" title="Silver Eggs: hatch in the Meadow Nest"><span class="ci" data-icon="silver"></span><b class="num">0</b></div>
-        <div class="cur" id="cur-gold" title="Gold Eggs: one free Royal Nest hatch each"><span class="ci" data-icon="gold"></span><b class="num">0</b></div>
-      </div>
-
-      <!-- Home overlay -->
+      <!-- Home -->
       <div id="home" class="home-ui">
-        <div class="logo"><span class="l1">ANIMAL</span><span class="l2">WARS</span></div>
-        <div id="greet" class="greet"></div>
-        <div class="home-main">
-          <button id="btn-battle" class="btn big gold" type="button"><span class="bb-t">Battle!</span><small id="next-stage"></small></button>
-          <div class="home-side">
-            <button id="btn-map" class="btn sm" type="button">World Map</button>
+        <div class="h-top">
+          <button id="profile" class="profile fx-plaqueWood" type="button" title="Your commander rank grows with every star">
+            <span id="avatar" class="avatar fx-rar0"></span>
+            <span class="pinfo"><b id="pname">Commander</b><span class="rank">Rank <b id="prank" class="num">1</b></span><span class="rbar fx-insetDark"><i id="prank-fill"></i></span></span>
+          </button>
+          <div id="curs" class="curs"></div>
+          <div class="corner">
+            <button id="btn-sound" class="sq fx-btn-dark" type="button" title="Sound (M)" aria-label="Sound"><span data-icon="sound"></span></button>
+            <button id="btn-settings" class="sq fx-btn-dark" type="button" title="Settings" aria-label="Settings"><span data-icon="gear"></span></button>
           </div>
         </div>
+        <div id="quests" class="quests fx-plaque" role="button" tabindex="0" title="Daily quests"></div>
+        <div id="side" class="side"></div>
+        <div class="h-center">
+          <div id="logo" class="logo"></div>
+          <div id="goal" class="goal fx-ribbon"></div>
+        </div>
+        <div class="h-bottom">
+          <button id="btn-map" class="bb fx-btn-wood" type="button"><span data-icon="map" class="bi"></span><span class="bl">World<br>Map</span></button>
+          <button id="btn-battle" class="bb big fx-btn-green" type="button"><span class="bt" id="battle-t"></span><small id="next-stage"></small></button>
+          <button id="btn-hatch" class="bb fx-btn-purple" type="button"><span id="hatch-egg" class="bi egg-bob"></span><span class="bl">Hatch</span><i class="badge" hidden></i></button>
+        </div>
         <nav id="nav" class="nav">
-          <button type="button" data-go="hatch"><span class="ni" data-icon="nest"></span><span>Hatch</span><i class="badge" hidden></i></button>
           <button type="button" data-go="army"><span class="ni" data-icon="army"></span><span>Army</span><i class="badge" hidden></i></button>
           <button type="button" data-go="lab"><span class="ni" data-icon="lab"></span><span>Lab</span><i class="badge" hidden></i></button>
           <button type="button" data-go="rewards"><span class="ni" data-icon="gift"></span><span>Rewards</span><i class="badge" hidden></i></button>
@@ -42,60 +47,57 @@
           <button type="button" data-go="medals"><span class="ni" data-icon="medal"></span><span>Medals</span><i class="badge" hidden></i></button>
           <button type="button" data-go="book"><span class="ni" data-icon="book"></span><span>Book</span><i class="badge" hidden></i></button>
         </nav>
-        <div class="home-corner">
-          <button id="btn-sound" class="round" type="button" title="Sound (M)" aria-label="Sound"><span data-icon="sound"></span></button>
-          <button id="btn-settings" class="round" type="button" title="Settings" aria-label="Settings"><span data-icon="gear"></span></button>
-        </div>
       </div>
 
       <!-- Battle HUD -->
       <div id="bhud" class="bhud" hidden>
         <div class="bh-left">
-          <button id="btn-pause" class="round" type="button" title="Pause (P)" aria-label="Pause"><svg viewBox="0 0 8 8" shape-rendering="crispEdges"><path d="M1 1h2v6H1zM5 1h2v6H5z" fill="currentColor"/></svg></button>
-          <div class="bh-info">
+          <button id="btn-pause" class="sq fx-btn-wood" type="button" title="Pause (P)" aria-label="Pause"><span data-icon="pause"></span></button>
+          <div class="bh-plate fx-plaque">
             <div id="bh-name" class="bh-name"></div>
-            <div class="hpbar ally"><i id="bh-ally"></i><span id="bh-ally-t" class="num"></span></div>
+            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i></div>
           </div>
         </div>
         <div class="bh-right">
-          <div class="acorns"><span data-icon="acorn"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
-          <div class="hpbar enemy"><i id="bh-enemy"></i><span id="bh-enemy-t" class="num"></span></div>
-          <div class="bh-btns">
-            <button id="btn-speed" class="chip" type="button" title="Speed (F)">×1</button>
-            <button id="btn-cam" class="chip" type="button" title="Camera follows the front line">Auto cam</button>
+          <div class="acorns fx-plaqueWood"><span data-icon="acorn" class="ai"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
+          <div class="bh-row">
+            <div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i></div>
+            <button id="btn-speed" class="sq sm fx-btn-dark" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
+            <button id="btn-cam" class="sq sm fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
           </div>
         </div>
-        <div id="bossbar" class="bossbar" hidden><span id="boss-name"></span><div class="bb"><i id="boss-fill"></i></div></div>
+        <div id="bossbar" class="bossbar fx-plaque" hidden><span id="boss-name"></span><div class="bb2 fx-insetDark"><i id="boss-fill"></i></div></div>
         <div id="callout" class="callout"></div>
-        <div id="tut" class="tut" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
+        <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
       </div>
       <div id="toasts" class="toasts" aria-live="polite"></div>
     </main>
 
     <!-- Deploy dock -->
     <div id="dock" class="dock" hidden>
-      <button id="btn-pouch" class="pouch" type="button" title="Upgrade pouch (E)">
-        <span class="p-lv">Lv <b id="pouch-lv">1</b></span>
-        <span data-icon="pouch" class="p-ic"></span>
-        <span class="p-cost"><span id="pouch-cost" class="num">80</span></span>
-        <i id="pouch-fill"></i>
+      <button id="btn-pouch" class="orb pouch" type="button" title="Upgrade pouch (E)">
+        <span class="ring"></span>
+        <span class="orb-in"><span data-icon="pouch" class="oi"></span><b class="lv">Lv <span id="pouch-lv">1</span></b></span>
+        <span class="tag fx-plaqueWood"><span data-icon="acorn"></span><b id="pouch-cost" class="num">80</b></span>
       </button>
       <div id="cards" class="cards"></div>
-      <button id="btn-roar" class="roar" type="button" title="Mega Roar (R or Space)">
-        <i id="roar-fill"></i>
-        <span class="r-t">Mega<br>Roar</span>
+      <button id="btn-roar" class="orb roar" type="button" title="Mega Roar (R or Space)">
+        <span class="ring"></span>
+        <span class="orb-in"><span data-icon="roar" class="oi"></span><b class="lv" id="roar-t">ROAR</b></span>
       </button>
     </div>
   </div>
 
-  <!-- Menu panel -->
-  <section id="panel" class="panel" hidden>
-    <header class="ph">
-      <button id="panel-back" class="round back" type="button" aria-label="Back" title="Back (Esc)"><svg viewBox="0 0 8 8" shape-rendering="crispEdges"><path d="M4 1h1v1H4v1h3v2H4v1h1v1H4V6H3V5H2V3h1V2h1z" fill="currentColor"/></svg></button>
-      <h2 id="panel-title"></h2>
-      <div id="panel-cur" class="panel-cur"></div>
-    </header>
-    <div id="panel-body" class="pb"></div>
+  <!-- Menu window -->
+  <section id="panel" class="wrap" hidden>
+    <div class="window fx-win">
+      <header class="w-head">
+        <button id="panel-back" class="sq fx-btn-wood" type="button" aria-label="Back" title="Back (Esc)"><span data-icon="back"></span></button>
+        <div id="panel-title" class="w-title fx-ribbon"></div>
+        <div id="panel-cur" class="curs small"></div>
+      </header>
+      <div id="panel-body" class="w-body"></div>
+    </div>
   </section>
 
   <!-- Hatch show -->
@@ -103,18 +105,18 @@
     <div class="h-rays" id="h-rays"></div>
     <div id="h-stage" class="h-stage"></div>
     <div id="h-info" class="h-info"></div>
-    <div class="h-btns"><button id="h-skip" class="btn sm" type="button">Skip</button><button id="h-next" class="btn gold" type="button">Tap!</button></div>
+    <div class="h-btns"><button id="h-skip" class="bt2 fx-btn-gray" type="button">Skip</button><button id="h-next" class="bt2 fx-btn-gold" type="button">Tap!</button></div>
   </div>
 
   <div id="modal" class="modal" hidden>
-    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button id="modal-x" class="modal-x" type="button" aria-label="Close">×</button>
-      <h2 id="modal-title"></h2>
+    <div class="modal-box fx-win" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button id="modal-x" class="sq sm x fx-btn-red" type="button" aria-label="Close"><span data-icon="close"></span></button>
+      <div id="modal-title" class="w-title fx-ribbon"></div>
       <div id="modal-body"></div>
       <div id="modal-actions" class="modal-actions"></div>
     </div>
   </div>
-  <div id="tip" class="tip" hidden></div>
+  <div id="fade" class="fade"></div>
 </div>
 
 <script src="js/content.js"></script>
