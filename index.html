@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2a160c">
+<title>Animal Wars</title>
+<meta name="description" content="Command an army of 50 cute pixel animals against the Gloom. Deploy heroes, smash towers across 8 lands and 288 stages, hatch rare heroes and climb the Gloom Tower.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="home">
+  <div id="stage">
+    <main id="view">
+      <canvas id="cv" aria-label="Battlefield"></canvas>
+
+      <!-- Home -->
+      <div id="home" class="home-ui">
+        <div class="h-top">
+          <button id="profile" class="profile fx-plaqueWood" type="button" title="Your commander rank grows with every star">
+            <span id="avatar" class="avatar fx-rar0"></span>
+            <span class="pinfo"><b id="pname">Commander</b><span class="rank">Rank <b id="prank" class="num">1</b></span><span class="rbar fx-insetDark"><i id="prank-fill"></i></span></span>
+          </button>
+          <div id="curs" class="curs"></div>
+          <div class="corner">
+            <button id="btn-sound" class="sq fx-btn-blue" type="button" title="Sound (M)" aria-label="Sound"><span data-icon="sound"></span></button>
+            <button id="btn-settings" class="sq fx-btn-gray" type="button" title="Settings" aria-label="Settings"><span data-icon="gear"></span></button>
+          </div>
+        </div>
+        <div id="quests" class="quests fx-plaque" role="button" tabindex="0" title="Daily quests"></div>
+        <div id="side" class="side"></div>
+        <div class="h-center">
+          <div id="logo" class="logo"></div>
+          <div id="goal" class="goal fx-ribbon"></div>
+        </div>
+        <div class="actionbar">
+          <nav class="nav nav-l">
+            <button type="button" class="nb fx-btn-wood" data-go="map"><span class="ni" data-icon="map"></span><span class="nl">Map</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-blue" data-go="army"><span class="ni" data-icon="army"></span><span class="nl">Army</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-teal" data-go="lab"><span class="ni" data-icon="lab"></span><span class="nl">Lab</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-dark" data-go="book"><span class="ni" data-icon="book"></span><span class="nl">Book</span><i class="badge" hidden></i></button>
+          </nav>
+          <div class="battle-wrap">
+            <button id="btn-battle" class="bb fx-btn-green" type="button"><span class="bsw" data-icon="battle"></span><span class="bt" id="battle-t"></span><small id="next-stage" class="nopix"></small></button>
+          </div>
+          <nav class="nav nav-r">
+            <button type="button" class="nb fx-btn-pink" data-go="hatch" id="btn-hatch"><span class="ni" id="hatch-egg"></span><span class="nl">Hatch</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Rewards</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-orange" data-go="events"><span class="ni" data-icon="event"></span><span class="nl">Events</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-purple" data-go="medals"><span class="ni" data-icon="medal"></span><span class="nl">Medals</span><i class="badge" hidden></i></button>
+          </nav>
+        </div>
+      </div>
+
+      <!-- Battle HUD -->
+      <div id="bhud" class="bhud" hidden>
+        <div class="bh-left">
+          <button id="btn-pause" class="sq fx-btn-wood" type="button" title="Pause (P)" aria-label="Pause"><span data-icon="pause"></span></button>
+          <div class="bh-plate fx-plaque">
+            <div id="bh-name" class="bh-name"></div>
+            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i></div>
+          </div>
+        </div>
+        <div class="bh-right">
+          <div class="acorns fx-plaqueWood"><span data-icon="acorn" class="ai"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
+          <div class="bh-row">
+            <div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i></div>
+            <button id="btn-speed" class="sq fx-btn-dark nopix" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
+            <button id="btn-cam" class="sq fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
+          </div>
+        </div>
+        <div id="bossbar" class="bossbar fx-plaque" hidden><span id="boss-name"></span><div class="bb2 fx-insetDark"><i id="boss-fill"></i></div></div>
+        <div id="callout" class="callout"></div>
+        <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
+      </div>
+      <div id="toasts" class="toasts" aria-live="polite"></div>
+    </main>
+
+    <!-- Deploy dock -->
+    <div id="dock" class="dock" hidden>
+      <button id="btn-pouch" class="orb pouch" type="button" title="Upgrade pouch (E)">
+        <span class="ring"></span>
+        <span class="orb-in"><span data-icon="pouch" class="oi"></span><b class="lv">Lv <span id="pouch-lv">1</span></b></span>
+        <span class="tag fx-plaqueWood"><span data-icon="acorn"></span><b id="pouch-cost" class="num">80</b></span>
+      </button>
+      <div id="cards" class="cards"></div>
+      <button id="btn-roar" class="orb roar" type="button" title="Mega Roar (R or Space)">
+        <span class="ring"></span>
+        <span class="orb-in"><span data-icon="roar" class="oi"></span><b class="lv" id="roar-t">ROAR</b></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Menu window -->
+  <section id="panel" class="wrap" hidden>
+    <div class="window fx-win">
+      <header class="w-head">
+        <button id="panel-back" class="sq fx-btn-wood" type="button" aria-label="Back" title="Back (Esc)"><span data-icon="back"></span></button>
+        <div id="panel-title" class="w-title fx-ribbon"></div>
+        <div id="panel-cur" class="curs small"></div>
+      </header>
+      <div id="panel-body" class="w-body"></div>
+    </div>
+  </section>
+
+  <!-- Hatch show -->
+  <div id="hatchery" class="hatchery" hidden>
+    <div class="h-rays" id="h-rays"></div>
+    <div id="h-stage" class="h-stage"></div>
+    <div id="h-info" class="h-info"></div>
+    <div class="h-btns"><button id="h-skip" class="bt2 fx-btn-gray" type="button">Skip</button><button id="h-next" class="bt2 fx-btn-gold" type="button">Tap!</button></div>
+  </div>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box fx-win" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button id="modal-x" class="sq sm x fx-btn-red" type="button" aria-label="Close"><span data-icon="close"></span></button>
+      <div id="modal-title" class="w-title fx-ribbon"></div>
+      <div id="modal-body"></div>
+      <div id="modal-actions" class="modal-actions"></div>
+    </div>
+  </div>
+  <div id="fade" class="fade"></div>
+</div>
+
+<script src="js/content.js"></script>
+<script src="js/tune.js"></script>
+<script src="js/core.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/render.js"></script>
+<script src="js/game.js"></script>
+<!-- CrazyGames SDK v3. The game runs normally if it fails to load. -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js" async onload="window.AWPlatform && AWPlatform.onSdkScript()" onerror="window.AWPlatform && AWPlatform.onSdkScript(true)"></script>
+</body>
+</html>
