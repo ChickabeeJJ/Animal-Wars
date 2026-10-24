@@ -2,7 +2,7 @@
 /* Campaign simulator: plays the real rules with a scripted player and reports pacing.
  *   node tools/sim.js [regions=8] [seed=1] [--verbose]
  * The scripted player deploys like a decent human (walls first, damage when the pouch fills), upgrades the
- * pouch early, roars at crowds, grinds the best cleared stage after a loss, spends coins on the lineup and the
+ * pouch early, uses the Battle Cry when the army is engaged, grinds the best cleared stage after a loss, spends coins on the lineup and the
  * Lab, hatches whenever it can afford 10 eggs, and plays one "day" of dailies per 30 minutes of play.
  */
 'use strict';
@@ -20,11 +20,14 @@ function playBattle(state, def, rng, opts) {
     think += dt;
     if (think < 0.25) continue;
     think = 0;
-    // Roar at a crowd or anything close to home.
+    // Battle Cry when a good part of the army is on the field and fighting, or in an emergency.
     if (AW.canRoar(b)) {
-      let near = 0, close = false, boss = false;
-      for (const e of b.ents) if (e.side === 1 && e.state !== 'dead') { if (e.x < 300) near++; if (e.x < 150) close = true; if (e.boss) boss = true; }
-      if (near >= 5 || close || (boss && near >= 1)) AW.roar(b, null);
+      let heroes = 0, front = 0, foe = b.L, close = false, boss = false;
+      for (const e of b.ents) {
+        if (e.state === 'dead') continue;
+        if (e.side === 0) { heroes++; front = Math.max(front, e.x); } else { foe = Math.min(foe, e.x); if (e.x < 150) close = true; if (e.boss) boss = true; }
+      }
+      if ((heroes >= 4 && foe - front < 60) || close || (boss && heroes >= 2 && foe - front < 80)) AW.roar(b, null);
     }
     let front = 0, foe = b.L, allies = 0;
     for (const e of b.ents) {

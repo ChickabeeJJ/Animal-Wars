@@ -1,6 +1,6 @@
 # Animal Wars
 
-A pixel-art lane battler for CrazyGames. Command an army of cute animals against the Gloom: send heroes marching down the lane, upgrade your acorn pouch, fire the Mega Roar, and smash the Gloom tower before it flattens your burrow. Between battles, hatch rare heroes, level them up and evolve them, upgrade the Lab, and free 8 lands across 3 difficulties.
+A pixel-art lane battler for CrazyGames. Command an army of cute animals against the Gloom: send heroes marching down the lane, upgrade your acorn pouch, rally them with a Battle Cry, and smash the Gloom tower before it flattens your burrow. Between battles, hatch rare heroes, level them up and evolve them, upgrade the Lab, and free 8 lands across 3 difficulties.
 
 **Play locally:** open `index.html` in a browser, or serve the folder (`npx http-server .`). There is no build step needed to play.
 
@@ -23,7 +23,7 @@ Every gem and egg is earned by playing. There are no purchases.
 |---|---|
 | Tap a hero card, or `1`-`0` | Deploy that hero |
 | Tap the pouch, or `E` | Upgrade the acorn pouch (faster income, bigger pouch) |
-| Tap Mega Roar, or `R` / `Space` | Fire the Mega Roar when charged |
+| Tap Battle Cry, or `R` / `Space` | When charged, every hero on the field glows gold for 8 seconds: +50% attack (more with the Lab), +30% speed, 30% less damage taken |
 | Drag, scroll or `←` `→` | Look around the battlefield (the camera follows the front line otherwise); tap the minimap to jump |
 | `F` | Speed ×1 / ×2 |
 | `P` / `Esc` | Pause |
@@ -38,20 +38,22 @@ fonts/               Pixelify Sans + Silkscreen (SIL OFL, licences included)
 js/content.js        content tables: heroes, Gloom, regions, difficulties, events, banners, Lab, items, missions, login, medals
 js/tune.js           per-stage tuning written by tools/tune.js (do not edit by hand)
 js/core.js           all rules: saves, hero stats, stage generator, battle simulation, hatchery, dailies, medals (no DOM; runs in Node)
-js/sprites.js        palette, Painter, 50 hero and 31 Gloom painters (4 frames each), bases, eggs, icons, the UI frame kit and pixel-font titles
-js/render.js         the battlefield: parallax regions, camera, units, waves, Mega Roar, particles, minimap, home parade, region art for menus
+js/assets.js         the painted tree-house base and region backgrounds as native-size pixel art (written by tools/assets.py)
+js/sprites.js        palette, Painter (with a pixel-art clean-up pass), 50 hero and 33 Gloom painters (4 frames each), bases, eggs, hand-drawn icons, the UI frame kit and pixel-font titles
+js/render.js         the battlefield: painted parallax regions, camera, units, Battle Cry glow, waves, particles, minimap, home parade, region art for menus
 js/audio.js          chiptune sound effects and a step sequencer playing 3 original themes (all synthesized, no audio files)
 js/platform.js       CrazyGames SDK v3 adapter + storage; every call is safe without the SDK
 js/game.js           UI, input, battle loop, tutorial, results, windows, saving, platform hooks
 tools/sim.js         campaign simulator: a scripted player plays the real rules and reports pacing
 tools/calibrate.js   lowest hero level that beats each stage
 tools/tune.js        writes js/tune.js so every stage is beatable at a target level in a target time
+tools/assets.py      turns the painted art in assets/src into clean native-resolution pixel art (Pillow + NumPy) → assets/px and js/assets.js
 tools/build.js       production build → dist/index.html (single file) + dist/animal-wars.zip + public/index.html
 tools/covers.js      store covers from the live game → store/
 tools/preview.js     store preview videos (real gameplay) → store/
 tools/spritesheet.html  every sprite enlarged, for art review
 tests/core.test.js   rule tests (Node's built-in runner)
-tests/browser.qa.js  browser QA in Chromium (desktop, 1920×1080, phone portrait and landscape)
+tests/browser.qa.js  browser QA in Chromium (desktop, 1920×1080, phone landscape, and the rotate prompt in phone portrait)
 ```
 
 ## Commands
@@ -68,20 +70,21 @@ node tools/preview.js       # store/preview-*.mp4
 npm run sim -- 8 1          # campaign pacing (regions, seed, --verbose)
 node tools/calibrate.js 0   # level needed per stage (difficulty 0, 1, 2)
 node tools/tune.js 0,1,2    # re-tune stages after changing heroes, Gloom or the stage generator (slow)
+python3 tools/assets.py     # rebuild js/assets.js after changing anything in assets/src
 ```
 
 Add `?debug` to the URL to show every menu from the start.
 
 ## Balance
 
-Stages are generated from each region's Gloom pools (`stageDef` in `js/core.js`) and then tuned by `tools/tune.js`: for each stage it finds the strongest Gloom that the scripted player still beats every time within a target time at a target hero level, and sizes the tower to match. Targets rise smoothly: Normal from level 1 to about 36 across the 8 regions, Hard from 34 to 46, Nightmare from 42 to 50. With the tuning, the simulator clears the Normal campaign in about 6 hours of battles. If you change hero or Gloom stats, re-run `node tools/tune.js` and `npm test`.
+Stages are generated from each region's Gloom pools (`stageDef` in `js/core.js`) and then tuned by `tools/tune.js`: for each stage it finds the strongest Gloom that the scripted player still beats every time within a target time at a target hero level, and sizes the tower to match. Targets rise smoothly: Normal from level 1 to about 36 across the 8 regions, Hard from 34 to 46, Nightmare from 42 to 50. With the tuning, the simulator clears the Normal campaign in about 5 to 6 hours of battles. If you change hero or Gloom stats, re-run `node tools/tune.js` and `npm test`.
 
 ## Deploying to CrazyGames
 
 1. `npm run build`.
-2. Upload `dist/animal-wars.zip` (one `index.html`, about 130 KB zipped; everything is inlined).
-3. Use `store/` for the listing: three covers, two preview videos, and the text in [`store/LISTING.md`](store/LISTING.md).
-4. Category **Action** or **Strategy** (tower defense), mobile and touch supported.
+2. Upload `dist/animal-wars.zip` (one `index.html`, about 450 KB zipped; everything is inlined, including the painted backgrounds).
+3. Use `store/` for the listing: three covers, a landscape preview video, and the text in [`store/LISTING.md`](store/LISTING.md).
+4. Category **Action** or **Strategy** (tower defense), mobile and touch supported. On phones and tablets the game is **landscape only**: in portrait a "turn your device sideways" screen covers it (and pauses a battle), and the game asks the browser to lock landscape where that is allowed.
 
 `index.html` loads the CrazyGames SDK v3 from `sdk.crazygames.com`. The game starts without waiting for it and works the same if it fails to load. When it loads, the game:
 
@@ -100,4 +103,4 @@ The SDK integration was written from the v3 API and has **not** been run against
 
 ## Original work
 
-Animal Wars is inspired by the lane-battler genre (send units down a lane, manage an income meter, fire a base weapon, destroy the enemy base), but all names, characters, art, music and text are original. There are no cats in the army, no copied characters, enemies, sprites, sounds or UI art, and the currencies, items and modes have their own names (acorns, Mega Roar, Royal Nest, Gloom Tower, and so on). All pixel art is drawn by code in `js/sprites.js`; all audio is synthesized in `js/audio.js`.
+Animal Wars is inspired by the lane-battler genre (send units down a lane, manage an income meter, fire a base weapon, destroy the enemy base), but all names, characters, art, music and text are original. There are no cats in the army, no copied characters, enemies, sprites, sounds or UI art, and the currencies, items and modes have their own names (acorns, Battle Cry, Royal Nest, Gloom Tower, and so on); there is no base cannon: the Battle Cry powers up your heroes instead. Characters, towers, eggs and icons are drawn by code in `js/sprites.js`; the tree-house base and region backgrounds are the owner's painted art in `assets/src`, converted by `tools/assets.py`; all audio is synthesized in `js/audio.js`.

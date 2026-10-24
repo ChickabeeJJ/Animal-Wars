@@ -9,14 +9,14 @@
   const mix = SPR.mix;
 
   const THEMES = [
-    { name: 'meadow', sky: ['#6ec0f6', '#bfe9fb'], far: '#8cc79a', mid: '#57a868', ground: '#6ccf5a', dirt: '#9a6a4a', deep: '#6a4a3a', prop: 'tree', fx: 'petal', cloud: '#ffffff' },
-    { name: 'dunes', sky: ['#ffbf73', '#ffecc4'], far: '#eab877', mid: '#d99a58', ground: '#f2c674', dirt: '#c89048', deep: '#9a6a3a', prop: 'cactus', fx: 'dust', cloud: '#fff6e0' },
-    { name: 'peaks', sky: ['#8fb4e8', '#e4f0ff'], far: '#c8d8f0', mid: '#5a7a9a', ground: '#f4f8ff', dirt: '#a8b8d8', deep: '#6a7a9a', prop: 'pine', fx: 'snow', cloud: '#ffffff' },
-    { name: 'bog', sky: ['#3a4a5a', '#7a8a78'], far: '#4a5a4a', mid: '#3a4a3a', ground: '#5a7a3a', dirt: '#3a4a2a', deep: '#2a3420', prop: 'shroom', fx: 'fog', cloud: '#9aaa98' },
-    { name: 'caldera', sky: ['#3a1424', '#a8442a'], far: '#5a2a2a', mid: '#3a1a1a', ground: '#6a4040', dirt: '#4a2a2a', deep: '#2a1414', prop: 'rock', fx: 'ember', cloud: '#7a4a4a' },
-    { name: 'city', sky: ['#22223e', '#5a5a80'], far: '#3a3a5a', mid: '#2a2a40', ground: '#6a7488', dirt: '#4a5266', deep: '#333c57', prop: 'lamp', fx: 'rain', cloud: '#5a5a7a' },
-    { name: 'sky', sky: ['#5ab4ff', '#e8f8ff'], far: '#ffffff', mid: '#a8d8a0', ground: '#f4fbff', dirt: '#c8e0f0', deep: '#94b0c2', prop: 'island', fx: 'feather', cloud: '#ffffff' },
-    { name: 'rift', sky: ['#07071a', '#29366f'], far: '#4a4a6a', mid: '#3a3a58', ground: '#9a9ab0', dirt: '#6a6a88', deep: '#4a4a66', prop: 'crystal', fx: 'star', cloud: '#5a5a8a' }
+    { name: 'meadow', sky: ['#6ec0f6', '#bfe9fb'], far: '#8cc79a', mid: '#57a868', ground: '#7cbc48', dirt: '#7a5236', deep: '#55381f', prop: 'tree', fx: 'petal', cloud: '#ffffff' },
+    { name: 'dunes', sky: ['#ffbf73', '#ffecc4'], far: '#eab877', mid: '#d99a58', ground: '#e3ad62', dirt: '#a8683c', deep: '#6b423c', prop: 'cactus', fx: 'dust', cloud: '#fff6e0' },
+    { name: 'peaks', sky: ['#8fb4e8', '#e4f0ff'], far: '#c8d8f0', mid: '#5a7a9a', ground: '#eef4ff', dirt: '#7f95c8', deep: '#4a5a90', prop: 'pine', fx: 'snow', cloud: '#ffffff' },
+    { name: 'bog', sky: ['#3a4a5a', '#7a8a78'], far: '#4a5a4a', mid: '#3a4a3a', ground: '#557c46', dirt: '#3a4a34', deep: '#29342a', prop: 'shroom', fx: 'fog', cloud: '#9aaa98' },
+    { name: 'caldera', sky: ['#3a1424', '#a8442a'], far: '#5a2a2a', mid: '#3a1a1a', ground: '#c0583e', dirt: '#7a2a24', deep: '#4a1a1a', prop: 'rock', fx: 'ember', cloud: '#7a4a4a' },
+    { name: 'city', sky: ['#22223e', '#5a5a80'], far: '#3a3a5a', mid: '#2a2a40', ground: '#6a7498', dirt: '#2c3256', deep: '#1a1e3a', prop: 'lamp', fx: 'rain', cloud: '#5a5a7a' },
+    { name: 'sky', sky: ['#5ab4ff', '#e8f8ff'], far: '#ffffff', mid: '#a8d8a0', ground: '#eef2ff', dirt: '#8a96c8', deep: '#5a6494', prop: 'island', fx: 'feather', cloud: '#ffffff' },
+    { name: 'rift', sky: ['#07071a', '#29366f'], far: '#4a4a6a', mid: '#3a3a58', ground: '#8e8ebc', dirt: '#3a3e66', deep: '#24264a', prop: 'crystal', fx: 'star', cloud: '#5a5a8a' }
   ];
 
   let cv, ctx, container;
@@ -38,7 +38,7 @@
     W = Math.max(1, container.clientWidth); H = Math.max(1, container.clientHeight);
     // About 140-180 art pixels tall, whole-number scale; at least ~280 wide so the action fits.
     PXS = Math.max(1, Math.round(H / (mode === 'home' ? 205 : 155)));
-    if (W / PXS < 280) PXS = Math.max(1, Math.floor(W / 185));
+    if (W / PXS < 280) PXS = Math.max(1, Math.floor(W / 185), Math.round(H / 240));
     BW = Math.ceil(W / PXS); BH = Math.ceil(H / PXS);
     KK = Math.max(1, Math.round(PXS * DPR));
     cv.width = BW * KK; cv.height = BH * KK;
@@ -56,11 +56,50 @@
 
   function laneLen() { return mode === 'battle' && battle ? battle.L : 380; }
 
+  // A painted background repeated side by side, every other copy mirrored so the seams match.
+  const ART_GROUND = 164;  // row of the painted backgrounds where the ground meets the lane
+  function tiled(art, w) {
+    const c = mk(w, art.height), g = c.getContext('2d');
+    for (let x = 0, i = 0; x < w; x += art.width, i++) {
+      if (i % 2) { g.save(); g.translate(x + art.width, 0); g.scale(-1, 1); g.drawImage(art, 0, 0); g.restore(); } else g.drawImage(art, x, 0);
+    }
+    return c;
+  }
+  function paintedLayers(art, th, span, r) {
+    const farW = Math.ceil(BW + span * 0.25 + 40);
+    const strip = tiled(art, farW);
+    const far = mk(farW, BH), fg = far.getContext('2d');
+    const y0 = GY + 1 - ART_GROUND;
+    fg.drawImage(strip, 0, y0);
+    // Taller screens: continue the painted sky upward as a gradient that deepens toward the top.
+    const sky = mk(1, BH), sg = sky.getContext('2d');
+    const px0 = strip.getContext('2d').getImageData(0, 0, 1, 1).data;
+    const top = '#' + [px0[0], px0[1], px0[2]].map((v) => v.toString(16).padStart(2, '0')).join('');
+    const sgrad = sg.createLinearGradient(0, 0, 0, Math.max(1, y0));
+    sgrad.addColorStop(0, mix(top, '#0b1030', 0.35)); sgrad.addColorStop(1, top);
+    sg.fillStyle = sgrad; sg.fillRect(0, 0, 1, BH);
+    if (y0 > 0) fg.drawImage(sky, 0, 0, 1, y0, 0, 0, farW, y0);
+    // A skyline in front of the recoloured painting for the city.
+    let mid = null;
+    if (th.name === 'city') {
+      const midW = Math.ceil(BW + span * 0.55 + 60);
+      mid = mk(midW, BH);
+      ridge(mid.getContext('2d'), midW, GY - BH * 0.06, BH * 0.16, th.mid, r, 'skyline');
+    }
+    return { sky: sky, far: far, mid: mid };
+  }
+
   function buildLayers() {
     if (!buf) return;
     const th = theme, L = laneLen();
     const span = L + 200;
     const r = rng(1234 + themeIdx * 77);
+    const art = SPR.asset && SPR.asset('bg_' + th.name);
+    if (art) {
+      const pl = paintedLayers(art, th, span, r);
+      layers = { sky: pl.sky, far: pl.far, mid: pl.mid, ground: groundStrip(th, r) };
+      return;
+    }
     // Sky.
     const sky = mk(1, BH);
     const sg = sky.getContext('2d');
@@ -87,23 +126,53 @@
     const mid = mk(midW, BH), mg = mid.getContext('2d');
     ridge(mg, midW, GY - BH * 0.07, BH * 0.08, th.mid, r, th.name === 'dunes' ? 'dunes' : 'hills');
     for (let x = 10; x < midW; x += 22 + r() * 40) prop(mg, th.prop, x, GY - BH * 0.03 - r() * 4, th, r);
-    // Ground strip (1.0 parallax), tiled.
-    const gw = 64, gh = BH - GY + 2;
+    layers = { sky: sky, far: far, mid: mid, ground: groundStrip(th, r) };
+  }
+  // Ground strip (1.0 parallax), tiled: the lane the armies walk on. Clean shapes only: a lit lip with
+  // scalloped tufts, two broken strata lines and a few shaded pebbles; nothing touches the tile seam.
+  function groundStrip(th, r) {
+    const gw = 96, gh = BH - GY + 2;
     const ground = mk(gw, gh), gg = ground.getContext('2d');
-    gg.fillStyle = th.dirt; gg.fillRect(0, 0, gw, gh);
-    gg.fillStyle = th.ground; gg.fillRect(0, 0, gw, 4);
-    gg.fillStyle = mix(th.ground, '#ffffff', 0.25); gg.fillRect(0, 0, gw, 1);
-    gg.fillStyle = th.deep;
-    for (let i = 0; i < 18; i++) gg.fillRect(Math.floor(r() * gw), 6 + Math.floor(r() * (gh - 6)), 2, 1);
-    for (let x = 0; x < gw; x += 4 + Math.floor(r() * 5)) { gg.fillStyle = mix(th.ground, '#000000', 0.15); gg.fillRect(x, 4, 1, 1 + Math.floor(r() * 2)); }
-    if (th.name === 'meadow' || th.name === 'bog') for (let x = 0; x < gw; x += 6 + Math.floor(r() * 8)) { gg.fillStyle = mix(th.ground, '#ffffff', 0.3); gg.fillRect(x, -0, 1, 2); gg.fillRect(x + 1, 0, 1, 1); }
-    layers = { sky: sky, far: far, mid: mid, ground: ground };
+    const px = function (c, x, y, w, h) { gg.fillStyle = c; gg.fillRect(x, y, w, h); };
+    const lip = mix(th.ground, '#ffffff', 0.3), shade = mix(th.ground, th.dirt, 0.55);
+    px(th.dirt, 0, 0, gw, gh);
+    px(th.ground, 0, 0, gw, 5);
+    px(lip, 0, 0, gw, 1);
+    px(shade, 0, 5, gw, 1);
+    for (let x = 4; x < gw - 4; x += 12) { px(th.ground, x, 5, 4, 1); px(shade, x + 1, 6, 2, 1); }
+    for (const [y, x0] of [[10, 6], [10, 52], [16, 28], [16, 74]]) if (y < gh - 1) px(th.deep, x0, y, 14 + Math.floor(r() * 6), 1);
+    for (let i = 0; i < 4; i++) {
+      const x = 6 + Math.floor(r() * (gw - 14)), y = 8 + Math.floor(r() * Math.max(1, gh - 11));
+      px(th.deep, x, y + 1, 4, 1); px(mix(th.dirt, '#ffffff', 0.18), x + 1, y, 2, 1);
+    }
+    return ground;
   }
   // A still picture of a region (sky, hills, props, ground) for menus. Cached per theme and size.
   const artCache = {};
-  function themeArt(t, w, h, withBases) {
-    const key = t + ':' + w + 'x' + h + ':' + (withBases ? 1 : 0);
+  // anchor: the painting row that lands on the bottom edge (default: just below the ground line).
+  function themeArt(t, w, h, withBases, anchor) {
+    const key = t + ':' + w + 'x' + h + ':' + (withBases ? 1 : 0) + ':' + (anchor || 0);
     if (artCache[key]) return artCache[key];
+    const art = SPR.asset && SPR.asset('bg_' + THEMES[t % THEMES.length].name);
+    if (art) {
+      // The painting itself, shrunk by a whole factor when the slot is small, anchored on the ground line.
+      const k = Math.max(1, Math.min(2, Math.floor(art.height / h), Math.floor(art.width / w)));
+      const sw = w * k, sh = h * k, strip = tiled(art, Math.max(sw, art.width));
+      const groundRow = anchor || ART_GROUND + 6;
+      const sy = groundRow - sh;
+      const c = mk(w, h), g = c.getContext('2d');
+      g.imageSmoothingEnabled = k > 1;
+      const sx = Math.max(0, Math.floor((strip.width - sw) / 2));
+      if (sy < 0) g.drawImage(strip, sx, 0, sw, 1, 0, 0, w, Math.ceil(-sy / k));
+      g.drawImage(strip, sx, Math.max(0, sy), sw, sh - Math.max(0, -sy), 0, Math.ceil(Math.max(0, -sy) / k), w, h - Math.ceil(Math.max(0, -sy) / k));
+      g.imageSmoothingEnabled = false;
+      if (withBases) {
+        const tw = SPR.get('tower_' + (t % 8) + '_0');
+        g.drawImage(tw, w - tw.width + 6, Math.round(h - 6 / k) - tw.height + 2);
+      }
+      artCache[key] = c.toDataURL();
+      return artCache[key];
+    }
     const save = { BW: BW, BH: BH, GY: GY, theme: theme, themeIdx: themeIdx, layers: layers, mode: mode, battle: battle };
     BW = w; BH = h; GY = h - Math.max(8, Math.round(h * 0.16)); theme = THEMES[t % THEMES.length]; themeIdx = t % THEMES.length; mode = 'art'; battle = null;
     buildLayers();
@@ -174,13 +243,17 @@
     cam.x = cam.target = homeCam();
     buildLayers();
   }
-  function homeCam() { return -62; }
-  function minCam() { return -62; }
-  function maxCam() { return battle ? Math.max(minCam(), battle.L + 62 - BW) : 0; }
+  // Our base sits left of x = 0 (its door at the lane start); the Gloom tower at the far end.
+  function padL() { return 4 - baseX(SPR.get('burrow_0').width); }
+  const PADR = 62;
+  function homeCam() { return -padL(); }
+  function minCam() { return -padL(); }
+  function maxCam() { return battle ? Math.max(minCam(), battle.L + PADR - BW) : 0; }
+  function baseX(w) { return -w + 30; }
 
   // Camera controls from game.js.
   function drag(dxScreen) { cam.manual = 3; cam.target = clampCam(cam.target - dxScreen / PXS); cam.x = cam.target; }
-  function jumpTo(fraction) { if (!battle) return; cam.manual = 3; cam.target = clampCam((battle.L + 124) * fraction - 62 - BW / 2); }
+  function jumpTo(fraction) { if (!battle) return; cam.manual = 3; cam.target = clampCam((battle.L + padL() + PADR) * fraction - padL() - BW / 2); }
   function clampCam(x) { return Math.max(minCam(), Math.min(maxCam(), x)); }
   function setAuto() { cam.manual = 0; }
   function lookAt(x) { cam.manual = 1e9; cam.x = cam.target = clampCam(x - BW / 2); }
@@ -218,8 +291,13 @@
       }
       case 'towerHit': if (ev.side === 1) cam.shake = Math.max(cam.shake, 1.5); break;
       case 'roar': {
-        rings.push({ x: 0, r: 0, t: 0, life: 0.65, roar: true });
-        cam.shake = 6; flash('#ffe9a0', 0.25);
+        // Battle Cry: a golden shout from the base, and a burst of light on every hero it reaches.
+        rings.push({ x: -16, r: 0, t: 0, life: 0.8, roar: true });
+        cam.shake = 4; flash('#ffe066', 0.22);
+        if (battle) for (const e of battle.ents) if (e.side === 0 && e.buff > 0) {
+          const y = feet(e) - e.st.size * 0.5;
+          for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; particle({ x: e.x + Math.cos(a) * 3, y: y + Math.sin(a) * 3, vx: Math.cos(a) * 34, vy: Math.sin(a) * 26 - 8, life: 0.45, c: i % 2 ? '#fff6c8' : '#ffcd4d', s: 2 }); }
+        }
         break;
       }
       case 'wave': rings.push({ x: ev.x, r: 0, t: 0, life: 0.5, side: ev.side }); break;
@@ -246,6 +324,24 @@
     const c = mk(src.width, src.height), g = c.getContext('2d');
     g.drawImage(src, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#ffffff'; g.fillRect(0, 0, c.width, c.height);
     silCache[name] = c;
+    return c;
+  }
+
+  const glowCache = {};
+  function glow(name) {
+    if (glowCache[name]) return glowCache[name];
+    const src = SPR.get(name), w = src.width + 4, h = src.height + 4;
+    const sd = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+    const solid = function (x, y) { x -= 2; y -= 2; return x >= 0 && y >= 0 && x < src.width && y < src.height && sd[(y * src.width + x) * 4 + 3] > 0; };
+    const c = mk(w, h), g = c.getContext('2d');
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (solid(x, y)) continue;
+      const d1 = solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1);
+      const d2 = !d1 && (solid(x - 2, y) || solid(x + 2, y) || solid(x, y - 2) || solid(x, y + 2) || solid(x - 1, y - 1) || solid(x + 1, y - 1) || solid(x - 1, y + 1) || solid(x + 1, y + 1));
+      if (d1) { g.fillStyle = '#ffe066'; g.fillRect(x, y, 1, 1); }
+      else if (d2) { g.fillStyle = 'rgba(255,159,28,0.6)'; g.fillRect(x, y, 1, 1); }
+    }
+    glowCache[name] = c;
     return c;
   }
 
@@ -288,6 +384,12 @@
       b.globalAlpha = 1;
       return;
     }
+    // Battle Cry glow: a 2-pixel aura hugging the sprite, pulsing, blinking as it runs out.
+    if (e.buff > 0 && e.state !== 'dead' && (e.buff > 1.5 || Math.floor(time * 8) % 2 === 0)) {
+      b.globalAlpha = 0.7 + 0.3 * Math.sin(time * 9 + e.id);
+      b.drawImage(glow(name), x0 - 2, y0 - 2);
+      if (Math.random() < 0.08) particle({ x: e.x + (Math.random() - 0.5) * img.width * 0.6, y: fy - Math.random() * img.height * 0.8, vx: 0, vy: -16, life: 0.6, c: Math.random() < 0.5 ? '#ffe066' : '#fff6c8', s: 1 });
+    }
     b.globalAlpha = alpha;
     b.drawImage(img, x0, y0);
     if (e.flash > 0) { b.globalAlpha = Math.min(1, e.flash * 8) * 0.8 * alpha; b.drawImage(silhouette(name), x0, y0); }
@@ -310,7 +412,9 @@
     const ad = Math.min(3, Math.floor((1 - bt.ally.hp / bt.ally.max) * 4));
     const bur = SPR.get('burrow_' + ad);
     const shakeA = bt.ally.hitT > 0 ? Math.round(Math.sin(time * 60) * 1) : 0;
-    b.drawImage(bur, Math.round(-bur.width + 8 - cam.x) + shakeA, GY - bur.height + 3);
+    b.drawImage(bur, Math.round(baseX(bur.width) - cam.x) + shakeA, GY - bur.height + 3);
+    // Smoke and embers once the base is hurt.
+    if (ad > 0 && Math.random() < ad * 0.12) particle({ x: baseX(bur.width) + bur.width * (0.25 + Math.random() * 0.5), y: GY - bur.height * (0.3 + Math.random() * 0.5), vx: -4 + Math.random() * 8, vy: -14 - Math.random() * 10, life: 1.4, c: Math.random() < 0.25 ? '#ef7d57' : '#4a4058', s: 2, amb: true });
     const td = Math.min(3, Math.floor((1 - bt.enemy.hp / bt.enemy.max) * 4));
     const tw = SPR.get('tower_' + (bt.def.theme % 8) + '_' + td);
     const shakeE = bt.enemy.hitT > 0 ? Math.round(Math.sin(time * 60) * 1) : 0;
@@ -320,12 +424,8 @@
   function drawWaves() {
     for (const w of battle.waves) {
       const sx = Math.round(w.x - cam.x);
-      if (w.roar) {
-        for (let i = 0; i < 4; i++) { b.fillStyle = i % 2 ? '#ffe9a0' : '#ffffff'; b.fillRect(sx - i * 3, GY - 30 + i * 2, 2, 30 - i * 2); }
-      } else {
-        const col = w.side === 0 ? '#73eff7' : '#ff6bd0';
-        for (let i = 0; i < 10; i++) { const h = 2 + Math.round(Math.abs(Math.sin(time * 20 + i)) * 5); b.fillStyle = i % 2 ? col : '#ffffff'; b.fillRect(sx - w.dir * i * 2, GY - h, 2, h); }
-      }
+      const col = w.side === 0 ? '#73eff7' : '#ff6bd0';
+      for (let i = 0; i < 10; i++) { const h = 2 + Math.round(Math.abs(Math.sin(time * 20 + i)) * 5); b.fillStyle = i % 2 ? col : '#ffffff'; b.fillRect(sx - w.dir * i * 2, GY - h, 2, h); }
     }
   }
 
@@ -333,12 +433,13 @@
     if (!battle) return;
     const L = battle.L, w = Math.min(BW - 120, 180), x0 = Math.round((BW - w) / 2), y0 = 3;
     b.fillStyle = 'rgba(11,11,22,0.7)'; b.fillRect(x0 - 1, y0 - 1, w + 2, 5);
-    const vx = Math.round(x0 + (cam.x + 62) / (L + 124) * w), vw = Math.round(BW / (L + 124) * w);
+    const pl = padL(), span = L + pl + PADR;
+    const vx = Math.round(x0 + (cam.x + pl) / span * w), vw = Math.round(BW / span * w);
     b.fillStyle = 'rgba(244,244,244,0.25)'; b.fillRect(vx, y0 - 1, vw, 5);
     for (const e of battle.ents) {
       if (e.state === 'dead') continue;
       b.fillStyle = e.side === 0 ? '#73eff7' : (e.boss ? '#ff6fd0' : '#ef7d57');
-      b.fillRect(Math.round(x0 + (e.x + 62) / (L + 124) * w), y0 + (e.side === 0 ? 0 : 2), 1, e.boss ? 3 : 1);
+      b.fillRect(Math.round(x0 + (e.x + pl) / span * w), y0 + (e.side === 0 ? 0 : 2), 1, e.boss ? 3 : 1);
     }
     b.fillStyle = '#3b5dc9'; b.fillRect(x0, y0, 2, 3);
     b.fillStyle = '#b13e53'; b.fillRect(x0 + w - 2, y0, 2, 3);
@@ -396,7 +497,7 @@
     // Sky, parallax, ground.
     b.drawImage(layers.sky, 0, 0, 1, BH, 0, 0, BW, BH);
     b.drawImage(layers.far, -Math.round((cx + 70) * 0.25), shy);
-    b.drawImage(layers.mid, -Math.round((cx + 70) * 0.55), shy);
+    if (layers.mid) b.drawImage(layers.mid, -Math.round((cx + 70) * 0.55), shy);
     const gw = layers.ground.width;
     for (let x = -((cx % gw) + gw) % gw; x < BW; x += gw) b.drawImage(layers.ground, x, GY + shy);
     const savedCam = cam.x;
@@ -412,8 +513,8 @@
     for (let i = rings.length - 1; i >= 0; i--) {
       const r = rings[i]; r.t += dt;
       if (r.t > r.life) { rings.splice(i, 1); continue; }
-      const k = r.t / r.life, rad = (r.roar ? 140 : 26) * k, x = Math.round(r.x - cam.x);
-      b.fillStyle = r.roar ? hexA('#ffe9a0', 1 - k) : hexA(r.side === 0 ? '#73eff7' : '#ff6bd0', 1 - k);
+      const k = r.t / r.life, rad = (r.roar ? BW * 0.9 : 26) * (r.roar ? 1 - (1 - k) * (1 - k) : k), x = Math.round(r.x - cam.x);
+      b.fillStyle = r.roar ? hexA('#ffe066', 1 - k) : hexA(r.side === 0 ? '#73eff7' : '#ff6bd0', 1 - k);
       for (let a = -Math.PI / 2; a <= Math.PI / 2; a += 0.08) b.fillRect(Math.round(x + Math.cos(a) * rad), Math.round(GY - 14 + Math.sin(a) * rad * 0.7), 2, 2);
     }
     // Particles.
@@ -442,13 +543,15 @@
 
   function drawFloats(dt, cx) {
     ctx.textAlign = 'center';
-    if (mode === 'battle' && battle) {
+    if (mode === 'battle' && battle && minimapOn) {
       const size = Math.round(6 * KK);
       ctx.font = '700 ' + size + 'px Cozy, monospace';
-      const lab = (x, y, txt, col) => { ctx.fillStyle = '#0b0b16'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(txt, x + dx * KK * 0.5, y + dy * KK * 0.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
+      const lab = (x, y, txt, col) => { const hw = ctx.measureText(txt).width / 2 + 3 * KK; x = Math.max(hw, Math.min(cv.width - hw, x)); ctx.fillStyle = '#0b0b16'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(txt, x + dx * KK * 0.5, y + dy * KK * 0.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
       const bur = SPR.get('burrow_0'), tw = SPR.get('tower_0_0');
-      lab((-bur.width / 2 + 8 - cx) * KK, (GY - bur.height - 2) * KK, Math.ceil(battle.ally.hp) + ' / ' + battle.ally.max, '#9fd8ff');
-      lab((battle.L - 8 + tw.width / 2 - cx) * KK, (GY - tw.height - 2) * KK, Math.ceil(battle.enemy.hp) + ' / ' + battle.enemy.max, '#ffb0a0');
+      // Base health sits in the lane under each base, clear of the HUD.
+      const ly = (GY + Math.min(14, (BH - GY) * 0.7)) * KK;
+      lab((baseX(bur.width) + bur.width / 2 - cx) * KK, ly, Math.ceil(battle.ally.hp) + ' / ' + battle.ally.max, '#9fd8ff');
+      lab((battle.L - 8 + tw.width / 2 - cx) * KK, ly, Math.ceil(battle.enemy.hp) + ' / ' + battle.enemy.max, '#ffb0a0');
     }
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i]; f.t += dt;
@@ -469,7 +572,7 @@
   // Home: the burrow and your lineup strolling about.
   function drawHome(dt) {
     const bur = SPR.get('burrow_0');
-    b.drawImage(bur, Math.round(-bur.width + 8 - cam.x), GY - bur.height + 3);
+    b.drawImage(bur, Math.round(baseX(bur.width) - cam.x), GY - bur.height + 3);
     const right = BW + cam.x - 20;
     strollers.sort(function (p, q) { return p.y - q.y; });
     for (const s of strollers) {

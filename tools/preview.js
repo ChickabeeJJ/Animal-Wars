@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Records store preview videos of real gameplay (Playwright video, scaled 2× with sharp pixels by ffmpeg).
  *   node tools/preview.js
- * Writes store/preview-landscape-1920x1080.mp4 and store/preview-portrait-1080x1920.mp4.
+ * Writes store/preview-landscape-1920x1080.mp4 (the game is landscape only on phones, so there is no portrait video).
  */
 'use strict';
 const http = require('http');
@@ -62,7 +62,6 @@ async function record(browser, port, w, h, out, region) {
   }).listen(0);
   const browser = await chromium.launch();
   await record(browser, srv.address().port, 960, 540, path.join(ROOT, 'store', 'preview-landscape-1920x1080.mp4'), 0);
-  await record(browser, srv.address().port, 540, 960, path.join(ROOT, 'store', 'preview-portrait-1080x1920.mp4'), 1);
   await browser.close();
   srv.close();
 })().catch((e) => { console.error(e); process.exit(1); });

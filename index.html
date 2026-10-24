@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2a160c">
+<meta name="screen-orientation" content="landscape">
+<meta name="x5-orientation" content="landscape">
 <title>Animal Wars</title>
 <meta name="description" content="Command an army of 50 cute pixel animals against the Gloom. Deploy heroes, smash towers across 8 lands and 288 stages, hatch rare heroes and climb the Gloom Tower.">
 <link rel="stylesheet" href="css/style.css">
@@ -84,9 +86,9 @@
         <span class="tag fx-plaqueWood"><span data-icon="acorn"></span><b id="pouch-cost" class="num">80</b></span>
       </button>
       <div id="cards" class="cards"></div>
-      <button id="btn-roar" class="orb roar" type="button" title="Mega Roar (R or Space)">
+      <button id="btn-roar" class="orb roar" type="button" title="Battle Cry (R or Space)" aria-label="Battle Cry">
         <span class="ring"></span>
-        <span class="orb-in"><span data-icon="roar" class="oi"></span><b class="lv" id="roar-t">ROAR</b></span>
+        <span class="orb-in"><span data-icon="roar" class="oi"></span><b class="lv" id="roar-t">CRY</b></span>
       </button>
     </div>
   </div>
@@ -119,12 +121,19 @@
       <div id="modal-actions" class="modal-actions"></div>
     </div>
   </div>
+  <div id="locktip" class="locktip" role="status" hidden></div>
+  <div id="rotate" class="rotate" hidden>
+    <div class="rot-phone"><i></i></div>
+    <b>Turn your device sideways</b>
+    <span>Animal Wars plays in landscape.</span>
+  </div>
   <div id="fade" class="fade"></div>
 </div>
 
 <script src="js/content.js"></script>
 <script src="js/tune.js"></script>
 <script src="js/core.js"></script>
+<script src="js/assets.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/platform.js"></script>
