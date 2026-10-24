@@ -256,6 +256,9 @@
   function jumpTo(fraction) { if (!battle) return; cam.manual = 3; cam.target = clampCam((battle.L + padL() + PADR) * fraction - padL() - BW / 2); }
   function clampCam(x) { return Math.max(minCam(), Math.min(maxCam(), x)); }
   function setAuto() { cam.manual = 0; }
+  // Free camera: the view stays where the player put it.
+  let follow = true;
+  function setFollow(on) { follow = !!on; if (follow) cam.manual = 0; }
   function lookAt(x) { cam.manual = 1e9; cam.x = cam.target = clampCam(x - BW / 2); }
   let minimapOn = true;
   function setMinimap(on) { minimapOn = on; }
@@ -452,7 +455,7 @@
 
   function updateCamera(dt) {
     if (mode !== 'battle' || !battle) { cam.x = homeCam(); return; }
-    if (cam.manual > 0) cam.manual -= dt;
+    if (cam.manual > 0 || !follow) { if (cam.manual > 0) cam.manual -= dt; }
     else {
       // Frame the army: the bulk of our heroes (not one runner far ahead) and the nearest Gloom.
       const xs = [];
@@ -543,16 +546,6 @@
 
   function drawFloats(dt, cx) {
     ctx.textAlign = 'center';
-    if (mode === 'battle' && battle && minimapOn) {
-      const size = Math.round(6 * KK);
-      ctx.font = '700 ' + size + 'px Cozy, monospace';
-      const lab = (x, y, txt, col) => { const hw = ctx.measureText(txt).width / 2 + 3 * KK; x = Math.max(hw, Math.min(cv.width - hw, x)); ctx.fillStyle = '#0b0b16'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(txt, x + dx * KK * 0.5, y + dy * KK * 0.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
-      const bur = SPR.get('burrow_0'), tw = SPR.get('tower_0_0');
-      // Base health sits in the lane under each base, clear of the HUD.
-      const ly = (GY + Math.min(14, (BH - GY) * 0.7)) * KK;
-      lab((baseX(bur.width) + bur.width / 2 - cx) * KK, ly, Math.ceil(battle.ally.hp) + ' / ' + battle.ally.max, '#9fd8ff');
-      lab((battle.L - 8 + tw.width / 2 - cx) * KK, ly, Math.ceil(battle.enemy.hp) + ' / ' + battle.enemy.max, '#ffb0a0');
-    }
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i]; f.t += dt;
       if (f.t > f.life) { floats.splice(i, 1); continue; }
@@ -597,5 +590,5 @@
 
   function screenToWorld(px) { return px / PXS + cam.x; }
 
-  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, lookAt, setMinimap, themeArt, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
+  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, setFollow, lookAt, setMinimap, themeArt, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -195,7 +195,7 @@ img.px { display: inline-block; vertical-align: middle; }
   background: linear-gradient(180deg, transparent 0 22px, #2a160c 22px 25px, #c08a52 25px 28px, #9a6438 28px 52px, #7a4a28 52px 54px, #9a6438 54px 78px, #6a3e22 78px); pointer-events: none; }
 .actionbar > * { pointer-events: auto; }
 .nav { display: flex; gap: 8px; align-items: flex-end; }
-.nb { position: relative; width: 94px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
+.nb { position: relative; width: 108px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
 .nb .ni img.px { width: 32px; height: 32px; display: block; }
 .nb .nl img.ptxt { display: block; }
 .nb #hatch-egg img.px { animation: wob 900ms steps(2) infinite; }
@@ -230,9 +230,7 @@ img.px { display: inline-block; vertical-align: middle; }
 .acorns.full b { color: var(--lime); }
 .bh-row { display: flex; align-items: center; gap: 6px; }
 .bh-row .hpbar { width: 140px; margin: 0; }
-#btn-speed b { font-size: 12px; margin-left: -4px; }
-#btn-speed.on, #btn-cam.on { filter: drop-shadow(0 0 4px var(--gold)); }
-#btn-speed.on { color: var(--butter); }
+
 .bossbar { position: absolute; left: 50%; top: 34px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 10px 4px; pointer-events: none; color: #fff; }
 .bossbar span { font-size: 13px; font-weight: 700; color: var(--mythic); text-shadow: 1px 1px 0 var(--ink); }
 .bossbar .bb2 { width: 240px; height: 16px; }
@@ -654,7 +652,7 @@ img.px { display: inline-block; vertical-align: middle; }
 @media (max-height: 520px) {
   :root { --dock-h: 118px; }
   .h-center { top: 54px; }
-  .logo { transform: scale(.42); transform-origin: 50% 0; margin-bottom: -130px; animation: none; }
+  .logo { animation: none; }
   .hd-art { height: 140px; }
   .hd-art > img.px { height: 100px; }
   .goal { display: none; }
@@ -779,6 +777,67 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 .item > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; line-height: 1.25; }
 .item > span .muted { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11px; }
 .item > img.px { width: 32px; height: 32px; flex: 0 0 auto; }
+
+/* Home: logo lockup ------------------------------------------------------------------------ */
+.logo { flex-direction: row; align-items: center; gap: 16px; }
+.logo .lg-emb img.px { display: block; }
+.logo .lg-words { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.h-center { top: 11%; gap: 14px; }
+
+/* Home: side buttons (icon button, then a name/status plate below it, nothing overlapping) */
+.side { top: 84px; width: 96px; gap: 12px; align-items: center; }
+.side .sb { width: 96px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.side .sb .sbi { position: relative; width: 66px; height: 64px; padding: 0; }
+.side .sb .sbi img.px { width: 32px; height: 32px; }
+.side .sb .slk { position: absolute; right: -2px; bottom: -4px; line-height: 0; }
+.side .sb .slk img.px { width: 16px; height: 16px; }
+.sbp { display: flex; flex-direction: column; align-items: center; min-width: 88px; padding: 3px 6px 4px; background: rgba(26, 15, 18, .85); box-shadow: 0 0 0 2px var(--ink), inset 0 1px 0 0 rgba(255, 255, 255, .14); line-height: 1.2; text-shadow: 1px 1px 0 var(--ink); }
+.sbp b { font-size: 12px; color: #fff; white-space: nowrap; }
+.sbp small { font-size: 11px; font-weight: 700; color: var(--butter); white-space: nowrap; }
+.sb.ready .sbp small { color: var(--lime); }
+.sb.locked .sbp small { color: #b8b0c8; }
+.side .sb.locked .sbi > img.px { filter: grayscale(1) brightness(.75); }
+.side .sb:active .sbi { transform: translateY(2px); }
+
+/* Home: next battle and featured heroes cards (left column) */
+.feature { position: absolute; left: var(--gut); top: 256px; width: 236px; display: flex; flex-direction: column; gap: 12px; }
+.fcard { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 2px 4px 6px; color: #fff; text-align: left; text-shadow: 1px 1px 0 var(--ink); }
+.fcard:hover { filter: brightness(1.08); }
+.fcard:active { transform: translateY(2px); }
+.fart { position: relative; display: block; height: 64px; background-position: center bottom; image-rendering: pixelated; box-shadow: 0 0 0 2px var(--ink); }
+.flabel { position: absolute; left: 6px; top: 4px; font-size: 11px; color: var(--butter); letter-spacing: .5px; }
+.fstage { position: absolute; right: 6px; top: 2px; font-size: 18px; color: #fff; }
+.fname { font-size: 13px; font-weight: 700; line-height: 1.25; }
+.ffoes { display: flex; gap: 8px; align-items: flex-end; min-height: 28px; }
+.ffoes img.boss { filter: drop-shadow(0 0 3px #ff6fd0); }
+.flabel2 { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--butter); }
+.flabel2 img.px { width: 16px; height: 16px; }
+.fheroes { display: flex; gap: 8px; }
+.fheroes .fh { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 900px) { .feature { top: 92px; } }
+@media (max-height: 640px) { .feature { display: none; } }
+
+/* Battle HUD: tower plate the same height as the buttons beside it; labelled on/off toggles. */
+.hpbar { position: relative; }
+.hpbar > b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 1px 1px 0 var(--ink), -1px 0 0 var(--ink), 0 -1px 0 var(--ink), 1px 0 0 var(--ink); pointer-events: none; }
+.bh-plate .hpbar { height: 20px; }
+.bh-row { gap: 8px; }
+.tplate { display: flex; align-items: center; gap: 6px; height: 54px; padding: 0 6px 0 2px; }
+.tplate .ti img.px { width: 32px; height: 32px; display: block; }
+.bh-row .tplate .hpbar { width: 160px; height: 24px; margin: 0; }
+.bh-row .sq.tog { width: 54px; height: 54px; flex-direction: column; gap: 1px; }
+.sq.tog img.px { width: 16px; height: 16px; }
+.sq.tog b { font-size: 10px; line-height: 1; color: #fff; text-shadow: 1px 1px 0 var(--ink); }
+.sq.tog.on b { color: #4a2400; text-shadow: 1px 1px 0 #fff6c8; }
+@media (max-width: 640px), (max-height: 520px) { .bh-row .tplate .hpbar { width: 100px; } .bh-row .sq.tog { width: 48px; height: 48px; } .tplate { height: 48px; } }
+
+/* Tutorial guide: spotlight, bouncing hand and hint bubble. */
+.spot { position: absolute; z-index: 60; pointer-events: none; box-shadow: 0 0 0 200vmax rgba(8, 6, 20, .45); outline: 3px solid #ffe066; animation: spotPulse 900ms steps(2) infinite; }
+@keyframes spotPulse { 50% { outline-color: #fff6c8; outline-offset: 4px; } }
+.hand { position: absolute; z-index: 62; pointer-events: none; animation: handTap 800ms steps(4) infinite; filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .45)); }
+.hand img.px { width: 48px; height: 48px; display: block; }
+@keyframes handTap { 50% { transform: translate(5px, 12px); } }
+#tut.tut { z-index: 63; max-width: 320px; font-size: 16px; padding: 4px 10px; }
 </style>
 </head>
 <body>
@@ -802,6 +861,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
         </div>
         <div id="quests" class="quests fx-plaque" role="button" tabindex="0" title="Daily quests"></div>
         <div id="side" class="side"></div>
+        <div id="feature" class="feature" hidden></div>
         <div class="h-center">
           <div id="logo" class="logo"></div>
           <div id="goal" class="goal fx-ribbon"></div>
@@ -818,7 +878,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
           </div>
           <nav class="nav nav-r">
             <button type="button" class="nb fx-btn-pink" data-go="hatch" id="btn-hatch"><span class="ni" id="hatch-egg"></span><span class="nl">Hatch</span><i class="badge" hidden></i></button>
-            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Rewards</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Prizes</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-orange" data-go="events"><span class="ni" data-icon="event"></span><span class="nl">Events</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-purple" data-go="medals"><span class="ni" data-icon="medal"></span><span class="nl">Medals</span><i class="badge" hidden></i></button>
           </nav>
@@ -831,20 +891,19 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
           <button id="btn-pause" class="sq fx-btn-wood" type="button" title="Pause (P)" aria-label="Pause"><span data-icon="pause"></span></button>
           <div class="bh-plate fx-plaque">
             <div id="bh-name" class="bh-name"></div>
-            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i></div>
+            <div class="hpbar ally fx-insetDark"><i id="bh-ally"></i><b id="bh-ally-t" class="num"></b></div>
           </div>
         </div>
         <div class="bh-right">
           <div class="acorns fx-plaqueWood"><span data-icon="acorn" class="ai"></span><b id="bh-acorns" class="num">0</b><small id="bh-max" class="num">/0</small></div>
           <div class="bh-row">
-            <div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i></div>
-            <button id="btn-speed" class="sq fx-btn-dark nopix" type="button" title="Speed (F)"><span data-icon="fast"></span><b id="speed-t">1</b></button>
-            <button id="btn-cam" class="sq fx-btn-dark" type="button" title="Camera follows the front line"><span data-icon="cam"></span></button>
+            <div class="tplate fx-plaque"><span data-icon="tower" class="ti"></span><div class="hpbar enemy fx-insetDark"><i id="bh-enemy"></i><b id="bh-enemy-t" class="num"></b></div></div>
+            <button id="btn-speed" class="sq tog fx-btn-dark nopix" type="button" title="Speed (F)" aria-pressed="false"><span data-icon="fast"></span><b id="speed-t">×1</b></button>
+            <button id="btn-cam" class="sq tog fx-btn-dark nopix" type="button" title="Camera follows the front line" aria-pressed="false"><span data-icon="cam"></span><b id="cam-t">FREE</b></button>
           </div>
         </div>
         <div id="bossbar" class="bossbar fx-plaque" hidden><span id="boss-name"></span><div class="bb2 fx-insetDark"><i id="boss-fill"></i></div></div>
         <div id="callout" class="callout"></div>
-        <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
       </div>
       <div id="toasts" class="toasts" aria-live="polite"></div>
     </main>
@@ -892,6 +951,9 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
       <div id="modal-actions" class="modal-actions"></div>
     </div>
   </div>
+  <div id="spot" class="spot" hidden></div>
+  <div id="hand" class="hand" hidden></div>
+  <div id="tut" class="tut fx-cardHot" hidden><span id="tut-text"></span><i class="tut-arrow"></i></div>
   <div id="locktip" class="locktip" role="status" hidden></div>
   <div id="rotate" class="rotate" hidden>
     <div class="rot-phone"><i></i></div>
@@ -3747,11 +3809,16 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     '..............',
     '..............'
   ];
+  const GIFT = ['...YY....YY...', '..YyyY..YyyY..', '..YyyYYYYyyY..', '...YYYYYYYY...', 'HHHHHHYYHHHHHH', 'RRRRRRYYRRRRRR', 'rrrrrrYyrrrrrr', '.RRRRRYYRRRRr.', '.RRRRRYYRRRrr.', '.RRRRRYYRRRrr.', '.RRRRRYYRRRrr.', '.rrrrryyrrrrr.'];
+  const BARN = ['......RR......', '.....RRRR.....', '....RRHHRR....', '...RRHHHHRR...', '..RRRRRRRRRR..', '.RRRRRRRRRRRR.', 'WWWWWWWWWWWWWW', '.BBBBBBBBBBBB.', '.BBBWWWWWWBBB.', '.BBBWDDDDWBBB.', '.BBBWDWWDWBBB.', '.BBBWDDDDWBBB.', '.GGGGGGGGGGGG.'];
+  const SPIRE = ['.....gg.....', '....gGGg....', '.....GG.....', '....dDDd....', '...dDDDDd...', '..M.MM.MM.M.', '..MMMMMMMMM.', '..LSSSSSSD..', '..LSEEESSD..', '..LSEPESSD..', '..LSSSSSSD..', '.LLSSSSSSDD.', '.LSSSKKSSSD.', '.LSSKKKKSSD.', 'LLSSKKKKSSDD'];
+  const EGG = ['...LLLL...', '..LHHLLS..', '.LHHLLLSS.', '.LHLLLLSS.', 'LLLLLLLSSD', 'LLLLLLSSSD', 'LLLLLLSSSD', 'LLLLLSSSDD', '.LLLSSSSD.', '.SSSSSSDD.', '..SSSDDD..', '...DDDD...'];
+  const HAND = ['....WW.......', '...WWWW......', '...WWWW......', '...WWWW......', '...WWWWWWW...', '...WWWSWWSWW.', '.WWWWWSWWSWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWS', '.WWWWWWWWWWSS', '..WWWWWWWWSS.', '...WWWWWWWS..', '...SSSSSSS...'];
   const ICONS = {
     coin: (P) => pix(P, COIN, { O: '#c8862a', L: '#ffe58a', H: '#fffbe0', B: '#ffcd4d', D: '#e8962a', E: '#d8902a' }, 2, 2),
     gem: (P) => { P.tri(2, 6, 14, 6, 8, 15, '#41a6f6'); P.rect(4, 3, 8, 3, '#73eff7'); P.tri(2, 6, 4, 3, 4, 6, '#73eff7'); P.tri(12, 3, 14, 6, 12, 6, '#3b5dc9'); P.tri(5, 6, 11, 6, 8, 13, '#9ff6ff'); P.set(5, 4, '#ffffff'); },
-    silver: (P) => { const T = tones('#c9d2e3'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.ell(10, 8, 1, 1, '#94b0c2'); },
-    gold: (P) => { const T = tones('#ffcd4d'); P.ell(8, 9, 5.5, 6.8, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; }); P.set(6, 5, '#ffffff'); P.rect(3, 9, 11, 1, '#ef7d57'); },
+    silver: (P) => pix(P, EGG, { H: '#ffffff', L: '#dfe6f2', S: '#b8c2d6', D: '#8a96b0' }, 3, 2),
+    gold: (P) => pix(P, EGG, { H: '#fffbe0', L: '#ffe58a', S: '#ffcd4d', D: '#e8962a' }, 3, 2),
     seed: (P) => { P.ell(8, 10, 4, 5, '#a0704a'); P.ell(7, 9, 2, 3, '#c8905a'); P.line(8, 5, 8, 2, '#38b764'); P.ell(10, 2.5, 2, 1.2, '#a7f070'); P.ell(6, 3, 1.6, 1, '#38b764'); },
     fruit: (P) => { const T = tones('#ffcd4d'); P.ball(8, 9, 5.5, 5.5, T); P.line(8, 4, 9, 1, '#8a5a3a'); P.ell(11, 2.5, 2.2, 1.2, '#38b764'); for (const [x, y] of [[6, 7], [10, 10], [7, 12]]) P.set(x, y, '#fff6c8'); P.set(5, 6, '#ffffff'); },
     acorn: (P) => { const T = tones('#c8804a'); P.ball(8, 10, 4.6, 5, T); P.ell(8, 5.5, 5.5, 2.6, '#7a5a3a'); for (let x = 4; x < 13; x += 2) P.set(x, 5, '#5a3a2a'); P.line(8, 3, 9, 1, '#5a3a2a'); },
@@ -3780,9 +3847,10 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     armor: (P) => { P.tri(2, 3, 14, 3, 8, 15, '#94b0c2'); P.rect(2, 2, 12, 3, '#c9d2e3'); P.tri(4, 5, 8, 5, 8, 12, '#c9d2e3'); },
     charm: (P) => { for (const [x, y] of [[5, 5], [11, 5], [5, 10], [11, 10]]) P.ball(x, y, 3, 3, tones('#38b764')); P.line(8, 9, 10, 15, '#257179'); },
     trophy: (P) => { const T = tones('#ffcd4d'); P.rect(4, 2, 8, 6, T.base); P.ell(8, 7, 4, 3, T.base); P.rect(4, 2, 2, 6, T.light); P.set(2, 3, T.dark); P.set(2, 4, T.dark); P.set(13, 3, T.dark); P.set(13, 4, T.dark); P.rect(7, 10, 2, 3, T.dark); P.rect(5, 13, 6, 2, '#9a6a3a'); },
-    gift: (P) => { P.rect(2, 6, 12, 9, '#ef4f6b'); P.rect(1, 4, 14, 3, '#ff6b8a'); P.rect(7, 4, 2, 11, '#ffd36b'); P.tri(4, 1, 8, 4, 4, 4, '#ffd36b'); P.tri(12, 1, 8, 4, 12, 4, '#ffd36b'); },
+    gift: (P) => pix(P, GIFT, { R: '#ef4f6b', r: '#b02a48', H: '#ff8aa0', Y: '#ffd36b', y: '#e8962a' }, 1, 2),
+    hand: (P) => pix(P, HAND, { W: '#ffffff', S: '#c9d2e3' }, 1, 1),
     map: (P) => { P.rect(1, 3, 14, 11, '#e8d8b0'); P.rect(1, 3, 14, 1, '#c8b890'); P.line(3, 11, 6, 7, '#b13e53'); P.line(6, 7, 9, 9, '#b13e53'); P.line(9, 9, 12, 5, '#b13e53'); P.rect(11, 4, 3, 3, '#38b764'); },
-    tower: (P) => { P.tri(3, 15, 13, 15, 8, 1, '#5a4a7a'); P.tri(3, 15, 7, 15, 8, 1, '#3a2a5a'); P.ell(8, 8, 2, 1.4, '#ff6bd0'); },
+    tower: (P) => pix(P, SPIRE, { g: '#ffb0e8', G: '#ff6bd0', d: '#3a2a5a', D: '#4a3a6a', M: '#7a6a9a', L: '#8a7aaa', S: '#6a5a8a', E: '#ff6bd0', P: '#1a0a2a', K: '#1a0a2a' }, 2, 0),
     event: (P) => { P.rect(2, 3, 12, 11, '#f4f4f4'); P.rect(2, 3, 12, 3, '#ef4f6b'); P.rect(4, 1, 1, 3, '#566c86'); P.rect(11, 1, 1, 3, '#566c86'); P.rect(5, 8, 2, 2, '#41a6f6'); P.rect(9, 8, 2, 2, '#ffcd4d'); P.rect(5, 11, 2, 2, '#a7f070'); },
     medal: (P) => { P.tri(4, 0, 8, 0, 8, 7, '#3b5dc9'); P.tri(8, 0, 12, 0, 8, 7, '#b13e53'); P.ball(8, 10, 4.6, 4.6, tones('#ffcd4d')); P.set(8, 10, '#fff6c8'); },
     book: (P) => { P.rect(2, 2, 12, 12, '#3b5dc9'); P.rect(4, 2, 10, 12, '#41a6f6'); P.rect(5, 4, 7, 1, '#f4f4f4'); P.rect(5, 6, 5, 1, '#f4f4f4'); P.rect(2, 2, 2, 12, '#29366f'); },
@@ -3820,7 +3888,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     crown: (P) => { P.rect(2, 8, 12, 5, '#ffcd4d'); P.tri(2, 8, 5, 8, 2, 2, '#ffcd4d'); P.tri(6, 8, 10, 8, 8, 1, '#ffcd4d'); P.tri(11, 8, 14, 8, 14, 2, '#ffcd4d'); P.rect(2, 11, 12, 1, '#d08a20'); P.set(8, 10, '#e04848'); P.set(5, 10, '#41a6f6'); P.set(11, 10, '#a7f070'); },
     quest: (P) => { P.rect(3, 1, 10, 14, '#f3e2bc'); P.rect(3, 1, 10, 2, '#c9a66b'); for (let y = 5; y < 13; y += 3) { P.rect(5, y, 2, 2, '#38b764'); P.rect(8, y, 4, 1, '#8a6a48'); } },
     timer: (P) => { P.ball(8, 9, 6, 6, tones('#f4f4f4')); P.rect(6, 1, 4, 2, '#ef7d57'); P.line(8, 9, 8, 5, INK); P.line(8, 9, 11, 10, INK); },
-    farm: (P) => { P.rect(1, 9, 14, 6, '#9a6438'); P.tri(0, 9, 8, 2, 16, 9, '#e04848'); P.rect(6, 10, 4, 5, '#5a3420'); P.ell(8, 5, 1, 1, '#ffffff'); },
+    farm: (P) => pix(P, BARN, { R: '#c83e4e', H: '#ff6b7a', W: '#f4f0e8', B: '#a0583a', D: '#5a3020', G: '#5ac54f' }, 1, 2),
     battle: (P) => { P.line(2, 2, 13, 13, '#e8f0ff'); P.line(13, 2, 2, 13, '#e8f0ff'); P.line(3, 2, 14, 13, '#9aa8c0'); P.line(14, 2, 3, 13, '#9aa8c0'); P.rect(1, 12, 3, 3, '#b07a4a'); P.rect(12, 12, 3, 3, '#b07a4a'); },
     close: (P) => { P.line(3, 3, 12, 12, '#ffffff'); P.line(4, 3, 13, 12, '#ffffff'); P.line(12, 3, 3, 12, '#ffffff'); P.line(13, 3, 4, 12, '#ffffff'); },
     back: (P) => { P.tri(1, 8, 8, 2, 8, 14, '#ffffff'); P.rect(8, 6, 6, 4, '#ffffff'); },
@@ -3829,6 +3897,20 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     pouchLv: (P) => { ICONS.pouch(P); },
     skull: (P) => { P.ball(8, 7, 5.5, 5, tones('#f4f4f4')); P.rect(5, 11, 6, 3, '#f4f4f4'); P.rect(5, 6, 2, 2, INK); P.rect(9, 6, 2, 2, INK); P.set(6, 12, INK); P.set(9, 12, INK); }
   };
+  // Logo emblem: a gold-rimmed shield with a paw over crossed swords.
+  function emblemCanvas() {
+    const P = new Painter(30, 32);
+    const steel = '#dfe6f2', steelD = '#8a96b0', hilt = '#b07a4a';
+    for (const [a, b2] of [[[2, 2], [27, 28]], [[27, 2], [2, 28]]]) { P.line(a[0], a[1], b2[0], b2[1], steel); P.line(a[0] + 1, a[1], b2[0] + 1, b2[1], steelD); }
+    P.rect(0, 26, 4, 4, hilt); P.rect(26, 26, 4, 4, hilt); P.rect(1, 1, 3, 3, '#ffcd4d'); P.rect(26, 1, 3, 3, '#ffcd4d');
+    const shield = (inset, c) => { P.rect(5 + inset, 4 + inset, 20 - inset * 2, 13 - inset, c); P.tri(5 + inset, 16, 25 - inset, 16, 15, 30 - inset * 1.4, c); };
+    shield(0, '#e8962a'); shield(1, '#ffcd4d'); shield(3, '#3b5dc9');
+    P.rect(8, 7, 14, 2, '#5a7ae0');
+    P.ell(15, 19.5, 4.4, 3.6, '#ffffff'); for (const [x, y] of [[9.5, 14], [12.8, 11.6], [17.2, 11.6], [20.5, 14]]) P.ell(x, y, 1.5, 1.8, '#ffffff');
+    P.ell(15, 20.2, 2.2, 1.5, '#ffa8c5');
+    P.outline('#1a0f12');
+    return P.canvas();
+  }
   function iconCanvas(k) { const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
 
 
@@ -4110,6 +4192,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     else if ((m = /^tower_(\d)_(\d)$/.exec(name))) c = towerCanvas(Number(m[1]), Number(m[2]) / 3);
     else if ((m = /^egg_(\d)(_c)?$/.exec(name))) c = eggCanvas(Number(m[1]), !!m[2]);
     else if ((m = /^icon_(\w+)$/.exec(name))) c = iconCanvas(m[1]);
+    else if (name === 'emblem') c = emblemCanvas();
     else throw new Error('unknown sprite ' + name);
     cache[name] = c;
     return c;
@@ -4764,6 +4847,9 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
   function jumpTo(fraction) { if (!battle) return; cam.manual = 3; cam.target = clampCam((battle.L + padL() + PADR) * fraction - padL() - BW / 2); }
   function clampCam(x) { return Math.max(minCam(), Math.min(maxCam(), x)); }
   function setAuto() { cam.manual = 0; }
+  // Free camera: the view stays where the player put it.
+  let follow = true;
+  function setFollow(on) { follow = !!on; if (follow) cam.manual = 0; }
   function lookAt(x) { cam.manual = 1e9; cam.x = cam.target = clampCam(x - BW / 2); }
   let minimapOn = true;
   function setMinimap(on) { minimapOn = on; }
@@ -4960,7 +5046,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 
   function updateCamera(dt) {
     if (mode !== 'battle' || !battle) { cam.x = homeCam(); return; }
-    if (cam.manual > 0) cam.manual -= dt;
+    if (cam.manual > 0 || !follow) { if (cam.manual > 0) cam.manual -= dt; }
     else {
       // Frame the army: the bulk of our heroes (not one runner far ahead) and the nearest Gloom.
       const xs = [];
@@ -5051,16 +5137,6 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 
   function drawFloats(dt, cx) {
     ctx.textAlign = 'center';
-    if (mode === 'battle' && battle && minimapOn) {
-      const size = Math.round(6 * KK);
-      ctx.font = '700 ' + size + 'px Cozy, monospace';
-      const lab = (x, y, txt, col) => { const hw = ctx.measureText(txt).width / 2 + 3 * KK; x = Math.max(hw, Math.min(cv.width - hw, x)); ctx.fillStyle = '#0b0b16'; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(txt, x + dx * KK * 0.5, y + dy * KK * 0.5); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
-      const bur = SPR.get('burrow_0'), tw = SPR.get('tower_0_0');
-      // Base health sits in the lane under each base, clear of the HUD.
-      const ly = (GY + Math.min(14, (BH - GY) * 0.7)) * KK;
-      lab((baseX(bur.width) + bur.width / 2 - cx) * KK, ly, Math.ceil(battle.ally.hp) + ' / ' + battle.ally.max, '#9fd8ff');
-      lab((battle.L - 8 + tw.width / 2 - cx) * KK, ly, Math.ceil(battle.enemy.hp) + ' / ' + battle.enemy.max, '#ffb0a0');
-    }
     for (let i = floats.length - 1; i >= 0; i--) {
       const f = floats[i]; f.t += dt;
       if (f.t > f.life) { floats.splice(i, 1); continue; }
@@ -5105,7 +5181,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 
   function screenToWorld(px) { return px / PXS + cam.x; }
 
-  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, lookAt, setMinimap, themeArt, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
+  root.AWRender = { init, resize, frame, event, setBattle, setHome, drag, jumpTo, setAuto, setFollow, lookAt, setMinimap, themeArt, minimapRect, screenToWorld, THEMES, get scale() { return PXS; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
@@ -5310,6 +5386,31 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     return icon('skull') + 'Defeat ' + esc(AW.ENEMY[CT.REGIONS[n.r].boss].name) + ' at ' + (n.r + 1) + '-12';
   }
 
+  // Logo lockup: the shield emblem beside ANIMAL / WARS. f scales it down on short screens.
+  function logoHtml(f) {
+    const k = (n) => Math.max(1, Math.round(n * f));
+    return '<span class="lg-emb">' + SPR.img('emblem', k(4)) + '</span><span class="lg-words">' + title('Animal', k(5), 'cream', 8, 'lg-a') + title('Wars', k(9), 'gold', 8, 'lg-b') + '</span>';
+  }
+  // Left column cards on the home screen: the next battle, and today's featured heroes once the Hatchery is open.
+  function renderFeature() {
+    const f = $('feature'), n = nextStory(), sc = AW.storyCleared(state);
+    if (sc < 1) { f.hidden = true; return; }
+    let h = '';
+    if (n) {
+      const Rg = CT.REGIONS[n.r], foes = foesOf(n).slice(0, 4);
+      h += '<button type="button" class="fcard fx-plaque" id="f-next"><span class="fart" data-art="160x40" style="background-image:url(' + R.themeArt(Rg.theme, 160, 40, false, 160) + ')"><b class="flabel">NEXT BATTLE</b><b class="fstage">' + stageLabel(n) + '</b></span>' +
+        '<span class="fname">' + esc(n.name) + '</span><span class="ffoes">' + foes.map((o) => enemyFit(o.id, 36, 28, o.boss ? 'boss' : '')).join('') + '</span></button>';
+    }
+    if (sc >= 3) {
+      const fe = AW.featured(AW.dayNumber(now())), ids = [fe.legend, fe.mythic, fe.epic].filter(Boolean).slice(0, 3);
+      h += '<button type="button" class="fcard fx-plaque" id="f-hatch"><span class="flabel2">' + icon('nest') + 'TODAY\'S RATE UP</span><span class="fheroes">' + ids.map((id) => '<span class="fh ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, 0, 40, 40) + '</span>').join('') + '</span><span class="fname">Hatch them in the Royal Nest</span></button>';
+    }
+    f.innerHTML = h; f.hidden = !h;
+    fitBgs(f);
+    const a = $('f-next'); if (a) a.addEventListener('click', () => { AU.click(); openStage(n); });
+    const b2 = $('f-hatch'); if (b2) b2.addEventListener('click', () => { AU.click(); openPanel('hatch'); });
+  }
+
   function refreshHome() {
     renderCurrencies();
     const rk = rank();
@@ -5319,7 +5420,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     const lead = leadHero();
     $('avatar').className = 'avatar ' + rarFrame(AW.HERO[lead].rarity);
     $('avatar').innerHTML = heroFit(lead, state.heroes[lead] ? state.heroes[lead].form : 0, 40, 36);
-    if (!$('logo').firstChild) $('logo').innerHTML = title('Animal', 4, 'cream') + '<div class="paws">' + icon('paw') + icon('paw') + icon('paw') + '</div>' + title('Wars', 7, 'gold');
+    if (!$('logo').firstChild) $('logo').innerHTML = logoHtml(innerHeight <= 520 ? 0.5 : 1);
     $('goal').innerHTML = nextGoal();
     const n = nextStory();
     $('battle-t').innerHTML = title('Battle!', 4, 'cream');
@@ -5328,8 +5429,9 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     if (!$('hatch-egg').firstChild) $('hatch-egg').innerHTML = icon('gold');
     renderQuests();
     renderSide();
+    renderFeature();
     updateBadges();
-    requestAnimationFrame(() => fitLabels($('home')));
+    requestAnimationFrame(() => { fitLabels($('home')); homeGuide(); });
   }
 
   function curPills(small) {
@@ -5357,7 +5459,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 
   function renderSide() {
     const t = now(), out = [];
-    const sb = (id, ic, label, sub, ready, lock) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + (lock ? ' locked' : '') + '" data-side="' + id + '"' + (lock ? ' data-lock="' + esc(lock) + '"' : '') + '><span class="sbi fx-btn-' + (lock ? 'dark' : ready ? 'gold' : 'wood') + '">' + icon(ic) + (lock ? '<span class="nlk">' + icon('lock') + '</span>' : '') + '</span><span class="sbl">' + label + '</span><span class="sbt">' + sub + '</span></button>');
+    const sb = (id, ic, label, sub, ready, lock) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + (lock ? ' locked' : '') + '" data-side="' + id + '"' + (lock ? ' data-lock="' + esc(lock) + '"' : '') + '><span class="sbi fx-btn-' + (lock ? 'dark' : ready ? 'gold' : 'wood') + '">' + icon(ic) + (lock ? '<span class="slk">' + SPR.img('icon_lock', 1) + '</span>' : '') + '</span><span class="sbp"><b>' + label + '</b><small>' + sub + '</small></span></button>');
     if (AW.storyCleared(state) >= 1) {
       const lr = AW.loginReady(state, t);
       sb('login', 'gift', 'Daily Gift', lr ? 'Claim!' : timeLeft(nextMidnight() - t), lr);
@@ -5366,9 +5468,9 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     }
     const sc = AW.storyCleared(state);
     if (sc >= 3) { const fe = AW.freeEggReady(state, t); sb('egg', 'silver', 'Free Egg', fe ? 'Ready!' : timeLeft(state.gacha.freeAt - t), fe); }
-    else if (sc >= 1) sb('egg', 'silver', 'Free Egg', 'Locked', false, stageReq(3) + ' to unlock free eggs');
+    else if (sc >= 1) sb('egg', 'silver', 'Free Egg', 'Clear 1-3', false, stageReq(3) + ' to unlock free eggs');
     if (sc >= 12) sb('tower', 'tower', 'Tower', 'Floor ' + (state.tower + 1), false);
-    else if (sc >= 1) sb('tower', 'tower', 'Tower', 'Locked', false, stageReq(12) + ' to unlock the Gloom Tower');
+    else if (sc >= 1) sb('tower', 'tower', 'Tower', 'Clear 1-12', false, stageReq(12) + ' to unlock the Gloom Tower');
     $('side').innerHTML = out.join('');
     $('side').querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => {
       if (!b.getAttribute('data-lock')) AU.click();
@@ -5440,9 +5542,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     R.setAuto();
     buildCards();
     $('bh-name').innerHTML = esc((def.kind === 'story' ? stageLabel(def) + '  ' : '') + def.name) + '<small>' + esc(def.kind === 'story' ? CT.DIFFICULTIES[def.d].name + ' · ' + def.region : def.region) + '</small>';
-    $('speed-t').textContent = state.settings.speed;
-    $('btn-speed').classList.toggle('on', state.settings.speed === 2);
-    $('btn-cam').classList.toggle('on', state.settings.autoCam);
+    setToggles();
     $('bossbar').hidden = true;
     AU.play('battle');
     callout(def.name, def.kind === 'story' ? stageLabel(def) + ' · ' + CT.DIFFICULTIES[def.d].name : def.region, def.d === 2 ? 'pink' : def.d === 1 ? 'gold' : 'cream');
@@ -5476,7 +5576,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
   function tryDeploy(i) {
     if (!battle || paused || battle.state !== 'play') return;
     const ev = [];
-    if (AW.deploy(battle, i, ev)) { handleEvents(ev); if (tutorial.step === 'deploy') tutorial.step = 'pouchWait'; }
+    if (AW.deploy(battle, i, ev)) { handleEvents(ev); if (tutorial.step === 'deploy') tutorial.step = 'more'; }
     else if (battle.slots[i]) AU.deny();
   }
   function tryPouch() {
@@ -5548,6 +5648,8 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     $('bh-acorns').parentNode.classList.toggle('full', ac >= Math.floor(b.pouch.max));
     $('bh-ally').style.width = (100 * b.ally.hp / b.ally.max) + '%';
     $('bh-enemy').style.width = (100 * b.enemy.hp / b.enemy.max) + '%';
+    $('bh-ally-t').textContent = fmt(Math.ceil(b.ally.hp)) + ' / ' + fmt(b.ally.max);
+    $('bh-enemy-t').textContent = fmt(Math.ceil(b.enemy.hp)) + ' / ' + fmt(b.enemy.max);
     const pmax = b.pouch.lvl >= AW.CONFIG.pouch.levels;
     const pb = $('btn-pouch');
     $('pouch-lv').textContent = pmax ? 'MAX' : b.pouch.lvl;
@@ -5582,26 +5684,48 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     if (boss) { $('boss-name').textContent = boss.st.name; $('boss-fill').style.width = (100 * Math.max(0, boss.hp) / boss.max) + '%'; }
   }
 
+  // Tutorial guide: dims everything but the target, rings it, bounces a pointing hand on it and shows a hint above.
   function pointAt(el, text) {
-    const tut = $('tut');
-    if (!el) { tut.hidden = true; return; }
+    const tut = $('tut'), spot = $('spot'), hand = $('hand');
+    if (!el || !el.offsetWidth || !$('modal').hidden) { tut.hidden = true; spot.hidden = true; hand.hidden = true; return; }
+    const ar = $('app').getBoundingClientRect(), r = el.getBoundingClientRect();
+    const x = r.left - ar.left, y = r.top - ar.top;
+    spot.hidden = false;
+    spot.style.left = (x - 6) + 'px'; spot.style.top = (y - 6) + 'px'; spot.style.width = (r.width + 12) + 'px'; spot.style.height = (r.height + 12) + 'px';
+    if (!hand.firstChild) hand.innerHTML = SPR.img('icon_hand', 3);
+    hand.hidden = false;
+    hand.style.left = Math.min(ar.width - 52, x + r.width * 0.62) + 'px'; hand.style.top = Math.min(ar.height - 52, y + r.height * 0.45) + 'px';
     tut.hidden = false;
-    $('tut-text').textContent = text;
-    const vr = $('view').getBoundingClientRect(), r = el.getBoundingClientRect();
+    if ($('tut-text').textContent !== text) $('tut-text').textContent = text;
     const w = tut.offsetWidth, h = tut.offsetHeight;
-    const x = Math.max(6, Math.min(vr.width - w - 6, r.left + r.width / 2 - vr.left - w / 2));
-    tut.style.left = x + 'px';
-    tut.style.top = Math.max(6, Math.min(r.top - vr.top, vr.height) - h - 26) + 'px';
-    tut.querySelector('.tut-arrow').style.left = Math.max(10, Math.min(w - 10, r.left + r.width / 2 - vr.left - x)) + 'px';
+    const tx = Math.max(8, Math.min(ar.width - w - 8, x + r.width / 2 - w / 2));
+    const ty = Math.max(8, y - h - 22);
+    tut.style.left = tx + 'px'; tut.style.top = ty + 'px';
+    tut.querySelector('.tut-arrow').style.left = Math.max(12, Math.min(w - 12, x + r.width / 2 - tx)) + 'px';
   }
+  function hideGuide() { pointAt(null); }
   function updateTutorial() {
     const s = tutorial.step, b = battle;
-    if (!s || !b || b.state !== 'play') { $('tut').hidden = true; return; }
+    if (!s || !b || b.state !== 'play' || paused) { hideGuide(); return; }
     if (s === 'deploy') pointAt($('cards').children[0], 'Tap Pip to send him into battle!');
-    else if (s === 'pouchWait') { $('tut').hidden = true; if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
-    else if (s === 'pouch') pointAt($('btn-pouch'), 'Upgrade your pouch to earn acorns faster!');
-    else if (s === 'roarWait' || s === 'watchRoar') { $('tut').hidden = true; if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
-    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Power up every hero on the field!');
+    else if (s === 'more') {
+      if (b.pouch.lvl === 1 && b.t > 8 && AW.canPouch(b)) { tutorial.step = 'pouch'; return; }
+      const i = b.slots.findIndex((sl, k) => sl && AW.canDeploy(b, k));
+      if (i >= 0 && b.stats.deploys < 4) pointAt($('cards').children[i], 'Great! Keep sending heroes: tap a lit-up card');
+      else hideGuide();
+    }
+    else if (s === 'pouchWait') { hideGuide(); if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
+    else if (s === 'pouch') pointAt($('btn-pouch'), 'Tap the pouch to earn acorns faster!');
+    else if (s === 'roarWait' || s === 'watchRoar') { hideGuide(); if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
+    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Tap it to power up every hero!');
+  }
+  // Home guide: points at the next useful thing for new players.
+  function homeGuide() {
+    if (mode !== 'home' || !$('modal').hidden || !$('hatchery').hidden || COVER) { if (mode === 'home') hideGuide(); return; }
+    const sc = AW.storyCleared(state);
+    if (sc >= 2 && !state.flags.tutLab && state.lab.train === 0 && state.coins >= AW.labCost('train', 0)) pointAt(document.querySelector('.nav [data-go="lab"]'), 'Upgrade your army in the Lab!');
+    else if (sc >= 1 && sc < 3) pointAt($('btn-battle'), 'Tap BATTLE to play the next stage!');
+    else hideGuide();
   }
 
   function pause(on) {
@@ -5609,8 +5733,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     paused = on;
     if (on) {
       PF.gameplayStop();
-      openModal('Paused', settingsToggles() +
-        '<p class="tip-line">Drag the battlefield to look around · 1-0 deploy · E pouch · R Battle Cry · F speed</p>',
+      openModal('Paused', settingsToggles(),
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
         () => { paused = false; PF.gameplayStart(); });
       bindToggles();
@@ -5730,6 +5853,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     $('modal').className = 'modal' + (kind ? ' ' + kind : '');
     modalOnClose = onClose || null;
     $('modal').hidden = false;
+    hideGuide();
     fillIcons($('modal'));
     fitLabels($('modal'));
   }
@@ -5738,6 +5862,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     $('modal').hidden = true;
     const f = modalOnClose; modalOnClose = null;
     if (f) f();
+    if (mode === 'home') setTimeout(homeGuide, 50);
   }
 
   function sw(k) { const on = k === 'music' ? state.settings.music : k === 'sfx' ? state.settings.sfx : state.settings.autoCam; return '<button type="button" data-toggle="' + k + '" class="switch' + (on ? ' on' : '') + '" aria-label="' + k + '"></button>'; }
@@ -5747,7 +5872,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
       const k = b.getAttribute('data-toggle');
       if (k === 'music') { state.settings.music = !state.settings.music; AU.setMusic(state.settings.music); }
       if (k === 'sfx') { state.settings.sfx = !state.settings.sfx; AU.setSfx(state.settings.sfx); }
-      if (k === 'cam') { state.settings.autoCam = !state.settings.autoCam; if (state.settings.autoCam) R.setAuto(); }
+      if (k === 'cam') { state.settings.autoCam = !state.settings.autoCam; if (battle) setToggles(); }
       const on = k === 'music' ? state.settings.music : k === 'sfx' ? state.settings.sfx : state.settings.autoCam;
       b.classList.toggle('on', on);
       AU.click(); markDirty();
@@ -5771,6 +5896,8 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
   function openPanel(name) {
     if (!PANELS[name]) return;
     if (mode === 'battle') return;
+    hideGuide();
+    if (name === 'lab') state.flags.tutLab = true;
     panelName = name; mode = 'menu';
     setAppClass('menu');
     $('panel-title').innerHTML = title(PANELS[name].title, 3, 'cream') + '<span hidden>' + PANELS[name].title + '</span>';
@@ -6333,7 +6460,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     $('btn-roar').addEventListener('pointerdown', (e) => { e.preventDefault(); tryRoar(); });
     $('btn-pause').addEventListener('click', () => { AU.click(); pause(true); });
     $('btn-speed').addEventListener('click', toggleSpeed);
-    $('btn-cam').addEventListener('click', () => { state.settings.autoCam = !state.settings.autoCam; $('btn-cam').classList.toggle('on', state.settings.autoCam); if (state.settings.autoCam) R.setAuto(); markDirty(); });
+    $('btn-cam').addEventListener('click', () => { AU.click(); state.settings.autoCam = !state.settings.autoCam; setToggles(); if (state.settings.autoCam) R.setAuto(); markDirty(); });
     $('h-next').addEventListener('click', () => { if (hatchQ && hatchQ.phase === 'done') { endHatch(); return; } hatchStep(); });
     $('h-skip').addEventListener('click', () => { if (hatchQ) { hatchQ.list.forEach((r) => { if (r.rarity >= 3) PF.happytime(); }); AU.reveal(Math.max.apply(null, hatchQ.list.map((r) => r.rarity))); hatchSummary(); } });
     $('hatchery').addEventListener('click', (e) => { if (e.target.closest('button')) return; if (hatchQ && hatchQ.phase !== 'done') hatchStep(); });
@@ -6394,7 +6521,17 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     window.addEventListener('pagehide', save);
   }
 
-  function toggleSpeed() { state.settings.speed = state.settings.speed === 2 ? 1 : 2; $('speed-t').textContent = state.settings.speed; $('btn-speed').classList.toggle('on', state.settings.speed === 2); AU.click(); markDirty(); }
+  function toggleSpeed() { state.settings.speed = state.settings.speed === 2 ? 1 : 2; setToggles(); AU.click(); markDirty(); }
+  // Speed and camera buttons: gold and labelled when on, dark when off, so the state reads at a glance.
+  function setToggles() {
+    const fast = state.settings.speed === 2, auto = !!state.settings.autoCam;
+    const set = (el, on) => { el.classList.toggle('fx-btn-gold', on); el.classList.toggle('fx-btn-dark', !on); el.classList.toggle('on', on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+    set($('btn-speed'), fast); set($('btn-cam'), auto);
+    $('speed-t').textContent = fast ? '×2' : '×1';
+    $('cam-t').textContent = auto ? 'AUTO' : 'FREE';
+    R.setFollow(auto);
+    $('btn-cam').title = auto ? 'Camera follows the front line (tap for free camera)' : 'Free camera (tap to follow the front line)';
+  }
   // Mute: the speaker icon is struck out while muted (and the choice is remembered).
   function setMuted(m) {
     AU.setMuted(m);
@@ -6424,7 +6561,7 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
     if (slow > 1) {
       slow = 0;
       if (AW.ensureDaily(state, now())) { markDirty(); if (mode === 'home') refreshHome(); }
-      if (mode === 'home') { updateBadges(); renderSide(); }
+      if (mode === 'home') { updateBadges(); renderSide(); homeGuide(); }
       if (dirty && now() - lastSave > 4000) save();
     }
   }

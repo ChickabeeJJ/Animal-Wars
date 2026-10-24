@@ -199,6 +199,31 @@
     return icon('skull') + 'Defeat ' + esc(AW.ENEMY[CT.REGIONS[n.r].boss].name) + ' at ' + (n.r + 1) + '-12';
   }
 
+  // Logo lockup: the shield emblem beside ANIMAL / WARS. f scales it down on short screens.
+  function logoHtml(f) {
+    const k = (n) => Math.max(1, Math.round(n * f));
+    return '<span class="lg-emb">' + SPR.img('emblem', k(4)) + '</span><span class="lg-words">' + title('Animal', k(5), 'cream', 8, 'lg-a') + title('Wars', k(9), 'gold', 8, 'lg-b') + '</span>';
+  }
+  // Left column cards on the home screen: the next battle, and today's featured heroes once the Hatchery is open.
+  function renderFeature() {
+    const f = $('feature'), n = nextStory(), sc = AW.storyCleared(state);
+    if (sc < 1) { f.hidden = true; return; }
+    let h = '';
+    if (n) {
+      const Rg = CT.REGIONS[n.r], foes = foesOf(n).slice(0, 4);
+      h += '<button type="button" class="fcard fx-plaque" id="f-next"><span class="fart" data-art="160x40" style="background-image:url(' + R.themeArt(Rg.theme, 160, 40, false, 160) + ')"><b class="flabel">NEXT BATTLE</b><b class="fstage">' + stageLabel(n) + '</b></span>' +
+        '<span class="fname">' + esc(n.name) + '</span><span class="ffoes">' + foes.map((o) => enemyFit(o.id, 36, 28, o.boss ? 'boss' : '')).join('') + '</span></button>';
+    }
+    if (sc >= 3) {
+      const fe = AW.featured(AW.dayNumber(now())), ids = [fe.legend, fe.mythic, fe.epic].filter(Boolean).slice(0, 3);
+      h += '<button type="button" class="fcard fx-plaque" id="f-hatch"><span class="flabel2">' + icon('nest') + 'TODAY\'S RATE UP</span><span class="fheroes">' + ids.map((id) => '<span class="fh ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, 0, 40, 40) + '</span>').join('') + '</span><span class="fname">Hatch them in the Royal Nest</span></button>';
+    }
+    f.innerHTML = h; f.hidden = !h;
+    fitBgs(f);
+    const a = $('f-next'); if (a) a.addEventListener('click', () => { AU.click(); openStage(n); });
+    const b2 = $('f-hatch'); if (b2) b2.addEventListener('click', () => { AU.click(); openPanel('hatch'); });
+  }
+
   function refreshHome() {
     renderCurrencies();
     const rk = rank();
@@ -208,7 +233,7 @@
     const lead = leadHero();
     $('avatar').className = 'avatar ' + rarFrame(AW.HERO[lead].rarity);
     $('avatar').innerHTML = heroFit(lead, state.heroes[lead] ? state.heroes[lead].form : 0, 40, 36);
-    if (!$('logo').firstChild) $('logo').innerHTML = title('Animal', 4, 'cream') + '<div class="paws">' + icon('paw') + icon('paw') + icon('paw') + '</div>' + title('Wars', 7, 'gold');
+    if (!$('logo').firstChild) $('logo').innerHTML = logoHtml(innerHeight <= 520 ? 0.5 : 1);
     $('goal').innerHTML = nextGoal();
     const n = nextStory();
     $('battle-t').innerHTML = title('Battle!', 4, 'cream');
@@ -217,8 +242,9 @@
     if (!$('hatch-egg').firstChild) $('hatch-egg').innerHTML = icon('gold');
     renderQuests();
     renderSide();
+    renderFeature();
     updateBadges();
-    requestAnimationFrame(() => fitLabels($('home')));
+    requestAnimationFrame(() => { fitLabels($('home')); homeGuide(); });
   }
 
   function curPills(small) {
@@ -246,7 +272,7 @@
 
   function renderSide() {
     const t = now(), out = [];
-    const sb = (id, ic, label, sub, ready, lock) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + (lock ? ' locked' : '') + '" data-side="' + id + '"' + (lock ? ' data-lock="' + esc(lock) + '"' : '') + '><span class="sbi fx-btn-' + (lock ? 'dark' : ready ? 'gold' : 'wood') + '">' + icon(ic) + (lock ? '<span class="nlk">' + icon('lock') + '</span>' : '') + '</span><span class="sbl">' + label + '</span><span class="sbt">' + sub + '</span></button>');
+    const sb = (id, ic, label, sub, ready, lock) => out.push('<button type="button" class="sb' + (ready ? ' ready' : '') + (lock ? ' locked' : '') + '" data-side="' + id + '"' + (lock ? ' data-lock="' + esc(lock) + '"' : '') + '><span class="sbi fx-btn-' + (lock ? 'dark' : ready ? 'gold' : 'wood') + '">' + icon(ic) + (lock ? '<span class="slk">' + SPR.img('icon_lock', 1) + '</span>' : '') + '</span><span class="sbp"><b>' + label + '</b><small>' + sub + '</small></span></button>');
     if (AW.storyCleared(state) >= 1) {
       const lr = AW.loginReady(state, t);
       sb('login', 'gift', 'Daily Gift', lr ? 'Claim!' : timeLeft(nextMidnight() - t), lr);
@@ -255,9 +281,9 @@
     }
     const sc = AW.storyCleared(state);
     if (sc >= 3) { const fe = AW.freeEggReady(state, t); sb('egg', 'silver', 'Free Egg', fe ? 'Ready!' : timeLeft(state.gacha.freeAt - t), fe); }
-    else if (sc >= 1) sb('egg', 'silver', 'Free Egg', 'Locked', false, stageReq(3) + ' to unlock free eggs');
+    else if (sc >= 1) sb('egg', 'silver', 'Free Egg', 'Clear 1-3', false, stageReq(3) + ' to unlock free eggs');
     if (sc >= 12) sb('tower', 'tower', 'Tower', 'Floor ' + (state.tower + 1), false);
-    else if (sc >= 1) sb('tower', 'tower', 'Tower', 'Locked', false, stageReq(12) + ' to unlock the Gloom Tower');
+    else if (sc >= 1) sb('tower', 'tower', 'Tower', 'Clear 1-12', false, stageReq(12) + ' to unlock the Gloom Tower');
     $('side').innerHTML = out.join('');
     $('side').querySelectorAll('[data-side]').forEach((b) => b.addEventListener('click', () => {
       if (!b.getAttribute('data-lock')) AU.click();
@@ -329,9 +355,7 @@
     R.setAuto();
     buildCards();
     $('bh-name').innerHTML = esc((def.kind === 'story' ? stageLabel(def) + '  ' : '') + def.name) + '<small>' + esc(def.kind === 'story' ? CT.DIFFICULTIES[def.d].name + ' · ' + def.region : def.region) + '</small>';
-    $('speed-t').textContent = state.settings.speed;
-    $('btn-speed').classList.toggle('on', state.settings.speed === 2);
-    $('btn-cam').classList.toggle('on', state.settings.autoCam);
+    setToggles();
     $('bossbar').hidden = true;
     AU.play('battle');
     callout(def.name, def.kind === 'story' ? stageLabel(def) + ' · ' + CT.DIFFICULTIES[def.d].name : def.region, def.d === 2 ? 'pink' : def.d === 1 ? 'gold' : 'cream');
@@ -365,7 +389,7 @@
   function tryDeploy(i) {
     if (!battle || paused || battle.state !== 'play') return;
     const ev = [];
-    if (AW.deploy(battle, i, ev)) { handleEvents(ev); if (tutorial.step === 'deploy') tutorial.step = 'pouchWait'; }
+    if (AW.deploy(battle, i, ev)) { handleEvents(ev); if (tutorial.step === 'deploy') tutorial.step = 'more'; }
     else if (battle.slots[i]) AU.deny();
   }
   function tryPouch() {
@@ -437,6 +461,8 @@
     $('bh-acorns').parentNode.classList.toggle('full', ac >= Math.floor(b.pouch.max));
     $('bh-ally').style.width = (100 * b.ally.hp / b.ally.max) + '%';
     $('bh-enemy').style.width = (100 * b.enemy.hp / b.enemy.max) + '%';
+    $('bh-ally-t').textContent = fmt(Math.ceil(b.ally.hp)) + ' / ' + fmt(b.ally.max);
+    $('bh-enemy-t').textContent = fmt(Math.ceil(b.enemy.hp)) + ' / ' + fmt(b.enemy.max);
     const pmax = b.pouch.lvl >= AW.CONFIG.pouch.levels;
     const pb = $('btn-pouch');
     $('pouch-lv').textContent = pmax ? 'MAX' : b.pouch.lvl;
@@ -471,26 +497,48 @@
     if (boss) { $('boss-name').textContent = boss.st.name; $('boss-fill').style.width = (100 * Math.max(0, boss.hp) / boss.max) + '%'; }
   }
 
+  // Tutorial guide: dims everything but the target, rings it, bounces a pointing hand on it and shows a hint above.
   function pointAt(el, text) {
-    const tut = $('tut');
-    if (!el) { tut.hidden = true; return; }
+    const tut = $('tut'), spot = $('spot'), hand = $('hand');
+    if (!el || !el.offsetWidth || !$('modal').hidden) { tut.hidden = true; spot.hidden = true; hand.hidden = true; return; }
+    const ar = $('app').getBoundingClientRect(), r = el.getBoundingClientRect();
+    const x = r.left - ar.left, y = r.top - ar.top;
+    spot.hidden = false;
+    spot.style.left = (x - 6) + 'px'; spot.style.top = (y - 6) + 'px'; spot.style.width = (r.width + 12) + 'px'; spot.style.height = (r.height + 12) + 'px';
+    if (!hand.firstChild) hand.innerHTML = SPR.img('icon_hand', 3);
+    hand.hidden = false;
+    hand.style.left = Math.min(ar.width - 52, x + r.width * 0.62) + 'px'; hand.style.top = Math.min(ar.height - 52, y + r.height * 0.45) + 'px';
     tut.hidden = false;
-    $('tut-text').textContent = text;
-    const vr = $('view').getBoundingClientRect(), r = el.getBoundingClientRect();
+    if ($('tut-text').textContent !== text) $('tut-text').textContent = text;
     const w = tut.offsetWidth, h = tut.offsetHeight;
-    const x = Math.max(6, Math.min(vr.width - w - 6, r.left + r.width / 2 - vr.left - w / 2));
-    tut.style.left = x + 'px';
-    tut.style.top = Math.max(6, Math.min(r.top - vr.top, vr.height) - h - 26) + 'px';
-    tut.querySelector('.tut-arrow').style.left = Math.max(10, Math.min(w - 10, r.left + r.width / 2 - vr.left - x)) + 'px';
+    const tx = Math.max(8, Math.min(ar.width - w - 8, x + r.width / 2 - w / 2));
+    const ty = Math.max(8, y - h - 22);
+    tut.style.left = tx + 'px'; tut.style.top = ty + 'px';
+    tut.querySelector('.tut-arrow').style.left = Math.max(12, Math.min(w - 12, x + r.width / 2 - tx)) + 'px';
   }
+  function hideGuide() { pointAt(null); }
   function updateTutorial() {
     const s = tutorial.step, b = battle;
-    if (!s || !b || b.state !== 'play') { $('tut').hidden = true; return; }
+    if (!s || !b || b.state !== 'play' || paused) { hideGuide(); return; }
     if (s === 'deploy') pointAt($('cards').children[0], 'Tap Pip to send him into battle!');
-    else if (s === 'pouchWait') { $('tut').hidden = true; if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
-    else if (s === 'pouch') pointAt($('btn-pouch'), 'Upgrade your pouch to earn acorns faster!');
-    else if (s === 'roarWait' || s === 'watchRoar') { $('tut').hidden = true; if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
-    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Power up every hero on the field!');
+    else if (s === 'more') {
+      if (b.pouch.lvl === 1 && b.t > 8 && AW.canPouch(b)) { tutorial.step = 'pouch'; return; }
+      const i = b.slots.findIndex((sl, k) => sl && AW.canDeploy(b, k));
+      if (i >= 0 && b.stats.deploys < 4) pointAt($('cards').children[i], 'Great! Keep sending heroes: tap a lit-up card');
+      else hideGuide();
+    }
+    else if (s === 'pouchWait') { hideGuide(); if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
+    else if (s === 'pouch') pointAt($('btn-pouch'), 'Tap the pouch to earn acorns faster!');
+    else if (s === 'roarWait' || s === 'watchRoar') { hideGuide(); if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
+    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Tap it to power up every hero!');
+  }
+  // Home guide: points at the next useful thing for new players.
+  function homeGuide() {
+    if (mode !== 'home' || !$('modal').hidden || !$('hatchery').hidden || COVER) { if (mode === 'home') hideGuide(); return; }
+    const sc = AW.storyCleared(state);
+    if (sc >= 2 && !state.flags.tutLab && state.lab.train === 0 && state.coins >= AW.labCost('train', 0)) pointAt(document.querySelector('.nav [data-go="lab"]'), 'Upgrade your army in the Lab!');
+    else if (sc >= 1 && sc < 3) pointAt($('btn-battle'), 'Tap BATTLE to play the next stage!');
+    else hideGuide();
   }
 
   function pause(on) {
@@ -498,8 +546,7 @@
     paused = on;
     if (on) {
       PF.gameplayStop();
-      openModal('Paused', settingsToggles() +
-        '<p class="tip-line">Drag the battlefield to look around · 1-0 deploy · E pouch · R Battle Cry · F speed</p>',
+      openModal('Paused', settingsToggles(),
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
         () => { paused = false; PF.gameplayStart(); });
       bindToggles();
@@ -619,6 +666,7 @@
     $('modal').className = 'modal' + (kind ? ' ' + kind : '');
     modalOnClose = onClose || null;
     $('modal').hidden = false;
+    hideGuide();
     fillIcons($('modal'));
     fitLabels($('modal'));
   }
@@ -627,6 +675,7 @@
     $('modal').hidden = true;
     const f = modalOnClose; modalOnClose = null;
     if (f) f();
+    if (mode === 'home') setTimeout(homeGuide, 50);
   }
 
   function sw(k) { const on = k === 'music' ? state.settings.music : k === 'sfx' ? state.settings.sfx : state.settings.autoCam; return '<button type="button" data-toggle="' + k + '" class="switch' + (on ? ' on' : '') + '" aria-label="' + k + '"></button>'; }
@@ -636,7 +685,7 @@
       const k = b.getAttribute('data-toggle');
       if (k === 'music') { state.settings.music = !state.settings.music; AU.setMusic(state.settings.music); }
       if (k === 'sfx') { state.settings.sfx = !state.settings.sfx; AU.setSfx(state.settings.sfx); }
-      if (k === 'cam') { state.settings.autoCam = !state.settings.autoCam; if (state.settings.autoCam) R.setAuto(); }
+      if (k === 'cam') { state.settings.autoCam = !state.settings.autoCam; if (battle) setToggles(); }
       const on = k === 'music' ? state.settings.music : k === 'sfx' ? state.settings.sfx : state.settings.autoCam;
       b.classList.toggle('on', on);
       AU.click(); markDirty();
@@ -660,6 +709,8 @@
   function openPanel(name) {
     if (!PANELS[name]) return;
     if (mode === 'battle') return;
+    hideGuide();
+    if (name === 'lab') state.flags.tutLab = true;
     panelName = name; mode = 'menu';
     setAppClass('menu');
     $('panel-title').innerHTML = title(PANELS[name].title, 3, 'cream') + '<span hidden>' + PANELS[name].title + '</span>';
@@ -1222,7 +1273,7 @@
     $('btn-roar').addEventListener('pointerdown', (e) => { e.preventDefault(); tryRoar(); });
     $('btn-pause').addEventListener('click', () => { AU.click(); pause(true); });
     $('btn-speed').addEventListener('click', toggleSpeed);
-    $('btn-cam').addEventListener('click', () => { state.settings.autoCam = !state.settings.autoCam; $('btn-cam').classList.toggle('on', state.settings.autoCam); if (state.settings.autoCam) R.setAuto(); markDirty(); });
+    $('btn-cam').addEventListener('click', () => { AU.click(); state.settings.autoCam = !state.settings.autoCam; setToggles(); if (state.settings.autoCam) R.setAuto(); markDirty(); });
     $('h-next').addEventListener('click', () => { if (hatchQ && hatchQ.phase === 'done') { endHatch(); return; } hatchStep(); });
     $('h-skip').addEventListener('click', () => { if (hatchQ) { hatchQ.list.forEach((r) => { if (r.rarity >= 3) PF.happytime(); }); AU.reveal(Math.max.apply(null, hatchQ.list.map((r) => r.rarity))); hatchSummary(); } });
     $('hatchery').addEventListener('click', (e) => { if (e.target.closest('button')) return; if (hatchQ && hatchQ.phase !== 'done') hatchStep(); });
@@ -1283,7 +1334,17 @@
     window.addEventListener('pagehide', save);
   }
 
-  function toggleSpeed() { state.settings.speed = state.settings.speed === 2 ? 1 : 2; $('speed-t').textContent = state.settings.speed; $('btn-speed').classList.toggle('on', state.settings.speed === 2); AU.click(); markDirty(); }
+  function toggleSpeed() { state.settings.speed = state.settings.speed === 2 ? 1 : 2; setToggles(); AU.click(); markDirty(); }
+  // Speed and camera buttons: gold and labelled when on, dark when off, so the state reads at a glance.
+  function setToggles() {
+    const fast = state.settings.speed === 2, auto = !!state.settings.autoCam;
+    const set = (el, on) => { el.classList.toggle('fx-btn-gold', on); el.classList.toggle('fx-btn-dark', !on); el.classList.toggle('on', on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+    set($('btn-speed'), fast); set($('btn-cam'), auto);
+    $('speed-t').textContent = fast ? '×2' : '×1';
+    $('cam-t').textContent = auto ? 'AUTO' : 'FREE';
+    R.setFollow(auto);
+    $('btn-cam').title = auto ? 'Camera follows the front line (tap for free camera)' : 'Free camera (tap to follow the front line)';
+  }
   // Mute: the speaker icon is struck out while muted (and the choice is remembered).
   function setMuted(m) {
     AU.setMuted(m);
@@ -1313,7 +1374,7 @@
     if (slow > 1) {
       slow = 0;
       if (AW.ensureDaily(state, now())) { markDirty(); if (mode === 'home') refreshHome(); }
-      if (mode === 'home') { updateBadges(); renderSide(); }
+      if (mode === 'home') { updateBadges(); renderSide(); homeGuide(); }
       if (dirty && now() - lastSave > 4000) save();
     }
   }

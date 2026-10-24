@@ -91,3 +91,10 @@ The owner asked for landscape-only play on mobile, a AAA-standard UI pass, bette
 
 - The CrazyGames SDK calls (ads, data sync, leaderboard) have not been run against the live SDK.
 - Hard and Nightmare tuning relies on the scripted player; real players may find specific late stages easier or harder.
+
+## Version 1.3.1: home, HUD and tutorial fixes
+
+- **Home:** a logo lockup (shield emblem with a paw over crossed swords beside ANIMAL / WARS); left-column cards for the next battle (region art, stage, the Gloom you will meet) and today's rate-up heroes; side buttons rebuilt as an icon button with a separate name and status plate (nothing overlaps), with hand-drawn gift, barn, egg and tower icons and a lock badge inside the button. The nav labels all fit at full size ("Prizes" opens Rewards).
+- **Battle HUD:** the Gloom tower health is a plate as tall as the speed and camera buttons, with the numbers inside the bar (base health numbers moved into the HUD bars). Speed and camera buttons turn gold and read ×2 / AUTO when on, dark with ×1 / FREE when off, and FREE now really stops the camera following.
+- **Pause:** the keyboard hint line is gone.
+- **Tutorial:** a spotlight dims everything except the target, rings it in gold, and a pixel hand taps on it under the hint bubble. Battle 1-1 now guides: deploy Pip, keep deploying (it points at whichever card is ready), upgrade the pouch, then the Battle Cry. At home it points at BATTLE until 1-3 and at the Lab the first time an upgrade is affordable.

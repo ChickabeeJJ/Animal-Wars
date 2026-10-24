@@ -75,8 +75,8 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
     const st = await S(p, () => ({ a: __aw.battle.pouch.acorns, n: __aw.battle.ents.filter((e) => e.side === 0).length }));
     assert(st.n === 1, 'one hero on the field, got ' + st.n);
     assert(st.a < 200, 'acorns spent');
-    await p.waitForTimeout(100);
-    assert(await p.isHidden('#tut'), 'pointer hidden after deploying');
+    await p.waitForTimeout(150);
+    assert(await S(p, () => document.getElementById('tut-text').textContent.indexOf('Pip') < 0), 'pointer moved on from Pip');
   });
 
   await check('keys deploy, speed and pause; pausing stops the clock', async () => {
