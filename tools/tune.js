@@ -13,11 +13,16 @@ const { playBattle } = require('./sim.js');
 const { setup } = require('./calibrate.js');
 
 const NORMAL = [[1, 6], [5, 11], [10, 15], [14, 19], [18, 23], [22, 27], [26, 31], [30, 36]];
+// Chapter 1 as before; chapters 2 and 3 keep climbing (36 to 44, then 44 to 50) with heroes capped at level 50.
 function targetLevel(d, r, i) {
   const k = i / 11;
-  if (d === 0) return Math.round(NORMAL[r][0] + (NORMAL[r][1] - NORMAL[r][0]) * k);
-  if (d === 1) return Math.round(34 + r * 1.4 + k * 1.6);
-  return Math.round(42 + r * 0.9 + k * 0.9);
+  if (d === 0) {
+    if (r < 8) return Math.round(NORMAL[r][0] + (NORMAL[r][1] - NORMAL[r][0]) * k);
+    if (r < 16) return Math.round(36 + (r - 8) + k);
+    return Math.min(50, Math.round(44 + (r - 16) * 0.8 + k * 0.8));
+  }
+  if (d === 1) return Math.min(50, Math.round(r < 8 ? 34 + r * 1.4 + k * 1.6 : 45 + (r - 8) * 0.3 + k * 0.3));
+  return Math.min(50, Math.round(42 + r * 0.9 + k * 0.9));
 }
 function targetTime(d, r, i) { return (d === 0 && r === 0) ? 60 + i * 6 : 95 + i * 5; }
 
@@ -56,23 +61,31 @@ function tuneStage(d, r, i) {
 
 if (require.main === module) {
   AW.setTune(null);
+  // Tune against the base stages: CONFIG.challenge is applied on top of the tuning in the game.
+  Object.assign(AW.CONFIG.challenge, { mag: 1, hp: 1, tempo: 1, region: {} });
   const which = (process.argv[2] || '0,1,2').split(',').map(Number);
-  const file = path.join(__dirname, '..', 'js', 'tune.js');
+  // Optional region range ("8-23") and a separate output file, so several tuners can run side by side.
+  const span = (process.argv[3] || '0-' + (AW.CT.REGIONS.length - 1)).split('-').map(Number);
+  const file = process.argv[4] ? path.resolve(process.argv[4]) : path.join(__dirname, '..', 'js', 'tune.js');
   let old = null;
-  try { old = require(file); } catch (e) { old = null; }
+  try { old = require(path.join(__dirname, '..', 'js', 'tune.js')); } catch (e) { old = null; }
   const out = { mag: [[], [], []], hp: [[], [], []] };
-  for (let d = 0; d < 3; d++) for (let r = 0; r < 8; r++) {
+  for (let d = 0; d < 3; d++) for (let r = 0; r < AW.CT.REGIONS.length; r++) {
     out.mag[d][r] = (old && old.mag[d] && old.mag[d][r]) ? old.mag[d][r].slice() : new Array(12).fill(1);
     out.hp[d][r] = (old && old.hp[d] && old.hp[d][r]) ? old.hp[d][r].slice() : new Array(12).fill(1);
   }
-  for (const d of which) for (let r = 0; r < 8; r++) {
+  // Optional list of stages "d-r-i,..." to re-tune; every other stage keeps its current value.
+  const only = process.argv[5] ? new Set(process.argv[5].split(',')) : null;
+  for (const d of which) for (let r = span[0]; r <= span[1]; r++) {
     const row = [];
     for (let i = 0; i < 12; i++) {
+      if (only && !only.has(d + '-' + r + '-' + i)) continue;
       const res = tuneStage(d, r, i);
       out.mag[d][r][i] = Math.round(res.f * 1000) / 1000;
       out.hp[d][r][i] = Math.round(res.h * 1000) / 1000;
       row.push(`L${res.T} ×${res.f.toFixed(2)} hp×${res.h.toFixed(2)} ${Math.round(res.t || 0)}s${res.note ? ' ' + res.note : ''}`);
     }
+    if (!row.length) continue;
     console.log(d, r + 1, row.join(' | '));
     write(file, out);
   }

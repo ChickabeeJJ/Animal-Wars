@@ -144,12 +144,15 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
     const before = await S(p, () => ({ g: __aw.state.gems, n: Object.keys(__aw.state.heroes).length, pulls: __aw.state.gacha.pulls }));
     await p.click('[data-hatch="royal"][data-n="10"]');
     await p.waitForSelector('#hatchery:not([hidden])');
-    await p.click('#h-next');
-    await p.waitForTimeout(600);
+    // The egg drops into the nest, then three taps crack it, split it and burst it.
+    await p.waitForTimeout(700);
+    for (let k = 0; k < 3; k++) { await p.click('#h-next'); await p.waitForTimeout(380); }
+    await p.waitForTimeout(500);
+    assert((await p.locator('#h-stage .got').count()) === 1, 'the first hero is revealed');
     await shot(p, 'hatch-reveal');
     await p.click('#h-skip');
     await p.waitForTimeout(100);
-    assert((await p.locator('.sum .hero').count()) === 10, 'summary of 10');
+    assert((await p.locator('.hsum .hs-card').count()) === 10, 'summary of 10');
     await p.click('#h-next');
     const after = await S(p, () => ({ g: __aw.state.gems, n: Object.keys(__aw.state.heroes).length, pulls: __aw.state.gacha.pulls }));
     assert(before.g - after.g === 900, 'spent ' + (before.g - after.g));

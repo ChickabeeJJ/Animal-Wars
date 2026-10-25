@@ -7,6 +7,9 @@ require('../js/sprites.js');
 const SPR = globalThis.AWSprites;
 
 const T = AW.CONFIG.tick;
+// Most rule tests check exact numbers, so elements are neutral unless a test turns them on.
+const EL = Object.assign({}, AW.CONFIG.element);
+AW.CONFIG.element.strong = 1; AW.CONFIG.element.weak = 1;
 function run(b, seconds, ev) { for (let t = 0; t < seconds; t += T) AW.step(b, T, ev || null); }
 function emptyStage(extra) {
   return Object.assign({ kind: 'story', d: 0, r: 0, i: 0, key: '0-0-0', name: 'Test', region: 'Test', theme: 0, lane: 400, baseHp: 1e9, lines: [], coins: 100, gems: 20, par: 100, seed: 1 }, extra || {});
@@ -18,24 +21,47 @@ function spawnEnemy(b, id, x, mag) {
   return e;
 }
 
-test('content: 50 heroes and 33 Gloom, unique ids, every species has a painter', () => {
-  assert.equal(CT.HEROES.length, 50);
-  assert.equal(CT.ENEMIES.length, 33);
+test('content: 150 heroes and 73 Gloom, unique ids, every species has a painter, every element is valid', () => {
+  assert.equal(CT.HEROES.length, 150);
+  assert.equal(CT.ENEMIES.length, 73);
   const ids = new Set(CT.HEROES.map((h) => h.id).concat(CT.ENEMIES.map((e) => e.id)));
-  assert.equal(ids.size, 83);
+  assert.equal(ids.size, 223);
   for (const h of CT.HEROES) {
     assert.ok(SPR.HERO_ART[h.look.sp], 'painter for ' + h.look.sp);
     assert.equal(h.names.length, 3);
+    assert.ok(CT.ELEMENTS[h.el], 'element for ' + h.id);
     assert.ok(h.cost > 0 && h.cd > 0 && h.hp > 0 && h.rate >= h.fore, h.id);
     for (const k of ['strong', 'massive', 'resist']) for (const t of (h.ab[k] || [])) assert.ok(t === 'all' || CT.TRAITS[t], h.id + ' ' + t);
+    if (h.unlock) assert.ok(h.unlock[0] < CT.REGIONS.length && h.unlock[1] < 12, h.id);
   }
-  for (const e of CT.ENEMIES) { assert.ok(SPR.ENEMY_ART[e.look.sp], 'painter for ' + e.look.sp); for (const t of e.traits) assert.ok(CT.TRAITS[t]); }
+  for (const e of CT.ENEMIES) { assert.ok(SPR.ENEMY_ART[e.look.sp], 'painter for ' + e.look.sp); assert.ok(CT.ELEMENTS[e.el], e.id); for (const t of e.traits) assert.ok(CT.TRAITS[t]); }
+  for (const R of CT.REGIONS) for (const k of ['a', 'b', 'c']) for (const id of R.pool[k]) assert.ok(AW.ENEMY[id], R.id + ' ' + id);
   const byR = [0, 1, 2, 3, 4].map((r) => CT.HEROES.filter((h) => h.rarity === r).length);
-  assert.deepEqual(byR, [9, 14, 12, 10, 5]);
+  assert.deepEqual(byR, [25, 46, 38, 26, 15]);
+  // Every element beats exactly two and loses to exactly two.
+  for (const k in CT.ELEMENTS) {
+    assert.equal(CT.ELEMENTS[k].strong.length, 2);
+    assert.equal(Object.keys(CT.ELEMENTS).filter((o) => CT.ELEMENTS[o].strong.indexOf(k) >= 0).length, 2, k);
+  }
 });
 
-test('every one of the 288 story stages is valid and gets harder within a region', () => {
-  for (let d = 0; d < 3; d++) for (let r = 0; r < 8; r++) for (let i = 0; i < 12; i++) {
+test('elements: strong hits deal 1.5×, weak hits 0.75×, and 3+ heroes of one element get a synergy bonus', () => {
+  Object.assign(AW.CONFIG.element, EL);
+  assert.equal(AW.affinity('ember', 'thorn'), 1.5);
+  assert.equal(AW.affinity('thorn', 'ember'), 0.75);
+  assert.equal(AW.affinity('ember', 'moon'), 1);
+  const s = AW.createState(0);
+  const thorns = CT.HEROES.filter((h) => h.el === 'thorn').slice(0, 3).map((h) => h.id);
+  thorns.forEach((id) => { s.heroes[id] = { lvl: 1, plus: 0, form: 0 }; });
+  s.lineup = thorns.concat([null, null, null, null, null, null, null]);
+  const b = AW.createBattle(s, emptyStage(), {});
+  assert.equal(b.synergy.thorn.count, 3);
+  assert.equal(b.slots[0].st.hp, Math.round(AW.heroStats(s, thorns[0]).hp * 1.1));
+  AW.CONFIG.element.strong = 1; AW.CONFIG.element.weak = 1;
+});
+
+test('every one of the 864 story stages is valid and gets harder within a region', () => {
+  for (let d = 0; d < 3; d++) for (let r = 0; r < CT.REGIONS.length; r++) for (let i = 0; i < 12; i++) {
     const s = AW.stageDef(d, r, i);
     assert.ok(s.baseHp > 0 && s.lane > 300 && s.coins > 0 && s.lines.length >= 1, s.key);
     for (const l of s.lines) { assert.ok(AW.ENEMY[l.e], s.key + ' ' + l.e); assert.ok(l.mag >= 1 && l.every[0] > 0, s.key); }
@@ -314,4 +340,23 @@ test('the scripted player clears Clover Meadow without getting stuck', () => {
   const res = run({ regions: 1, seed: 3 });
   assert.ok(!res.stuck, res.log.join('\n'));
   assert.equal(res.state.clear[0][0], 12);
+});
+
+test('the Elemental Nest hatches the day\'s element and rotates daily', () => {
+  const els = new Set();
+  for (let d = 0; d < 10; d++) els.add(AW.dayElement(d));
+  assert.equal(els.size, 10, 'every element gets a day');
+  const day = 3, el = AW.dayElement(day);
+  const s = AW.createState(0); s.gems = 100000;
+  let rng = 0.123;
+  const rand = () => { rng = (rng * 9301 + 49297) % 233280 / 233280; return rng; };
+  const out = [];
+  for (let k = 0; k < 10; k++) out.push(...AW.hatch(s, 'element', 10, rand, day));
+  for (const r of out) {
+    const has = AW.CT.HEROES.some((h) => h.rarity === r.rarity && h.el === el);
+    if (has) assert.equal(AW.HERO[r.id].el, el, r.id + ' is not ' + el);
+  }
+  assert.ok(out.length === 100 && s.gems === 100000 - 720 * 10);
+  const pool = AW.bannerPool('element', day);
+  assert.ok(pool.every((id) => AW.HERO[id].rarity >= 1));
 });
