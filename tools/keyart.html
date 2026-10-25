@@ -81,7 +81,7 @@ function compose() {
   // 2. The Gloom: a giant boss in the fog and its horde, facing left.
   // The boss looms twice as large behind its horde, feet sunk below the ground line.
   const bossX = portrait ? AW_ * 0.74 : square ? AW_ * 0.8 : AW_ * 0.85;
-  g.globalAlpha = 0.95; sprite('enemy_gloomking_3', bossX, portrait ? L.gy - 34 : L.gy + 14, 2, '#ff3aa0'); g.globalAlpha = 1;
+  g.globalAlpha = 0.95; sprite('enemy_bonelord_3', bossX, portrait ? L.gy - 30 : L.gy + 2, 1, '#ff3aa0'); g.globalAlpha = 1;
   // Fog in front of the boss so the horde reads against it.
   gr = g.createLinearGradient(0, L.gy - 40, 0, AH); gr.addColorStop(0, 'rgba(40,10,60,0)'); gr.addColorStop(1, 'rgba(40,10,60,0.5)');
   g.fillStyle = gr; g.fillRect(AW_ * 0.55, L.gy - 40, AW_ * 0.45, AH);
@@ -117,10 +117,21 @@ function compose() {
   gr.addColorStop(0, 'rgba(10,6,20,0)'); gr.addColorStop(1, 'rgba(10,6,20,0.6)');
   g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
   const logo = S.get('logo'), lk = 1;
+  if (q.get('logo') === '0') {
+    // No text: the shield emblem alone, larger, with its glow.
+    const em = S.get('emblem'), ek = 1, ey = L.ly + (portrait ? 4 : 2);
+    gr = g.createRadialGradient(L.lx, ey, 0, L.lx, ey, em.width * ek * 0.9); gr.addColorStop(0, 'rgba(255,240,190,0.6)'); gr.addColorStop(1, 'rgba(255,240,190,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
+    g.drawImage(em, Math.round(L.lx - em.width * ek / 2), Math.round(ey - em.height * ek / 2), em.width * ek, em.height * ek);
+    finish(); return;
+  }
   gr = g.createRadialGradient(L.lx, L.ly, 0, L.lx, L.ly, logo.width * lk * 0.8); gr.addColorStop(0, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,240,190,0)');
   g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
   g.drawImage(logo, Math.round(L.lx - logo.width * lk / 2), Math.round(L.ly - logo.height * lk / 2), logo.width * lk, logo.height * lk);
 
+  finish();
+}
+function finish() {
   // Scale up to the output, centred, with sharp pixels.
   const out = document.getElementById('out'); out.width = W; out.height = H;
   const o = out.getContext('2d'); o.imageSmoothingEnabled = false;

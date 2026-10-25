@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/* Records store preview videos of real gameplay (Playwright video, scaled 2× with sharp pixels by ffmpeg).
+/* Records the store trailers from real gameplay: a fast montage of hard cuts (no fades) across lands, chapters,
+ * bosses and a Legend hatch, recorded at 1920×1080 with the interface drawn smaller, then given extra vibrance.
  *   node tools/preview.js
- * Writes store/preview-landscape-1920x1080.mp4 (key art, ~16 s of a boss battle, closing card) and
- * store/preview-portrait-1080x1920.mp4 (the same battle framed inside the portrait key art; the game itself is
- * landscape only on phones).
+ * Writes store/preview-landscape-1920x1080.mp4 and store/preview-portrait-1080x1920.mp4 (the same montage framed
+ * inside the portrait key art; the game itself is landscape only on phones).
  */
 'use strict';
 const http = require('http');
@@ -21,62 +21,26 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 const ROOT = path.resolve(__dirname, '..');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
+const W = 1920, H = 1080;
 
-async function record(browser, port, w, h, out, region) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aw-video-'));
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, recordVideo: { dir: dir, size: { width: w, height: h } } });
-  await ctx.route('**/sdk.crazygames.com/**', (r) => r.abort());
-  const p = await ctx.newPage();
-  await p.goto('http://localhost:' + port + '/index.html');
-  await p.waitForTimeout(300);
-  await p.evaluate((region) => {
-    const s = __aw.state;
-    s.clear[0][0] = 12; s.flags.tutDone = true; s.flags.tutRoar = true; s.settings.speed = 1;
-    const ids = ['pip', 'shelly', 'shark_tide', 'stretch', 'flamingo_sun', 'bruno', 'ronin', 'kitsu', 'ember', 'drako'].filter((id) => __aw.AW.HERO[id]);
-    while (ids.length < 10) { const h = __aw.AW.CT.HEROES[60 + ids.length * 7]; if (ids.indexOf(h.id) < 0) ids.push(h.id); }
-    ids.forEach((id) => { s.heroes[id] = { lvl: 16, plus: 0, form: id === 'pip' || id === 'kitsu' ? 2 : 1 }; });
-    s.lineup = ids;
-    __aw.startBattle(__aw.AW.stageDef(0, region, 11), {});
-    const b = __aw.battle, AW = __aw.AW, mid = b.L * 0.45;
-    b.pouch.lvl = 8; b.pouch.max = 9000; b.pouch.rate = 160; b.pouch.acorns = 2500;
-    // Stage the clash mid-lane (both armies live, real AI and attacks) so the video is all action.
-    const ent = (side, st, x, y) => b.ents.push({ id: b.nextId++, side: side, st: st, x: x, y: y, hp: st.hp, max: st.hp, state: 'walk', t: 0, at: 0, cool: 0, hits: 0, kbi: 0, freeze: 0, slow: 0, weaken: 0, poison: 0, walkT: 0, boss: false, flash: 0, buff: 0 });
-    s.lineup.forEach((id, i) => ent(0, AW.heroStats(s, id), mid - 10 - i * 11, (i * 3) % 7));
-    const R0 = AW.CT.REGIONS[region], pool = R0.pool.a.concat(R0.pool.b, R0.pool.c);
-    window.__foes = () => { for (let i = 0; i < 4; i++) ent(1, AW.enemyStats(pool[Math.floor(Math.random() * pool.length)], 260), mid + 30 + i * 16 + Math.random() * 20, (i * 2) % 6); };
-    window.__foes(); window.__foes();
-    window.__cam = () => { let f = 0; for (const e of b.ents) if (e.side === 0 && e.state !== 'dead') f = Math.max(f, e.x); window.AWRender.lookAt(f + 30); };
-  }, region);
-  const t0 = Date.now();
-  let k = 0;
-  while (Date.now() - t0 < 20000) {
-    if (k % 14 === 0) await p.evaluate(() => window.__foes && window.__foes());
-    await p.evaluate(() => window.__cam && window.__cam());
-    // Round-robin through the whole lineup (cooldowns skipped) so every hero's own attack shows up.
-    await p.evaluate((k) => { const b = __aw.battle; if (!b) return; b.pouch.acorns = b.pouch.max; const sl = b.slots[k % 10]; if (sl) { sl.cd = 0; __aw.AW.deploy(b, k % 10, []); } }, k);
-    if (k % 30 === 29) await p.keyboard.press('r');
-    k++;
-    await p.waitForTimeout(220);
-    if (Date.now() - t0 > 12000) await p.evaluate(() => { const b = __aw.battle; if (b && b.enemy.hp > b.enemy.max * 0.3) b.enemy.hp -= b.enemy.max * 0.004; });
-  }
-  await p.evaluate(() => { if (__aw.battle) __aw.battle.enemy.hp = 0; });
-  await p.waitForTimeout(3000);
-  const video = await p.video().path();
-  await ctx.close();
-  return video;
-}
+// Shots: [land, stage, chapter-flavoured lineup offset, seconds to keep]. Stage 11 brings a boss.
+const SHOTS = [[0, 6, 0, 3.2], [3, 11, 7, 3.2], [9, 5, 23, 3], [14, 11, 41, 3.2], [21, 8, 59, 3], [23, 11, 77, 3.4]];
 
-(async () => {
+async function main() {
   const srv = http.createServer((req, res) => {
     const file = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); res.end(); return; }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
     fs.createReadStream(file).pipe(res);
   }).listen(0);
-  const browser = await chromium.launch();
   const port = srv.address().port;
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aw-prev-'));
-  // Key art stills for the opening and closing cards.
+  const browser = await chromium.launch();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aw-trailer-'));
+  const ff = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error'].concat(args));
+  const enc = ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '19', '-r', '30', '-an'];
+  const grade = 'vibrance=intensity=0.45,eq=saturation=1.12:contrast=1.06';
+
+  // Portrait key art (with the logo) for the portrait frame and the last beat of both videos.
   const still = async (w, h, file) => {
     const p = await browser.newPage({ viewport: { width: w, height: h } });
     await p.goto('http://localhost:' + port + '/tools/keyart.html?w=' + w + '&h=' + h);
@@ -85,27 +49,84 @@ async function record(browser, port, w, h, out, region) {
     await p.close();
   };
   const landArt = path.join(tmp, 'land.png'), portArt = path.join(tmp, 'port.png');
-  await still(1920, 1080, landArt); await still(1080, 1920, portArt);
-  const video = await record(browser, port, 960, 540, null, 3);
-  const ff = (args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error'].concat(args));
-  const enc = ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-r', '30', '-an'];
-  // Landscape: 2 s key art (zooming in slightly), the battle scaled 2× with sharp pixels, 2.5 s key art to close.
-  const game = path.join(tmp, 'game.mp4');
-  ff(['-ss', '2', '-i', video, '-vf', 'scale=1920:1080:flags=neighbor,fps=30', '-t', '17'].concat(enc, [game]));
-  const intro = path.join(tmp, 'intro.mp4'), outro = path.join(tmp, 'outro.mp4');
-  ff(['-loop', '1', '-i', landArt, '-t', '2', '-vf', "scale=2112:1188,zoompan=z='1+0.0015*on':d=60:s=1920x1080:fps=30,fade=t=out:st=1.7:d=0.3"].concat(enc, [intro]));
-  ff(['-loop', '1', '-i', landArt, '-t', '2.5', '-vf', 'fps=30,fade=t=in:st=0:d=0.4'].concat(enc, [outro]));
+  await still(W, H, landArt); await still(1080, 1920, portArt);
+
+  // One recording session; every shot logs when it starts so the montage can cut straight to the action.
+  const dir = fs.mkdtempSync(path.join(tmp, 'v-'));
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: dir, size: { width: W, height: H } } });
+  await ctx.route('**/sdk.crazygames.com/**', (r) => r.abort());
+  const v0 = Date.now();
+  const p = await ctx.newPage();
+  await p.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.id = 'trailer-z'; st.textContent = ':root{--ui-z:.72 !important}'; document.head.appendChild(st); }); });
+  await p.goto('http://localhost:' + port + '/index.html');
+  await p.waitForTimeout(800);
+  const cuts = [];
+  for (const [region, stage, off, keep] of SHOTS) {
+    await p.evaluate(([region, stage, off]) => {
+      const g = __aw, AW = g.AW, s = g.state;
+      s.flags.tutDone = true; s.flags.tutRoar = true; s.settings.speed = 2;
+      const ids = AW.CT.HEROES.filter((h) => h.rarity >= 1).slice(off % 100, off % 100 + 10).map((h) => h.id);
+      ids.forEach((id, i) => { s.heroes[id] = { lvl: 18, plus: 0, form: i % 3 === 0 ? 2 : 1 }; });
+      s.lineup = ids;
+      document.getElementById('modal').hidden = true;
+      g.startBattle(AW.stageDef(0, region, stage), {});
+      const b = g.battle, mid = b.L * 0.45;
+      b.pouch.lvl = 8; b.pouch.max = 9000; b.pouch.acorns = 9000;
+      document.getElementById('callout') && document.getElementById('callout').classList.remove('show');
+      const ent = (side, st, x, y) => b.ents.push({ id: b.nextId++, side: side, st: st, x: x, y: y, hp: st.hp, max: st.hp, state: 'walk', t: 0, at: 0, cool: 0, hits: 0, kbi: 0, freeze: 0, slow: 0, weaken: 0, poison: 0, walkT: 0, boss: false, flash: 0, buff: 0 });
+      s.lineup.forEach((id, i) => ent(0, AW.heroStats(s, id), mid - 6 - i * 10, (i * 3) % 7));
+      const R0 = AW.CT.REGIONS[region], pool = R0.pool.a.concat(R0.pool.b, R0.pool.c);
+      for (let i = 0; i < 7; i++) ent(1, AW.enemyStats(pool[i % pool.length], 300), mid + 24 + i * 13, (i * 2) % 6);
+      if (stage === 11) { const bs = AW.enemyStats(R0.boss, 400); ent(1, bs, mid + 70, 0); b.ents[b.ents.length - 1].boss = true; }
+      window.__beat = () => {
+        b.pouch.acorns = b.pouch.max;
+        for (let i = 0; i < 10; i++) if (b.slots[i] && Math.random() < 0.35) { b.slots[i].cd = 0; AW.deploy(b, i, []); }
+        let f = 0; for (const e of b.ents) if (e.side === 0 && e.state !== 'dead') f = Math.max(f, e.x);
+        window.AWRender.lookAt(f + 40);
+        if (AW.canRoar(b) && Math.random() < 0.2) AW.roar(b, []);
+      };
+    }, [region, stage, off]);
+    const start = (Date.now() - v0) / 1000;
+    const t = Date.now();
+    while (Date.now() - t < (keep + 0.9) * 1000) { await p.evaluate(() => window.__beat && window.__beat()); await p.waitForTimeout(180); }
+    cuts.push([start + 0.9, keep]);
+  }
+  // A Legend hatch: the egg, three quick taps, the reveal.
+  await p.evaluate(() => {
+    const g = __aw; g.enterHome(); document.getElementById('modal').hidden = true;
+    document.getElementById('trailer-z').textContent = ':root{--ui-z:1.35 !important}';
+    const L = g.AW.CT.HEROES.filter((h) => h.rarity === 4)[3].id;
+    g.showHatch([{ id: L, rarity: 4, isNew: true }], null, 'royal');
+  });
+  const hs = (Date.now() - v0) / 1000;
+  await p.waitForTimeout(650);
+  for (let i = 0; i < 3; i++) { await p.click('#h-next'); await p.waitForTimeout(260); }
+  await p.waitForTimeout(1500);
+  cuts.push([hs + 0.2, 3.2]);
+  const video = await p.video().path();
+  await ctx.close();
+
+  // Montage: hard cuts, graded, then a short key-art beat.
+  const parts = [];
+  cuts.forEach(([ss, d], i) => {
+    const out = path.join(tmp, 'c' + i + '.mp4');
+    ff(['-ss', ss.toFixed(2), '-i', video, '-t', String(d), '-vf', 'scale=' + W + ':' + H + ',fps=30,' + grade].concat(enc, [out]));
+    parts.push(out);
+  });
+  const end = path.join(tmp, 'end.mp4');
+  ff(['-loop', '1', '-i', landArt, '-t', '1.6', '-vf', 'fps=30,' + grade].concat(enc, [end]));
+  parts.push(end);
   const list = path.join(tmp, 'list.txt');
-  fs.writeFileSync(list, [intro, game, outro].map((f) => "file '" + f + "'").join('\n'));
+  fs.writeFileSync(list, parts.map((f) => "file '" + f + "'").join('\n'));
   const land = path.join(ROOT, 'store', 'preview-landscape-1920x1080.mp4');
-  ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', land]);
+  ff(['-f', 'concat', '-safe', '0', '-i', list].concat(enc, [land]));
   console.log(path.relative(ROOT, land));
-  // Portrait: the portrait key art, dimmed, with the battle in a framed band across the middle.
+  // Portrait: the portrait key art with the montage in a framed band across the middle.
   const port1 = path.join(ROOT, 'store', 'preview-portrait-1080x1920.mp4');
   ff(['-loop', '1', '-i', portArt, '-i', land, '-filter_complex',
-    "[0:v]scale=1080:1920,eq=brightness=-0.12,fps=30[bg];[1:v]scale=1080:608:flags=neighbor,pad=1092:620:6:6:color=0x1a0f12[g];[bg][g]overlay=-6:660:shortest=1",
-    '-t', '21.5'].concat(enc, [port1]));
+    '[0:v]scale=1080:1920,eq=brightness=-0.1,fps=30[bg];[1:v]scale=1080:608,pad=1092:620:6:6:color=0x1a0f12[g];[bg][g]overlay=-6:660:shortest=1'].concat(enc, [port1]));
   console.log(path.relative(ROOT, port1));
   await browser.close();
   srv.close();
-})().catch((e) => { console.error(e); process.exit(1); });
+}
+main().catch((e) => { console.error(e); process.exit(1); });

@@ -40,7 +40,7 @@ const SIZES = [
     const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h } });
     await ctx.route('**/sdk.crazygames.com/**', (r) => r.abort());
     const p = await ctx.newPage();
-    await p.goto(`http://localhost:${port}/tools/keyart.html?w=${s.w}&h=${s.h}`);
+    await p.goto(`http://localhost:${port}/tools/keyart.html?w=${s.w}&h=${s.h}&logo=0`);
     await p.waitForSelector('body[data-ready]', { timeout: 20000 });
     await p.screenshot({ path: path.join(OUT, s.name + '.png') });
     console.log('store/' + s.name + '.png');

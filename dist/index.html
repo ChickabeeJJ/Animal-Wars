@@ -195,7 +195,7 @@ img.px { display: inline-block; vertical-align: middle; }
   background: linear-gradient(180deg, transparent 0 22px, #2a160c 22px 25px, #c08a52 25px 28px, #9a6438 28px 52px, #7a4a28 52px 54px, #9a6438 54px 78px, #6a3e22 78px); pointer-events: none; }
 .actionbar > * { pointer-events: auto; }
 .nav { display: flex; gap: 8px; align-items: flex-end; }
-.nb { position: relative; width: 108px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
+.nb { position: relative; width: 116px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
 .nb .ni img.px { width: 32px; height: 32px; display: block; }
 .nb .nl img.ptxt { display: block; }
 .nb #hatch-egg img.px { animation: wob 900ms steps(2) infinite; }
@@ -1187,6 +1187,17 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
 .lfx .bt2 { min-height: 38px; min-width: 92px; padding: 0 12px; }
 .lhead .tiers img.px { width: 14px; height: 14px; }
 .labg { align-items: start; } .lfx { min-height: 36px; } .lfx .bt2 { min-height: 34px; }
+/* Event unlock requirements */
+.tile.ev-locked { cursor: pointer; }
+.tile.ev-locked .mapview { filter: grayscale(.6) brightness(.8); }
+.evhint { color: #c03040; }
+.evreqs { display: flex; flex-direction: column; gap: 6px; }
+.evreq { display: grid; grid-template-columns: minmax(0, 1.6fr) auto minmax(60px, 1fr) auto; align-items: center; gap: 8px; padding: 5px 8px; font-size: 13px; background: rgba(42, 22, 12, .07); box-shadow: inset 0 0 0 1px rgba(42, 22, 12, .15); }
+.evreq.ok { background: rgba(46, 154, 58, .12); }
+.evreq .er-l { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.evreq .er-s { font-size: 11px; color: #8a6a48; }
+.evreq .er-bar { height: auto; }
+.evreq .er-bar i { display: block; height: 6px; background: linear-gradient(180deg, #c8f0a0, #5ac54f); }
 </style>
 </head>
 <body>
@@ -1227,7 +1238,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
           </div>
           <nav class="nav nav-r">
             <button type="button" class="nb fx-btn-pink" data-go="hatch" id="btn-hatch"><span class="ni" id="hatch-egg"></span><span class="nl">Hatch</span><i class="badge" hidden></i></button>
-            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Prizes</span><i class="badge" hidden></i></button>
+            <button type="button" class="nb fx-btn-red" data-go="rewards"><span class="ni" data-icon="gift"></span><span class="nl">Rewards</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-orange" data-go="events"><span class="ni" data-icon="event"></span><span class="nl">Events</span><i class="badge" hidden></i></button>
             <button type="button" class="nb fx-btn-purple" data-go="medals"><span class="ni" data-icon="medal"></span><span class="nl">Medals</span><i class="badge" hidden></i></button>
           </nav>
@@ -3170,6 +3181,20 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       if (e2 <= dx) { err += dx; y0 += sy; }
     }
   };
+  // Polygon fill (even-odd scanline); c is a colour or fn(x, y).
+  Painter.prototype.poly = function (pts, c) {
+    let minY = Infinity, maxY = -Infinity;
+    for (const p of pts) { minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); }
+    for (let y = Math.floor(minY); y <= Math.ceil(maxY); y++) {
+      const yy = y + 0.5, xs = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        if ((a[1] <= yy && b[1] > yy) || (b[1] <= yy && a[1] > yy)) xs.push(a[0] + (yy - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+      }
+      xs.sort((p, q) => p - q);
+      for (let i = 0; i + 1 < xs.length; i += 2) for (let x = Math.round(xs[i]); x < Math.round(xs[i + 1]); x++) this.set(x, y, typeof c === 'function' ? c(x, y) : c);
+    }
+  };
   Painter.prototype.tri = function (ax, ay, bx, by, cx, cy, c) {
     const minX = Math.floor(Math.min(ax, bx, cx)), maxX = Math.ceil(Math.max(ax, bx, cx));
     const minY = Math.floor(Math.min(ay, by, cy)), maxY = Math.ceil(Math.max(ay, by, cy));
@@ -3322,6 +3347,24 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     for (let i = 0; i < t; i++) for (let j = 0; j < t; j++) this.P.line(x0 * u + i, y0 * u + j, x1 * u + i, y1 * u + j, c);
   };
   K.px = function (x, y, c) { this.P.set(x * this.u, y * this.u, c); };
+  K.poly = function (pts, c) { const u = this.u; this.P.poly(pts.map((p) => [p[0] * u, p[1] * u]), typeof c === 'function' ? (x, y) => c(x / u, y / u) : c); };
+  // Cloth hanging from (x0..x1 at top) to (x2..x3 at bottom): lit left band, shaded right band, fold lines, ragged hem.
+  K.robe = function (x0, x1, top, x2, x3, bot, T, o) {
+    o = o || {};
+    const sway = (this.f % 2 ? 0.6 : -0.6) * (o.sway === false ? 0 : 1);
+    const hem = [], n = o.teeth || 5;
+    for (let i = 0; i <= n; i++) { const t = i / n, x = x3 + (x2 - x3) * t + sway; hem.push([x, bot - (i % 2 ? (o.rag || 1.6) : 0)]); }
+    this.poly([[x0, top], [x1, top]].concat(hem), (x, y) => {
+      const t = (y - top) / Math.max(1, bot - top), l = x0 + (x2 - x0) * t, r = x1 + (x3 - x1) * t, k = (x - l) / Math.max(1, r - l);
+      return k < 0.1 ? mix(T.base, T.light, 0.45) : k > 0.7 ? T.dark : T.base;
+    });
+    // Folds: darker lines fanning down from the shoulders.
+    for (let i = 1; i <= (o.folds || 2); i++) { const t = i / ((o.folds || 2) + 1); this.line(x0 + (x1 - x0) * t, top + 1.5, x2 + (x3 - x2) * t + sway, bot - 1.5, T.dark, 0.7); }
+  };
+  // Clawed hand at (x, y): a fist with three claws pointing forward.
+  K.claws = function (x, y, T, c) { this.ball(x, y, 1.6, 1.4, T, { noSpec: true }); for (let i = -1; i <= 1; i++) this.line(x + 1, y + i * 0.9, x + 2.4, y + i * 1.1 + 0.4, c || '#f0e8d8', 0.6); };
+  // Row of fangs along a mouth from (x0, y) to (x1, y), pointing down (or up).
+  K.fangs = function (x0, x1, y, up, n) { n = n || 3; for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (i + 0.5) / n; this.tri(x - 0.5, y, x + 0.5, y, x, y + (up ? -1.3 : 1.3), '#f4efe0'); } };
   // Eye looking right: white, pupil, glint. Pixel sized (not scaled) so faces stay crisp.
   K.eye = function (x, y, o) {
     o = o || {};
@@ -4193,414 +4236,606 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     }
   }
 
+  // Each Gloom is drawn as a creature, not a shape: anatomy (limbs, hands, feet, tails), cloth with folds and
+  // ragged hems, textures (fur tufts, scales, warts, rivets, cracks), faces with brows and teeth, and detailed props.
+  // Units: 34 × 28, ground at y = 27, facing right. Frames: 0/1 walk, 2 wind-up, 3 strike (k.step, k.wind, k.atk).
+  function grin(k, x, y, w, o) {
+    o = o || {};
+    const open = k.atk ? 1.8 : 0.9;
+    k.rect(x - w / 2, y, w, open, '#2a0e1a');
+    if (k.atk) k.rect(x - w / 2 + 0.5, y + open - 0.6, w - 1, 0.6, '#c0405a');
+    k.fangs(x - w / 2, x + w / 2, y, false, o.n || Math.max(2, Math.round(w / 1.4)));
+  }
+  function brows(k, x, y, gap, c) { k.line(x - 1.2, y - 1.6, x + 1, y - 0.8, c || INK, 0.7); if (gap) k.line(x - gap - 1, y - 1.2, x - gap + 1, y - 1.6, c || INK, 0.7); }
+  function glowEye(k, x, y, c, r) { k.ell(x, y, r || 1.1, (r || 1.1) * 0.9, c); k.px(x + 0.3, y - 0.3, '#ffffff'); }
+  function tuft(k, x, y, c, n, h) { for (let i = 0; i < n; i++) k.tri(x + i * 1.6, y, x + i * 1.6 + 1.6, y, x + i * 1.6 + 0.6, y - (h || 1.6) - (i % 2) * 0.6, c); }
+
   const ENEMY_ART = {
+    // Slime: a gooey dome with drips, bubbles inside, a glossy band and a puddle.
     blob: function (k, T, c) {
-      const sq = k.f === 1 ? 1 : 0, L = k.lean;
-      k.ell(15 + L * 0.5, 22 + sq * 0.5, 8 + sq, 5.5 - sq * 0.5, function (nx, ny) { const l = -(nx * 0.5 + ny * 0.85); return ny > 0.6 ? T.dark : l > 0.4 ? T.light : l < -0.4 ? T.dark : T.base; });
-      k.ell(15 + L * 0.5, 17 + sq, 5.5, 4.5, function (nx, ny) { const l = -(nx * 0.5 + ny * 0.85); return l > 0.4 ? T.light : T.base; });
-      k.px(12, 15, T.spec); k.ell(9, 25.5, 2, 1, T.dark);
-      angryFace(k, 19 + L, 18 + sq, { two: true, gap: 4, mouthY: 3.5, mouthX: -1.5 });
-      return { top: 12 };
+      const sq = k.f === 1 ? 1 : 0, L = k.lean * 0.5, x = 15 + L;
+      k.ell(x, 26.2, 9.5 + sq, 1.4, T.dark);
+      k.ball(x, 20.5 + sq * 0.5, 8.5 + sq, 6.5 - sq * 0.5, T);
+      for (const [dx, h] of [[-6, 2.5], [-2.5, 3.5], [3.5, 2.2], [6.5, 1.8]]) k.ell(x + dx, 25 + h * 0.3, 0.9, h * 0.6, T.base);
+      k.ell(x - 3, 15.5 + sq, 3, 0.9, T.light);
+      for (const [dx, dy, r] of [[-4, 3, 0.9], [-1, 5, 0.6], [2, 2.5, 0.7]]) k.ell(x + dx, 20 + dy, r, r, T.light);
+      glowEye(k, x + 3.5, 19 + sq, '#ffe066'); glowEye(k, x - 0.5, 19 + sq, '#ffe066', 0.9);
+      brows(k, x + 3.5, 19 + sq, 4);
+      grin(k, x + 1.5, 21.6 + sq, 4.5);
+      return { top: 13 };
     },
+    // Grub: a fat caterpillar with segment rings, little legs, spots, mandibles and antennae.
     worm: function (k, T, c) {
-      const L = k.lean;
-      for (let i = 0; i < 5; i++) { const x = 6 + i * 3.6, y = 22 - Math.abs(Math.sin((i + k.f) * 1.3)) * 2; k.ball(x, y, 3.2, 3.2, i % 2 ? T : tones(mix(c.c, '#ffffff', 0.12)), { noSpec: true }); }
-      k.ball(23 + L, 18, 4.4, 4.4, T);
-      angryFace(k, 25 + L, 17, { mouthY: 3 });
-      k.line(22 + L, 13.5, 21 + L, 11, T.dark); k.ell(21 + L, 10.5, 0.8, 0.8, T.light);
-      return { top: 10 };
+      const L = k.lean, S = tones(mix(c.c, '#ffffff', 0.15));
+      for (let i = 0; i < 5; i++) {
+        const x = 5 + i * 3.6, y = 21 - Math.abs(Math.sin((i + k.f) * 1.3)) * 1.6;
+        k.line(x, y + 2.6, x - 0.6 + (i % 2 ? k.step : -k.step) * 0.4, 26, T.deep, 0.7);
+        k.ball(x, y, 3.3, 3.4, i % 2 ? T : S, { noSpec: true });
+        k.line(x - 2, y - 2.6, x - 2.2, y + 2.6, T.dark, 0.5);
+        k.px(x, y - 1.5, T.light);
+      }
+      k.ball(24 + L, 17.5, 4.6, 4.4, T);
+      k.line(23 + L, 13.5, 21.5 + L, 9.5, T.dark, 0.6); k.ell(21.3 + L, 9.2, 0.8, 0.8, '#ff6bd0');
+      k.line(25 + L, 13.5, 26 + L, 10, T.dark, 0.6); k.ell(26.2 + L, 9.7, 0.8, 0.8, '#ff6bd0');
+      glowEye(k, 26 + L, 16.5, '#ffe066', 1);
+      k.tri(27 + L, 19, 29.5 + L + (k.atk ? 1 : 0), 18.5, 27.5 + L, 20.5, '#f4efe0'); k.tri(27 + L, 20, 29.5 + L + (k.atk ? 1 : 0), 21.5, 27.5 + L, 21.2, '#f4efe0');
+      return { top: 9 };
     },
+    // Imp: a little horned devil with bat wings, a spade tail, a pot belly and a spiked club.
     imp: function (k, T, c) {
-      const L = k.lean;
-      k.leg(12, 21, 4, 2.2, T.dark, -1);
-      k.line(9, 20, 5, 22, T.dark, 0.8); k.tri(4, 21, 6, 23, 4, 24, T.dark);
-      k.ball(14 + L * 0.3, 18, 5, 5, T);
-      k.leg(15, 21.5, 4, 2.2, T.base, 1);
-      k.ball(16 + L, 11, 5.2, 4.8, T);
-      k.tri(12 + L, 8, 14 + L, 7, 11 + L, 3.5, '#f4f4f4'); k.tri(17 + L, 7, 19 + L, 7.5, 19.5 + L, 3, '#f4f4f4');
-      angryFace(k, 19 + L, 10.5, { mouthY: 3, mouthX: 0 });
-      // Club.
-      const cx = 20 + L + (k.atk ? 4 : 0), cy = k.wind ? 6 : k.atk ? 16 : 13;
-      k.line(18 + L, 18, cx, cy, '#8a5a3a', 1.1); k.ball(cx + (k.atk ? 1 : 0), cy - (k.atk ? 0 : 1.5), 2.4, 2.4, tones('#a0704a'), { noSpec: true });
-      return { top: 4 };
-    },
-    batling: function (k, T, c) {
-      const bob = k.f === 1 ? -2 : 0, L = k.lean;
-      wings(k, 14, 15 + bob, 10, 7, c.c, k.f === 1);
-      k.ball(15 + L * 0.3, 17 + bob, 4.5, 4.2, T);
-      k.tri(13 + L, 13.5 + bob, 15 + L, 13 + bob, 13.5 + L, 10 + bob, T.base); k.tri(16 + L, 13 + bob, 18 + L, 13.5 + bob, 17.5 + L, 10 + bob, T.base);
-      angryFace(k, 18 + L, 16.5 + bob, { mouthY: 2.5, mouthX: -0.5 });
-      return { top: 10 };
-    },
-    ogre: function (k, T, c) {
-      const L = k.lean;
-      k.leg(10, 21, 5, 3.4, T.dark, -1);
-      k.ball(14 + L * 0.3, 15, 9.5, 8.5, T);
-      k.ell(15 + L * 0.3, 19, 6, 4, T.belly);
-      k.leg(15, 21.5, 5, 3.4, T.base, 1);
-      k.ball(19 + L, 9.5, 4.6, 4.2, T);
-      angryFace(k, 21 + L, 9, { mouthY: 3, mouthX: 0 });
-      k.tri(20 + L, 12.5, 21 + L, 12.5, 20.5 + L, 14.5, WHITE);
-      const ax = 24 + L + (k.atk ? 3 : 0), ay = k.wind ? 6 : 16;
-      k.line(20 + L, 12, ax, ay, T.base, 2.6); k.ball(ax, ay + 1, 2.8, 2.8, T);
-      return { top: 4 };
-    },
-    king: function (k, T, c) {
-      const L = k.lean, R = tones('#b13e53');
-      k.tri(4, 8, 14, 9, 8, 27, R.base);
-      ENEMY_ART.blob(k, T, c);
-      k.rect(11 + L * 0.5, 9, 9, 2.6, GOLD); k.tri(11 + L * 0.5, 9, 13 + L * 0.5, 9, 11 + L * 0.5, 5.5, GOLD); k.tri(14.5 + L * 0.5, 9, 16.5 + L * 0.5, 9, 15.5 + L * 0.5, 4.5, GOLD); k.tri(18 + L * 0.5, 9, 20 + L * 0.5, 9, 20 + L * 0.5, 5.5, GOLD);
-      k.px(15.5 + L * 0.5, 10, '#73eff7');
-      const sx = 23 + (k.atk ? 3 : 0), sy = k.wind ? 8 : 14;
-      k.line(21, 22, sx, sy, '#8a6a3a', 1); k.ball(sx, sy, 1.8, 1.8, tones('#a884f3'));
-      return { top: 4 };
-    },
-    beetle: function (k, T, c) {
-      const L = k.lean;
-      for (let i = 0; i < 3; i++) k.line(10 + i * 4 + k.step * (i % 2 ? 0.6 : -0.6), 21, 9 + i * 4, 26, '#3a3f58', 0.8);
-      k.ell(14 + L * 0.3, 18, 8, 5.5, function (nx, ny) { const l = -(nx * 0.5 + ny * 0.85); return ny > 0.5 ? T.dark : l > 0.55 ? '#ffffff' : l > 0.2 ? T.light : l < -0.4 ? T.dark : T.base; });
-      k.line(14 + L * 0.3, 12.8, 14 + L * 0.3, 22, T.dark);
-      k.ball(22 + L, 18.5, 3.4, 3, tones('#566c86'));
-      k.line(24 + L, 16, 27 + L, 13, '#566c86', 0.8);
-      angryFace(k, 23.5 + L, 18, { mouth: false, glow: '#73eff7' });
-      return { top: 12 };
-    },
-    scorpion: function (k, T, c) {
-      const L = k.lean;
-      for (let i = 0; i < 3; i++) k.line(10 + i * 3.4 + k.step * (i % 2 ? 0.6 : -0.6), 21, 9 + i * 3.4, 26, T.dark, 0.8);
-      k.ball(14 + L * 0.3, 20, 7, 3.6, T);
-      // Tail arcs over the back; strikes forward.
-      const tx = k.atk ? 22 : 14, ty = k.atk ? 12 : 8;
-      k.line(8, 19, 5, 13, T.base, 1.6); k.line(5, 13, 8, 8, T.base, 1.6); k.line(8, 8, tx, ty, T.base, 1.4); k.tri(tx, ty - 1, tx + 2.5, ty + 1, tx, ty + 1.5, '#ffcd75');
-      k.ball(22 + L, 19, 2.4, 2, T); k.line(24 + L, 18, 27 + L, 16, T.dark, 1); k.line(24 + L, 20, 27 + L, 21, T.dark, 1);
-      angryFace(k, 20 + L, 17.5, { mouth: false, two: true, gap: 2 });
-      return { top: 7 };
-    },
-    sandworm: function (k, T, c) {
-      const L = k.lean;
-      k.ell(14, 26, 14, 2.5, tones('#c09a5a').dark);
-      for (let i = 0; i < 6; i++) { const y = 24 - i * 3, x = 12 + Math.sin(i * 0.6 + k.f * 0.4) * 2 + i * 0.6; k.ball(x, y, 6 - i * 0.2, 2.6, i % 2 ? T : tones(mix(c.c, '#5a3a2a', 0.2)), { noSpec: true }); }
-      const open = k.atk ? 3 : k.wind ? 2 : 1;
-      k.ball(17 + L, 5, 6, 4.5, T);
-      k.ell(21 + L, 5 + open * 0.3, 3, open, '#3a1a2a');
-      for (let i = 0; i < 4; i++) { k.tri(19 + L + i * 1.3, 5 - open * 0.7, 20 + L + i * 1.3, 5 - open * 0.7, 19.5 + L + i * 1.3, 6.5 - open * 0.4, WHITE); }
-      angryFace(k, 16 + L, 3, { mouth: false, glow: '#ff6b5a' });
-      return { top: 0 };
-    },
-    ghost: function (k, T, c) {
-      const bob = k.f === 1 ? -1.5 : 0, L = k.lean;
-      k.ell(15 + L * 0.4, 14 + bob, 7, 7.5, function (nx, ny) { return ny < -0.3 && nx < 0 ? T.light : T.base; });
-      for (let i = 0; i < 4; i++) k.tri(8.5 + i * 3.4, 18 + bob, 11.9 + i * 3.4, 18 + bob, 10 + i * 3.4 + (k.f % 2), 24 + bob, T.base);
-      angryFace(k, 19 + L, 13 + bob, { two: true, gap: 4, mouthY: 4, mouthX: -2, glow: '#ff6bd0' });
-      return { top: 6 };
-    },
-    wisp: function (k, T, c) {
-      const bob = k.f === 1 ? -2 : 0;
-      for (let i = 0; i < 4; i++) k.tri(10 + i * 2.5, 15 + bob, 13 + i * 2.5, 15 + bob, 8 + i * 2 - (k.f % 2), 3 + i * 1.5 + bob, i % 2 ? T.light : T.base);
-      k.ball(15, 17 + bob, 5, 5, T);
-      k.ell(15, 18 + bob, 2.5, 2.5, '#ffffff');
-      angryFace(k, 17.5, 16.5 + bob, { mouth: false, glow: '#1a1c2c' });
+      const L = k.lean, W = tones(mix(c.c, '#1a0f2a', 0.35));
+      k.tri(11, 13, 4, 8 + (k.f % 2), 7, 16, W.base); k.line(11, 13, 5, 9 + (k.f % 2), W.dark, 0.6); k.line(11, 14, 6, 14, W.dark, 0.6);
+      k.line(10, 21, 6, 23, T.dark, 0.8); k.line(6, 23, 4, 21, T.dark, 0.8); k.tri(2.5, 20, 5, 19.5, 3.5, 22.5, T.dark);
+      k.leg(12, 21.5, 4, 2.2, T.dark, -1); k.ell(12.5 + k.step * -0.8, 26, 1.6, 0.9, T.deep);
+      k.ball(14.5 + L * 0.3, 18, 5, 5.2, T, { belly: true });
+      k.leg(15.5, 22, 4, 2.2, T.base, 1); k.ell(16.5 + k.step * 0.8, 26.2, 1.7, 0.9, T.dark);
+      k.ball(16.5 + L, 11, 5, 4.6, T);
+      k.tri(13 + L, 7.5, 15 + L, 6.8, 12 + L, 2.5, '#f0e4d0'); k.tri(13.2 + L, 7.2, 14 + L, 6.9, 12.3 + L, 3.5, '#c8b8a0');
+      k.tri(17.5 + L, 6.8, 19.5 + L, 7.6, 20.5 + L, 2.6, '#f0e4d0');
+      k.tri(11.8 + L, 10, 12.2 + L, 12.5, 9.5 + L, 11, T.base);
+      glowEye(k, 19.4 + L, 10.3, '#ffe066'); brows(k, 19.4 + L, 10.3, 0);
+      grin(k, 19 + L, 12.8, 3.2, { n: 2 });
+      const cx = 21 + L + (k.atk ? 4 : 0), cy = k.wind ? 5 : k.atk ? 16 : 13;
+      k.line(18.5 + L, 18, cx, cy, '#6a4428', 1.1); k.ball(18.5 + L, 18, 1.4, 1.3, T, { noSpec: true });
+      const B = tones('#9a6a42'); k.ball(cx + 0.5, cy - 1, 2.5, 2.5, B, { noSpec: true });
+      for (const [dx, dy] of [[-2.2, -1], [2.6, -1], [0.2, -3.6]]) k.px(cx + 0.5 + dx, cy - 1 + dy, '#d8d0c0');
       return { top: 3 };
     },
-    yeti: function (k, T, c) {
-      const L = k.lean;
-      k.leg(10, 21, 5, 3.6, T.dark, -1);
-      k.ball(14 + L * 0.3, 15, 9, 8.5, T);
-      for (let i = 0; i < 5; i++) k.tri(7 + i * 3.6, 22, 9 + i * 3.6, 22, 8 + i * 3.6, 24.5, T.base);
-      k.leg(16, 21.5, 5, 3.6, T.base, 1);
-      k.ball(19 + L, 9, 5, 4.5, T);
-      k.ell(21 + L, 10, 3, 2.6, tones('#6a7aa0').base);
-      angryFace(k, 22 + L, 9, { mouthY: 2.5, mouthX: 0, glow: '#73eff7' });
-      const ax = 25 + L + (k.atk ? 3 : 0), ay = k.wind ? 5 : 15;
-      k.line(20 + L, 13, ax, ay, T.base, 2.8); k.ball(ax, ay + 1, 3, 3, T);
+    // Bat: membrane wings with finger bones, furry body, big ears, fangs and gripping feet.
+    batling: function (k, T, c) {
+      const bob = k.f === 1 ? -2 : 0, L = k.lean, up = k.f === 1 || k.wind;
+      const M = tones(mix(c.c, '#2a1a3a', 0.3));
+      const wing = (x, sgn) => {
+        const tip = up ? 5 : 11;
+        k.poly([[x, 14 + bob], [x - 10 * sgn, tip + bob], [x - 8 * sgn, 15 + bob], [x - 6 * sgn, 13.5 + bob], [x - 4 * sgn, 16 + bob], [x - 2 * sgn, 15 + bob]], M.base);
+        k.line(x, 14 + bob, x - 10 * sgn, tip + bob, M.deep, 0.6); k.line(x - 4 * sgn, 11 + bob + (up ? -3 : 0) * 0.5, x - 4 * sgn, 16 + bob, M.dark, 0.5);
+      };
+      wing(12, 1);
+      k.ball(15 + L * 0.3, 17 + bob, 4.6, 4.4, T);
+      for (let i = 0; i < 3; i++) k.px(13 + i * 1.5, 20.8 + bob, T.dark);
+      k.tri(13 + L, 13.8 + bob, 15 + L, 13.2 + bob, 13 + L, 9 + bob, T.base); k.tri(13.6 + L, 13.4 + bob, 14.6 + L, 13.2 + bob, 13.4 + L, 10.5 + bob, '#ff8fb1');
+      k.tri(16 + L, 13.2 + bob, 18 + L, 13.8 + bob, 18 + L, 9 + bob, T.base);
+      glowEye(k, 18 + L, 16.4 + bob, '#ff5a5a', 0.9); glowEye(k, 15.6 + L, 16.4 + bob, '#ff5a5a', 0.8);
+      k.fangs(16 + L, 18.5 + L, 18.6 + bob, false, 2);
+      k.line(14, 21 + bob, 13.5, 23.5 + bob, T.deep, 0.6); k.line(16, 21 + bob, 16.5, 23.5 + bob, T.deep, 0.6);
+      wing(18, -1);
+      return { top: 8 };
+    },
+    // Ogre: a hulking brute in a loincloth with tusks, a heavy brow, knuckles and a spiked club.
+    ogre: function (k, T, c) {
+      const L = k.lean, Lc = tones('#7a5a3a');
+      k.leg(9.5, 21, 5.5, 3.6, T.dark, -1); k.ell(11 + k.step * -0.8, 26.4, 2.6, 1.1, T.deep);
+      k.ball(12 + L * 0.2, 13, 3.6, 3.2, T, { noSpec: true });
+      k.ball(14 + L * 0.3, 16, 9, 8.5, T);
+      k.ell(15 + L * 0.3, 19.5, 6, 4, T.belly); k.px(15 + L * 0.3, 19.5, T.dark);
+      k.poly([[8, 21], [21, 21], [20, 25], [17, 23.5], [14, 25.5], [11, 23.5], [9, 25]], Lc.base); k.rect(8, 21, 13, 1, Lc.dark);
+      k.leg(16, 21.5, 5.5, 3.6, T.base, 1); k.ell(17.8 + k.step * 0.8, 26.5, 2.8, 1.1, T.dark);
+      k.ball(20 + L, 9, 4.6, 4.2, T);
+      k.rect(18 + L, 6.6, 6, 1.2, T.dark);
+      glowEye(k, 22 + L, 8.4, '#ffcd4d', 0.9);
+      k.rect(20 + L, 11, 4, 1, '#2a0e1a'); k.tri(20.4 + L, 11, 21.4 + L, 11, 20.6 + L, 8.8, WHITE); k.tri(22.6 + L, 11, 23.6 + L, 11, 23.4 + L, 9, WHITE);
+      k.ell(24 + L, 9.5, 0.9, 0.7, T.dark);
+      const ax = 24 + L + (k.atk ? 3 : 0), ay = k.wind ? 4 : 16;
+      k.line(20 + L, 13, ax, ay + 2, T.base, 2.6); k.ball(ax, ay + 2, 2.4, 2.2, T, { noSpec: true });
+      const C = tones('#8a5a32'); k.line(ax, ay + 2, ax + (k.atk ? 5 : 2), ay - (k.atk ? -2 : 6), C.base, 1.8); k.ball(ax + (k.atk ? 5 : 2), ay - (k.atk ? -2 : 6), 2.4, 2.4, C, { noSpec: true });
       return { top: 4 };
     },
-    yetiboss: function (k, T, c) {
-      const r = ENEMY_ART.yeti(k, T, c);
-      k.tri(15, 3.5, 17, 4.5, 16, 0, '#73eff7'); k.tri(19, 3.5, 21, 4.5, 21, 0, '#73eff7'); k.tri(23, 4.5, 24.5, 6, 25.5, 2, '#73eff7');
-      return r;
+    // Gloom King: a slime monarch in an ermine-trimmed cape with a jewelled crown and an orb sceptre.
+    king: function (k, T, c) {
+      const L = k.lean * 0.5, R = tones('#b13e53');
+      k.robe(8, 16, 10, 3, 18, 27, R, { teeth: 4, rag: 0.8, folds: 2 });
+      ENEMY_ART.blob(k, T, c);
+      for (let i = 0; i < 6; i++) { k.ell(8 + i * 1.6, 12.5 + i * 0.2, 0.9, 0.9, '#f4efe0'); if (i % 2) k.px(8 + i * 1.6, 12.5, INK); }
+      const cx = 15 + L;
+      k.rect(cx - 4.5, 10.5, 9, 2.4, GOLD); k.rect(cx - 4.5, 12.2, 9, 0.7, '#c08020');
+      for (const [dx, h] of [[-4, 3.6], [0, 5], [4, 3.6]]) { k.tri(cx + dx - 1.1, 10.6, cx + dx + 1.1, 10.6, cx + dx, 10.6 - h, GOLD); k.ell(cx + dx, 10.4 - h, 0.6, 0.6, '#fff6c8'); }
+      k.px(cx - 2, 11.6, '#e04848'); k.px(cx, 11.6, '#73eff7'); k.px(cx + 2, 11.6, '#a7f070');
+      const sx = 24 + (k.atk ? 3 : 0), sy = k.wind ? 7 : 13;
+      k.line(21, 22, sx, sy, '#c08020', 0.9); k.ball(sx, sy, 2, 2, tones('#a884f3')); k.px(sx - 1, sy - 2.4, GOLD);
+      return { top: 4 };
     },
-    shroom: function (k, T, c) {
-      const L = k.lean, S = tones('#e8dcc0');
-      k.leg(12, 22, 4, 2, S.dark, -1); k.leg(16, 22, 4, 2, S.dark, 1);
-      k.ball(14.5 + L * 0.3, 19, 4.5, 4.5, S);
-      k.ell(14.5 + L * 0.6, 12, 8.5, 5.5, function (nx, ny) { return ny > 0.45 ? null : ny < -0.4 ? T.light : T.base; });
-      for (const [dx, dy] of [[-4, -2], [1, -3.5], [4, -1], [-1, 0]]) k.ell(14.5 + dx + L * 0.6, 12 + dy, 1.2, 1, '#fff0f0');
-      angryFace(k, 17.5 + L, 18.5, { mouthY: 2.5, mouthX: -0.5 });
-      if (k.atk) for (let i = 0; i < 4; i++) k.px(23 + i * 1.4, 10 + (i % 2) * 2, '#a7f070');
-      return { top: 6 };
+    // Clockwork beetle: a riveted shell with a centre seam, jointed metal legs, mandibles and glowing eyes.
+    beetle: function (k, T, c) {
+      const L = k.lean, M = tones('#3a3f58');
+      for (let i = 0; i < 3; i++) { const x = 10 + i * 4, s = (i % 2 ? k.step : -k.step) * 0.6; k.line(x, 20, x - 1.5 + s, 23, M.base, 0.8); k.line(x - 1.5 + s, 23, x - 0.5 + s, 26.5, M.dark, 0.8); }
+      k.ball(14 + L * 0.3, 18, 8.5, 5.8, T);
+      k.line(14 + L * 0.3, 12.3, 15 + L * 0.3, 23.6, T.deep, 0.6);
+      for (const [x, y] of [[9, 16], [11, 20], [18, 16], [19.5, 20], [13, 14]]) k.px(x + L * 0.3, y, T.light);
+      k.ball(23 + L, 18.5, 3.6, 3.2, M);
+      k.line(25 + L, 15.6, 27.5 + L, 12, M.light, 0.6); k.line(24 + L, 15.6, 25 + L, 11.6, M.light, 0.6);
+      const op = k.atk ? 1.6 : 0.6;
+      k.line(25.5 + L, 19.5, 29 + L, 19.5 - op, '#c9d2e3', 0.8); k.line(25.5 + L, 20.5, 29 + L, 20.5 + op, '#c9d2e3', 0.8);
+      glowEye(k, 24.5 + L, 17.6, '#73eff7', 0.9);
+      return { top: 11 };
     },
-    sludge: function (k, T, c) {
-      const L = k.lean, sq = k.f === 1 ? 1 : 0;
-      k.ell(14 + L * 0.4, 20 + sq * 0.5, 11 + sq, 7 - sq * 0.5, function (nx, ny) { const l = -(nx * 0.5 + ny * 0.85); return ny > 0.6 ? T.dark : l > 0.45 ? T.light : l < -0.3 ? T.dark : T.base; });
-      for (const [dx, dy, r] of [[-5, -3, 1.4], [2, -5, 1], [6, -1, 1.2]]) k.ell(14 + dx, 20 + dy, r, r, '#c8f070');
-      k.line(4, 15, 3, 11, T.base, 1.2); k.ell(3, 10.5, 1.4, 1.4, T.light);
-      angryFace(k, 19 + L, 18 + sq, { two: true, gap: 5, mouthY: 4, mouthX: -2.5 });
-      return { top: 10 };
-    },
-    toad: function (k, T, c) {
-      const L = k.lean;
-      k.ell(8, 25, 4, 2, T.dark);
-      k.ball(14 + L * 0.3, 18, 10, 7.5, T, { belly: true });
-      for (const [dx, dy] of [[-6, -3], [-2, -6], [3, -4]]) k.ell(14 + dx, 18 + dy, 1.3, 1, T.dark);
-      k.ell(21, 25.5, 3.4, 1.6, T.dark);
-      k.ball(18 + L, 10.5, 3, 2.8, T); k.ball(23 + L, 11, 3, 2.8, T);
-      angryFace(k, 18.5 + L, 10.5, { mouth: false, glow: '#ffcd4d' }); angryFace(k, 23.5 + L, 11, { mouth: false, glow: '#ffcd4d' });
-      k.line(18 + L, 17, 25 + L, 16, INK, 0.8);
-      if (k.atk) k.ball(28 + L, 15, 2, 2, tones('#a7f070'));
-      k.rect(11, 6, 1, 1, GOLD);
-      return { top: 7 };
-    },
-    hag: function (k, T, c) {
-      const L = k.lean, R = tones('#3a2a4a');
-      k.tri(9, 8, 22, 8, 15, 27, R.base); k.tri(10, 8, 15, 8, 9, 26, R.dark);
-      k.ball(16 + L, 9, 4.6, 4.2, T);
-      k.tri(12 + L, 6, 21 + L, 6, 13 + L, -0.5, '#2a1a3a'); k.rect(10 + L, 5.5, 13, 1.2, '#2a1a3a');
-      k.tri(19.5 + L, 9, 19.5 + L, 11, 23 + L, 11, T.dark);
-      angryFace(k, 18 + L, 8.5, { mouthY: 3, mouthX: -1, glow: '#a7f070' });
-      // Cauldron.
-      k.ball(24, 22, 4.5, 3.8, tones('#3a3f58')); k.ell(24, 19, 4, 1, '#a7f070');
-      if (k.atk) for (let i = 0; i < 3; i++) k.ell(23 + i * 1.5, 16 - i, 0.9, 0.9, '#c8f070');
-      const sx = 21 + (k.atk ? 2 : 0);
-      k.line(sx, 13, sx + 3, k.wind ? 10 : 19, '#8a6a3a', 0.9);
-      return { top: 0 };
-    },
-    skeleton: function (k, T, c) {
-      const L = k.lean, B = tones(c.c);
-      k.line(13 + k.step * 0.6, 19, 12 + k.step * 0.6, 26, B.base, 0.9); k.line(16 - k.step * 0.6, 19, 17 - k.step * 0.6, 26, B.base, 0.9);
-      k.rect(12 + L * 0.3, 18, 5, 1.6, B.dark);
-      k.line(14.5 + L * 0.5, 18, 15 + L * 0.7, 12, B.base, 0.9);
-      for (let i = 0; i < 3; i++) k.line(12.5 + L * 0.6, 13.5 + i * 1.5, 17 + L * 0.6, 13.5 + i * 1.5, B.base, 0.6);
-      k.ball(16 + L, 8.5, 4.4, 4, B);
-      k.rect(16 + L, 11, 3.5, 1.6, B.base); for (let i = 0; i < 3; i++) k.px(16.5 + i + L, 11.5, INK);
-      angryFace(k, 18.5 + L, 8, { mouth: false, glow: '#ff7a3a' });
-      k.ell(15.5 + L, 3.5, 1.4, 1.4, '#ff7a3a'); k.px(15.5 + L, 2, '#ffcd4d');
-      const sx = 19 + L + (k.atk ? 4 : 0), sy = k.wind ? 7 : 13;
-      k.line(17 + L, 14, sx, sy, B.base, 0.8); k.line(sx, sy, sx + 5, sy - (k.atk ? 0 : 3), '#c9d2e3', 0.8);
-      return { top: 2 };
-    },
-    ghoul: function (k, T, c) {
-      const L = k.lean, rags = tones('#5a4a5a');
-      k.leg(12, 21, 5, 2, T.dark, -1); k.leg(15.5, 21, 5, 2, T.base, 1);
-      k.ball(14 + L * 0.4, 16, 5, 6, rags);
-      k.ball(17.5 + L, 9, 4.2, 4, T);
-      angryFace(k, 19.5 + L, 8.5, { mouthY: 3, mouthX: -0.5, glow: '#ff5a5a' });
-      k.line(18 + L, 15, 24 + L + (k.atk ? 2 : 0), 14, T.base, 1.2); k.line(18 + L, 17, 23 + L, 17.5, T.dark, 1.2);
+    // Scorpion: a segmented body, eight legs, an arched tail with a venom sting and snapping pincers.
+    scorpion: function (k, T, c) {
+      const L = k.lean, op = k.atk ? 1.4 : 0.4;
+      for (let i = 0; i < 4; i++) { const x = 10 + i * 2.6, s = (i % 2 ? k.step : -k.step) * 0.5; k.line(x, 20.5, x - 2 + s, 23, T.dark, 0.7); k.line(x - 2 + s, 23, x - 1.5 + s, 26.5, T.deep, 0.7); }
+      for (let i = 0; i < 4; i++) k.ball(10 + i * 3, 20 - i * 0.2, 2.6, 2.4, T, { noSpec: i > 1 });
+      const seg = k.atk ? [[8, 17], [6, 12], [9, 8], [15, 8], [21, 11]] : [[8, 17], [5.5, 12], [7, 7.5], [11, 5.5], [14.5, 6.5]];
+      for (let i = 0; i < seg.length; i++) k.ball(seg[i][0], seg[i][1], 1.9 - i * 0.15, 1.8 - i * 0.15, T, { noSpec: true });
+      const tp = seg[seg.length - 1];
+      k.tri(tp[0], tp[1] - 1, tp[0] + 2.6, tp[1] + 0.5, tp[0] + 0.6, tp[1] + 1.8, '#ffcd75'); k.px(tp[0] + 2.4, tp[1] + 0.6, '#a7f070');
+      k.ball(21 + L, 19, 2.6, 2.2, T);
+      glowEye(k, 22 + L, 17.8, '#ff5a5a', 0.7); glowEye(k, 20.5 + L, 17.8, '#ff5a5a', 0.6);
+      for (const s of [-1, 1]) { const y = 19 + s * 1.5; k.line(22.5 + L, y, 25 + L, y + s * 1.2, T.base, 0.9); k.ball(26.4 + L, y + s * 1.4, 1.7, 1.3, T, { noSpec: true }); k.line(27 + L, y + s * 1.4, 29.5 + L, y + s * (1.4 - op), T.dark, 0.7); }
       return { top: 5 };
     },
-    magma: function (k, T, c) {
-      const L = k.lean, roll = k.f;
-      k.ball(15 + L * 0.3, 18, 8, 7.5, tones('#5a3a3a'));
-      for (let i = 0; i < 6; i++) { const a = i + roll * 0.7; k.line(15 + Math.cos(a) * 2, 18 + Math.sin(a) * 2, 15 + Math.cos(a) * 7, 18 + Math.sin(a) * 6.5, i % 2 ? '#ffcd4d' : '#ef7d57', 0.8); }
-      k.ell(15, 18, 2.4, 2.4, '#ffcd4d');
-      angryFace(k, 19 + L, 15.5, { two: true, gap: 3.5, mouthY: 3.5, mouthX: -1.5, glow: '#fff0b0' });
-      k.tri(12, 11, 14, 11, 13, 7, '#ef7d57'); k.tri(16, 10.5, 18, 10.5, 17.5, 6, '#ffcd4d');
+    // Sand worm: armoured plates rising out of a sand mound, a round maw ringed with teeth.
+    sandworm: function (k, T, c) {
+      const L = k.lean, sand = tones('#c09a5a'), P2 = tones(mix(c.c, '#5a3a2a', 0.25));
+      k.ell(15, 26, 14, 2.6, sand.dark); k.ell(14, 25.4, 10, 1.6, sand.base);
+      for (let i = 0; i < 6; i++) {
+        const y = 24 - i * 3, x = 12 + Math.sin(i * 0.6 + k.f * 0.4) * 2 + i * 0.7;
+        k.ball(x, y, 5.6 - i * 0.2, 2.7, i % 2 ? T : P2, { noSpec: true });
+        k.rect(x - 4.5 + i * 0.1, y - 0.3, 9 - i * 0.4, 0.6, T.dark);
+        k.px(x - 3, y - 1.6, T.light);
+      }
+      const open = k.atk ? 3.2 : k.wind ? 2.2 : 1.4;
+      k.ball(17 + L, 4.8, 6, 4.6, T);
+      k.ell(21.5 + L, 5.2, 2.4, open, '#3a0e1a');
+      for (let i = 0; i < 5; i++) { const a = -1.2 + i * 0.6; k.tri(21.5 + L + Math.cos(a) * 2.4, 5.2 + Math.sin(a) * open, 21.5 + L + Math.cos(a) * 2.4 + 0.8, 5.2 + Math.sin(a) * open, 21.5 + L + Math.cos(a) * 1.4, 5.2 + Math.sin(a) * open * 0.5, WHITE); }
+      glowEye(k, 15.5 + L, 2.6, '#ff6b5a', 0.9); glowEye(k, 18 + L, 2.4, '#ff6b5a', 0.9);
+      return { top: 0 };
+    },
+    // Ghost: a sheet-like spook with stubby arms, a wavy trailing tail, hollow eyes and an open wail.
+    ghost: function (k, T, c) {
+      const bob = k.f === 1 ? -1.5 : 0, L = k.lean, x = 15 + L * 0.4;
+      k.ball(x, 13 + bob, 7, 7, T);
+      k.poly([[x - 7, 13 + bob], [x + 7, 13 + bob], [x + 6, 21 + bob], [x + 3.5, 19 + bob], [x + 1, 22.5 + bob + (k.f % 2)], [x - 1.5, 19.5 + bob], [x - 4, 23 + bob - (k.f % 2)], [x - 5, 20 + bob], [x - 7.5, 22 + bob]], (xx) => xx < x - 4 ? T.light : xx > x + 3 ? T.dark : T.base);
+      k.ball(x + 6.5 + (k.atk ? 2 : 0), 15 + bob, 1.7, 1.4, T, { noSpec: true }); k.ball(x - 6.5, 15.5 + bob, 1.5, 1.3, T, { noSpec: true });
+      k.ell(x + 3.4, 11.5 + bob, 1.3, 1.8, '#2a0e3a'); k.ell(x - 0.2, 11.5 + bob, 1.1, 1.7, '#2a0e3a');
+      k.px(x + 3.4, 11 + bob, '#ff6bd0'); k.px(x - 0.2, 11 + bob, '#ff6bd0');
+      k.ell(x + 1.8, 15.5 + bob, k.atk ? 1.6 : 1, k.atk ? 1.8 : 1, '#2a0e3a');
+      k.px(x - 3, 9 + bob, T.spec); k.px(x - 2, 8.5 + bob, T.spec);
+      return { top: 5 };
+    },
+    // Will-o'-wisp: a living flame in three layers (outer, inner, white core) with a face and loose sparks.
+    wisp: function (k, T, c) {
+      const bob = k.f === 1 ? -2 : 0, fl = k.f % 2, x = 15;
+      k.poly([[x - 5, 18 + bob], [x - 4, 12 + bob], [x - 6 + fl, 7 + bob], [x - 2, 10 + bob], [x - 1, 3 + bob + fl], [x + 2, 9 + bob], [x + 4, 5 + bob - fl], [x + 5, 12 + bob], [x + 5.5, 18 + bob]], T.base);
+      k.ball(x, 18 + bob, 5.5, 5, T, { noSpec: true });
+      k.poly([[x - 3, 18 + bob], [x - 2, 12 + bob], [x, 8 + bob + fl], [x + 2, 12 + bob], [x + 3, 18 + bob]], T.light);
+      k.ball(x, 19 + bob, 3, 3, { light: '#ffffff', base: '#ffffff', dark: T.light, spec: '#ffffff' }, { noSpec: true });
+      k.ell(x + 1.8, 18 + bob, 0.7, 1.1, '#1a1c2c'); k.ell(x - 0.6, 18 + bob, 0.6, 1, '#1a1c2c');
+      for (const [dx, dy] of [[-7, 9], [7, 7], [6, 15]]) k.px(x + dx, dy + bob + fl, T.light);
+      return { top: 3 };
+    },
+    // Snow beast: shaggy fur with tufts, a blue face, curled horns, long arms and big claws.
+    yeti: function (k, T, c) {
+      const L = k.lean, F = tones('#6a7aa0');
+      k.leg(9.5, 21, 5, 3.6, T.dark, -1); k.ell(11 + k.step * -0.8, 26.4, 2.4, 1, T.deep);
+      k.ball(14 + L * 0.3, 15, 9, 8.5, T);
+      tuft(k, 6, 23.5, T.base, 5, 1.6); tuft(k, 7, 9, T.light, 4, 1.4);
+      for (const [x, y] of [[9, 13], [12, 18], [17, 12], [10, 19], [15, 21]]) k.line(x + L * 0.3, y, x + 0.6 + L * 0.3, y + 1.4, T.dark, 0.5);
+      k.leg(16, 21.5, 5, 3.6, T.base, 1); k.ell(17.8 + k.step * 0.8, 26.5, 2.6, 1, T.dark);
+      k.ball(19.5 + L, 9, 5, 4.6, T);
+      k.ell(21.5 + L, 10, 3, 2.6, F.base); k.ell(21 + L, 9.4, 2.2, 1.2, F.light);
+      k.line(16.5 + L, 5.5, 15 + L, 3, '#e8dcc0', 1); k.line(15 + L, 3, 16.5 + L, 1.5, '#e8dcc0', 0.8);
+      glowEye(k, 22.5 + L, 9.2, '#73eff7', 0.9); brows(k, 22.5 + L, 9.2, 0, F.deep);
+      k.rect(21 + L, 11.4, 3, 0.9, '#2a0e1a'); k.fangs(21 + L, 24 + L, 11.4, false, 2);
+      const ax = 25 + L + (k.atk ? 3 : 0), ay = k.wind ? 5 : 15;
+      k.line(20 + L, 13, ax, ay, T.base, 2.6); k.claws(ax + 0.5, ay + 1, T);
+      return { top: 1 };
+    },
+    yetiboss: function (k, T, c) {
+      const r = ENEMY_ART.yeti(k, T, c), I = tones('#9fe8ff');
+      for (const [x, y, h] of [[12, 8, 4], [15, 6.5, 5], [18, 5, 4]]) { k.tri(x - 1.1, y, x + 1.1, y, x, y - h, I.base); k.line(x - 0.4, y - 0.5, x - 0.2, y - h + 1, I.light, 0.4); }
+      k.tri(8, 11, 10.5, 10, 7, 6, I.base); k.tri(19.5, 11, 22, 11.5, 21, 8, I.light);
+      return r;
+    },
+    // Toadstool: a spotted cap with gills underneath, a stalk body with a face, twiggy arms and root feet.
+    shroom: function (k, T, c) {
+      const L = k.lean, S = tones('#e8dcc0'), G = tones('#c8b898');
+      k.line(12, 23, 10.5 + k.step * -0.6, 26.5, S.dark, 1); k.line(17, 23, 18.5 + k.step * 0.6, 26.5, S.dark, 1);
+      k.ball(14.5 + L * 0.3, 19.5, 4.6, 4.6, S);
+      k.line(10, 18, 7.5, 16 - (k.wind ? 2 : 0), G.dark, 0.6); k.line(19 + L, 18, 22 + L + (k.atk ? 2 : 0), 17, G.dark, 0.6);
+      k.ell(14.5 + L * 0.6, 14, 8, 1.6, G.base);
+      for (let i = -3; i <= 3; i++) k.px(14.5 + i * 2 + L * 0.6, 14.5, G.dark);
+      k.ell(14.5 + L * 0.6, 11.5, 8.6, 5, (nx, ny) => (ny > 0.18 ? null : (nx < -0.4 ? T.light : nx > 0.45 ? T.dark : T.base)));
+      for (const [dx, dy, r] of [[-4.5, -2, 1.3], [0.5, -4, 1.1], [4.5, -1.5, 1.2], [-1, -0.5, 0.8]]) k.ell(14.5 + dx + L * 0.6, 11.5 + dy, r, r * 0.8, '#fff4f0');
+      glowEye(k, 17.4 + L, 18.6, '#ffe066', 0.8); glowEye(k, 14.8 + L, 18.6, '#ffe066', 0.7); brows(k, 17.4 + L, 18.6, 2.6);
+      grin(k, 16.2 + L, 20.8, 2.6, { n: 2 });
+      if (k.atk) for (let i = 0; i < 5; i++) k.px(23 + i * 1.3, 10 + (i % 2) * 2, '#a7f070');
       return { top: 6 };
     },
+    // Toxic sludge: a heaving heap with dribbles, rising bubbles, a half-sunk skull and a puddle.
+    sludge: function (k, T, c) {
+      const L = k.lean, sq = k.f === 1 ? 1 : 0, x = 14 + L * 0.4;
+      k.ell(x, 26.3, 12, 1.4, T.dark);
+      k.ball(x, 21 + sq * 0.5, 11 + sq, 6.5 - sq * 0.5, T);
+      k.ball(x - 3, 16 + sq, 5, 3.5, T, { noSpec: true }); k.ball(x + 4, 17 + sq, 4, 3, T, { noSpec: true });
+      for (const [dx, dy, r] of [[-6, -1, 1.2], [1, -6, 0.9], [7, 0, 1]]) { k.ell(x + dx, 21 + dy, r, r, '#c8f070'); k.px(x + dx - 0.3, 21 + dy - 0.3, '#ffffff'); }
+      k.ball(x - 6, 23, 1.8, 1.6, tones('#e8dcc0'), { noSpec: true }); k.px(x - 6.5, 22.6, INK); k.px(x - 5.5, 22.6, INK);
+      k.ell(x - 9, 25 + (k.f % 2), 0.8, 1.4, T.base); k.ell(x + 10, 24.5, 0.8, 1.2, T.base);
+      glowEye(k, x + 5, 19 + sq, '#ffe066'); glowEye(k, x + 1, 19 + sq, '#ffe066', 0.9); brows(k, x + 5, 19 + sq, 4);
+      grin(k, x + 3, 21.6 + sq, 4.5);
+      return { top: 10 };
+    },
+    // Toad lord: a warty toad with a throat sac, webbed feet, bulging eyes, a little crown and a sticky tongue.
+    toad: function (k, T, c) {
+      const L = k.lean, sac = k.wind ? 3 : 2;
+      k.poly([[5, 26.5], [9, 24], [11, 26.5]], T.dark); k.poly([[18, 26.5], [21, 24], [25, 26.5]], T.dark);
+      k.ball(14 + L * 0.3, 18.5, 10, 7.5, T, { belly: true });
+      for (const [dx, dy, r] of [[-6, -3, 1.2], [-2, -6, 1], [3, -4.5, 1.1], [-7, 1, 0.9], [5, -1, 0.8]]) { k.ell(14 + dx, 18.5 + dy, r, r * 0.8, T.dark); k.px(14 + dx - 0.3, 18.5 + dy - 0.3, T.light); }
+      k.ell(21 + L, 20, sac, sac * 0.8, T.belly);
+      k.ball(18 + L, 11, 3.1, 2.9, T); k.ball(23.5 + L, 11.5, 3.1, 2.9, T);
+      k.ell(18.6 + L, 11, 1.6, 1.6, '#ffcd4d'); k.rect(18.4 + L, 10.4, 0.8, 1.6, INK); k.ell(24.1 + L, 11.5, 1.6, 1.6, '#ffcd4d'); k.rect(23.9 + L, 10.9, 0.8, 1.6, INK);
+      k.line(18 + L, 17, 26 + L, 16, '#3a0e1a', 0.8);
+      if (k.atk) { k.line(26 + L, 16.5, 31 + L, 16, '#e04a6a', 1); k.ball(31 + L, 16, 1.2, 1.2, tones('#ff8fb1'), { noSpec: true }); }
+      k.rect(19.5 + L, 7, 3.6, 1, GOLD); k.tri(19.5 + L, 7, 20.5 + L, 7, 19.7 + L, 5.4, GOLD); k.tri(21.6 + L, 7, 22.6 + L, 7, 22.4 + L, 5.4, GOLD);
+      return { top: 5 };
+    },
+    // Bog witch: a hooked-nose crone in a banded pointed hat and a ragged robe, stirring a bubbling cauldron.
+    hag: function (k, T, c) {
+      const L = k.lean, R = tones('#3a2a4a'), Hat = tones('#2a1a3a');
+      k.robe(11, 19, 10, 7.5, 21, 27, R, { teeth: 6, rag: 1.6, folds: 2 });
+      k.line(12, 12, 9, 16, R.dark, 1);
+      k.ball(16.5 + L, 9, 4.4, 4, T);
+      k.poly([[19.5 + L, 8.5], [23.5 + L, 11.2], [20 + L, 10.8]], T.dark); k.px(22.5 + L, 10.6, T.dark);
+      k.ell(13 + L, 11, 2, 2.6, '#5a5a6a');
+      k.poly([[10 + L, 6], [23 + L, 6], [21.5 + L, 7.2], [11.5 + L, 7.2]], Hat.base);
+      k.poly([[12.5 + L, 6], [20 + L, 6], [17 + L, 1], [14 + L, -1.5], [15 + L, 1.5]], Hat.base); k.rect(13 + L, 4.6, 6.4, 1.1, '#a7f070'); k.rect(15.4 + L, 4.6, 1.2, 1.1, GOLD);
+      glowEye(k, 18.8 + L, 8.4, '#a7f070', 0.8); brows(k, 18.8 + L, 8.4, 0);
+      k.line(18 + L, 11.6, 20 + L, 11.2, '#2a0e1a', 0.6); k.px(19 + L, 12, '#f4efe0');
+      const C = tones('#3a3f58');
+      k.ball(25, 22.5, 4.6, 3.8, C); k.ell(25, 19.2, 4.2, 1.1, '#a7f070'); k.ell(25, 19, 3, 0.6, '#c8f070');
+      k.line(20.5, 21, 22, 20, C.dark, 0.6); k.line(29.5, 21, 28, 20, C.dark, 0.6);
+      for (let i = 0; i < 3; i++) k.ell(24 + i * 1.5, 17.5 - i * (k.atk ? 1.6 : 0.8), 0.7, 0.7, i % 2 ? '#c8f070' : '#a7f070');
+      for (let i = 0; i < 3; i++) k.px(23.5 + i * 1.8, 26.6, i % 2 ? '#ff9a3a' : '#ffcd4d');
+      const sx = 21 + (k.atk ? 2 : 0);
+      k.ball(19.5 + L, 14.5, 1.3, 1.2, T, { noSpec: true }); k.line(sx, 13, sx + 3, k.wind ? 10 : 19, '#7a5a3a', 0.9);
+      return { top: 0 };
+    },
+    // Skeleton: skull with jaw and eye sockets, ribcage, spine and pelvis, bone limbs, a flaming crown and a sword.
+    skeleton: function (k, T, c) {
+      const L = k.lean, B = tones(c.c);
+      k.line(13 + k.step * 0.6, 20, 12 + k.step * 0.6, 26, B.base, 0.9); k.line(16 - k.step * 0.6, 20, 17 - k.step * 0.6, 26, B.base, 0.9);
+      k.ell(11.8 + k.step * 0.6, 26.4, 1.4, 0.7, B.dark); k.ell(17.4 - k.step * 0.6, 26.4, 1.4, 0.7, B.dark);
+      k.ell(14.5 + L * 0.3, 19.5, 3, 1.2, B.dark); k.px(14.5 + L * 0.3, 19.5, INK);
+      k.line(14.5 + L * 0.5, 19, 15 + L * 0.7, 11.5, B.base, 0.9);
+      for (let i = 0; i < 4; i++) k.ell(15 + L * 0.6, 12.8 + i * 1.5, 3.2 - i * 0.3, 0.55, B.base);
+      k.line(12 + L * 0.5, 12.5, 10.5, 17 - (k.wind ? 2 : 0), B.base, 0.8);
+      k.ball(16 + L, 8, 4.4, 4, B);
+      k.rect(16.5 + L, 10.6, 3.6, 1.6, B.base); for (let i = 0; i < 3; i++) k.px(17 + i + L, 11.1, INK);
+      k.ell(18.4 + L, 7.8, 1.2, 1.3, INK); k.ell(15.6 + L, 7.8, 1, 1.2, INK); k.px(18.4 + L, 7.8, '#ff7a3a'); k.px(15.6 + L, 7.8, '#ff7a3a');
+      k.px(17.2 + L, 9.6, INK);
+      for (let i = 0; i < 3; i++) k.tri(13.5 + i * 2 + L, 4.6, 15 + i * 2 + L, 4.6, 14.2 + i * 2 + L, 1.8 - (i + k.f) % 2, i % 2 ? '#ffcd4d' : '#ff7a3a');
+      const sx = 19 + L + (k.atk ? 4 : 0), sy = k.wind ? 7 : 13;
+      k.line(17 + L, 13, sx, sy, B.base, 0.8); k.rect(sx - 0.6, sy - 1, 1.4, 2.4, '#7a5a3a');
+      k.line(sx, sy, sx + 6, sy - (k.atk ? 0 : 3.5), '#d8e0f0', 0.9); k.line(sx + 0.5, sy - 0.5, sx + 5.5, sy - (k.atk ? 0.5 : 3.8), '#ffffff', 0.4);
+      return { top: 1 };
+    },
+    // Ghoul: a hunched corpse in torn rags with exposed ribs, stitches, long arms and clawed hands.
+    ghoul: function (k, T, c) {
+      const L = k.lean, rags = tones('#5a4a5a');
+      k.leg(11, 21, 5.5, 2, T.dark, -1); k.leg(15, 21, 5.5, 2, T.base, 1);
+      k.ell(11.8 + k.step * -0.8, 26.5, 1.5, 0.7, T.deep); k.ell(16 + k.step * 0.8, 26.5, 1.6, 0.7, T.dark);
+      k.ball(14 + L * 0.4, 16.5, 5.2, 6, rags);
+      k.poly([[9, 20], [19, 20], [18, 23.5], [16, 21.5], [14, 24], [12, 21.5], [9.5, 23]], rags.dark);
+      for (let i = 0; i < 3; i++) k.line(13 + L * 0.4, 13.5 + i * 1.6, 17 + L * 0.4, 13.2 + i * 1.6, '#e8dcc0', 0.5);
+      k.line(10 + L * 0.4, 13, 12 + L * 0.4, 18, '#2a1a2a', 0.5); for (let i = 0; i < 3; i++) k.line(10.4 + L * 0.4 + i * 0.6, 14 + i * 1.6, 11.8 + L * 0.4 + i * 0.6, 13.8 + i * 1.6, '#2a1a2a', 0.4);
+      k.ball(18 + L, 9.5, 4.2, 4, T);
+      k.ell(20 + L, 8.8, 1.2, 1.3, '#2a0e1a'); k.px(20.2 + L, 8.8, '#ff5a5a'); k.ell(17.4 + L, 9, 0.9, 1.1, '#2a0e1a'); k.px(17.5 + L, 9, '#ff5a5a');
+      k.rect(18.6 + L, 11.2, 3, 1.2, '#2a0e1a'); k.fangs(18.6 + L, 21.6 + L, 11.2, false, 3);
+      k.line(15 + L, 6, 17 + L, 5.4, T.dark, 0.6);
+      const hx = 24 + L + (k.atk ? 2.5 : 0), hy = k.wind ? 10 : 15;
+      k.line(18 + L, 14, hx, hy, T.base, 1.1); k.claws(hx, hy, T); k.line(17 + L, 16.5, 22 + L, 18, T.dark, 1); k.claws(22.5 + L, 18.2, T);
+      return { top: 4 };
+    },
+    // Magma ball: a cracked boulder with glowing lava seams, a molten core and flames licking off the top.
+    magma: function (k, T, c) {
+      const L = k.lean, R = tones('#4a2a2a'), roll = k.f;
+      k.ball(15 + L * 0.3, 18, 8, 7.6, R);
+      for (let i = 0; i < 6; i++) { const a = i * 1.05 + roll * 0.5; k.line(15 + Math.cos(a) * 2, 18 + Math.sin(a) * 2, 15 + Math.cos(a + 0.3) * 4.5, 18 + Math.sin(a + 0.3) * 4.2, '#ff7a3a', 0.6); k.line(15 + Math.cos(a + 0.3) * 4.5, 18 + Math.sin(a + 0.3) * 4.2, 15 + Math.cos(a) * 7, 18 + Math.sin(a) * 6.6, i % 2 ? '#ffcd4d' : '#ef7d57', 0.5); }
+      k.ell(15, 18, 2.4, 2.2, '#ffcd4d'); k.px(15, 17.4, '#fff6c8');
+      for (let i = 0; i < 4; i++) { const h = 3 + ((i + roll) % 3); k.tri(10 + i * 3, 11.5, 12.4 + i * 3, 11.5, 11 + i * 3 + (roll % 2 ? 0.5 : -0.5), 11.5 - h, i % 2 ? '#ffcd4d' : '#ef7d57'); }
+      glowEye(k, 19.5 + L, 16, '#fff0b0', 1); glowEye(k, 16 + L, 16, '#fff0b0', 0.9); brows(k, 19.5 + L, 16, 3.5, '#1a0a0a');
+      k.rect(16.5 + L, 19.2, 3.6, k.atk ? 1.6 : 0.8, '#ffcd4d');
+      return { top: 5 };
+    },
+    // Lich: a hooded skeletal sorcerer in a rune-stitched robe, a bony hand and a staff topped with a burning skull.
     lich: function (k, T, c) {
       const L = k.lean, R = tones('#2a1a3a'), B = tones('#e8dcc0');
-      k.tri(7, 9, 23, 9, 15, 27, R.base); k.tri(8, 10, 13, 9, 7, 27, R.dark);
-      for (let i = 0; i < 4; i++) k.tri(8 + i * 4, 25, 12 + i * 4, 25, 10 + i * 4 + (k.f % 2), 28, R.base);
-      k.ball(16 + L, 7, 4.6, 4.4, B);
-      k.tri(11 + L, 5, 21 + L, 5, 16 + L, -1, R.base);
-      angryFace(k, 18 + L, 7, { two: true, gap: 3.5, mouth: false, glow: '#ff7a3a' });
-      k.rect(15.5 + L, 9.5, 4, 1.4, B.dark);
-      const sx = 23 + (k.atk ? 2 : 0);
-      k.line(sx, 26, sx + 1, k.wind ? 3 : 6, '#8a6a3a', 1); k.ball(sx + 1, k.wind ? 2 : 5, 2.2, 2.2, tones('#ff7a3a'));
+      k.robe(10, 21, 7, 6, 23, 27, R, { teeth: 6, rag: 1.8, folds: 3 });
+      for (const [x, y] of [[9, 22], [12, 24], [19, 22], [21, 25]]) { k.px(x, y, '#a884f3'); k.px(x + 0.8, y - 0.8, '#a884f3'); }
+      k.rect(12, 16, 9, 1, '#5a3a6a');
+      k.poly([[11 + L, 9], [14 + L, 1], [19 + L, 1.5], [22 + L, 9], [20 + L, 11], [12 + L, 11]], R.base);
+      k.ell(17 + L, 7.6, 3.6, 3.4, '#0a0614');
+      k.ball(17.2 + L, 7.5, 2.8, 2.7, B, { noSpec: true });
+      k.ell(18.4 + L, 7.3, 0.9, 0.9, '#0a0614'); k.px(18.4 + L, 7.3, '#ff7a3a'); k.ell(16.4 + L, 7.3, 0.8, 0.9, '#0a0614'); k.px(16.4 + L, 7.3, '#ff7a3a');
+      k.rect(16.4 + L, 9.2, 2.6, 0.8, B.dark); k.px(17 + L, 9.6, '#0a0614'); k.px(18.2 + L, 9.6, '#0a0614');
+      const sx = 24 + (k.atk ? 2 : 0), top = k.wind ? 3 : 6;
+      k.line(sx, 26, sx + 1, top + 1, '#6a4428', 1); k.line(21 + L, 14, sx, 14, B.base, 0.6); k.claws(sx - 0.4, 14, B);
+      k.ball(sx + 1, top, 2, 1.9, B, { noSpec: true }); k.px(sx + 1.6, top - 0.2, '#ff7a3a'); k.px(sx + 0.4, top - 0.2, '#ff7a3a');
+      for (let i = 0; i < 3; i++) k.tri(sx - 0.8 + i, top - 1.6, sx + 0.2 + i, top - 1.6, sx - 0.3 + i, top - 3.6 + (i + k.f) % 2, i % 2 ? '#ffcd4d' : '#ff7a3a');
       return { top: 0 };
     },
+    // Stone golem: stacked boulders with mossy tops, cracks, glowing rune lines and huge stone fists.
     golem: function (k, T, c) {
-      const L = k.lean;
-      k.rect(9 + k.step * 0.5, 20, 4, 7, T.dark); k.rect(16 - k.step * 0.5, 20, 4, 7, T.base);
-      k.rect(7 + L * 0.3, 9, 15, 12, T.base); k.rect(7 + L * 0.3, 9, 15, 2, T.light); k.rect(20 + L * 0.3, 9, 2, 12, T.dark);
-      for (const [x, y] of [[9, 13], [18, 16], [11, 18]]) k.rect(x + L * 0.3, y, 1, 1, T.dark);
-      k.rect(13 + L, 4, 7, 6, T.base); k.rect(13 + L, 4, 7, 1, T.light);
-      angryFace(k, 18 + L, 6.5, { mouth: false, glow: '#ff5a5a' });
-      const ax = 22 + L + (k.atk ? 3 : 0), ay = k.wind ? 6 : 14;
-      k.rect(ax, ay, 4, 6, T.base); k.rect(ax, ay, 4, 1, T.light);
-      return { top: 4 };
+      const L = k.lean, Mo = tones('#5ac54f');
+      k.ball(10.5 + k.step * 0.4, 23.5, 3, 3.4, T, { noSpec: true }); k.ball(18 - k.step * 0.4, 23.5, 3, 3.4, T, { noSpec: true });
+      k.ball(14 + L * 0.3, 15, 8, 6.8, T);
+      k.ell(12 + L * 0.3, 9.4, 4, 1.2, Mo.base); k.px(10 + L * 0.3, 10.2, Mo.dark); k.px(14 + L * 0.3, 10.4, Mo.light);
+      k.line(9 + L * 0.3, 12, 12 + L * 0.3, 16, T.deep, 0.5); k.line(17 + L * 0.3, 18, 19 + L * 0.3, 15, T.deep, 0.5);
+      k.line(13 + L * 0.3, 13, 16 + L * 0.3, 13, '#73eff7', 0.6); k.line(16 + L * 0.3, 13, 16 + L * 0.3, 17, '#73eff7', 0.6); k.line(16 + L * 0.3, 17, 13.5 + L * 0.3, 17, '#73eff7', 0.6);
+      k.ball(17 + L, 6.5, 3.8, 3.2, T);
+      k.rect(16.5 + L, 6, 4, 1, '#0a0614'); k.px(18 + L, 6.2, '#ff5a5a'); k.px(19.8 + L, 6.2, '#ff5a5a');
+      const ax = 23 + L + (k.atk ? 3 : 0), ay = k.wind ? 6 : 15;
+      k.ball(ax, ay, 3.4, 3.4, T); k.line(ax - 1, ay - 2.4, ax - 1, ay + 1.6, T.dark, 0.5); k.line(ax + 1, ay - 2.4, ax + 1, ay + 1.6, T.dark, 0.5);
+      k.ball(6.5 + L * 0.3, 15, 2.8, 3, T, { noSpec: true });
+      return { top: 3 };
     },
+    // Drone: twin rotors on a strut, a panelled hull with a camera eye, an antenna and grabber arms.
     drone: function (k, T, c) {
-      const bob = k.f === 1 ? -1.5 : 0, L = k.lean;
-      k.line(8, 9 + bob, 22, 9 + bob, '#3a3f58', 0.8);
-      k.rect(k.f % 2 ? 6 : 9, 8 + bob, 4, 1, '#c9d2e3'); k.rect(k.f % 2 ? 19 : 17, 8 + bob, 4, 1, '#c9d2e3');
-      k.ball(15 + L * 0.3, 15 + bob, 6, 4.6, T);
-      k.rect(9 + L * 0.3, 15 + bob, 12, 1, T.dark);
-      k.ball(19 + L, 15.5 + bob, 2.2, 2.2, tones('#3a3f58'));
-      angryFace(k, 19.5 + L, 15.5 + bob, { mouth: false, glow: '#ff5a5a' });
-      k.line(15, 19.5 + bob, 15 + (k.atk ? 5 : 2), 23 + bob, '#3a3f58', 0.8);
-      if (k.atk) k.ell(21, 23.5 + bob, 1.4, 1.4, '#73eff7');
+      const bob = k.f === 1 ? -1.5 : 0, L = k.lean, M = tones('#3a3f58');
+      k.line(8, 10 + bob, 22, 10 + bob, M.base, 0.8); k.rect(14, 10 + bob, 2, 3, M.base);
+      const sp = k.f % 2 ? [5, 3] : [3, 5];
+      k.rect(8 - sp[0] / 2, 9 + bob, sp[0], 0.8, '#c9d2e3'); k.rect(22 - sp[1] / 2, 9 + bob, sp[1], 0.8, '#c9d2e3');
+      k.ball(15 + L * 0.3, 15.5 + bob, 6.2, 4.4, T);
+      k.rect(9.5 + L * 0.3, 15.5 + bob, 11.5, 0.7, T.dark); for (const x of [11, 14, 17]) k.px(x + L * 0.3, 13.6 + bob, T.light);
+      k.ball(19.5 + L, 16 + bob, 2.4, 2.4, M); k.ell(20 + L, 16 + bob, 1.3, 1.3, '#ff5a5a'); k.px(20.3 + L, 15.6 + bob, '#ffffff');
+      k.line(12, 11 + bob, 11, 7.5 + bob, M.base, 0.4); k.px(11, 7 + bob, k.f % 2 ? '#ff5a5a' : '#ffe066');
+      const ax = 15 + (k.atk ? 5 : 2);
+      k.line(13, 19.5 + bob, ax, 23 + bob, M.base, 0.7); k.line(ax, 23 + bob, ax + 1.5, 22 + bob, M.light, 0.6); k.line(ax, 23 + bob, ax + 1.5, 24.2 + bob, M.light, 0.6);
+      if (k.atk) k.ell(ax + 2.5, 23 + bob, 1.2, 1.2, '#73eff7');
       return { top: 7 };
     },
+    // War mech: piston legs, a chest reactor, shoulder plates, a visored head and a cannon arm.
     mecha: function (k, T, c) {
-      const L = k.lean;
-      k.rect(8 + k.step * 0.4, 19, 5, 8, T.dark); k.rect(17 - k.step * 0.4, 19, 5, 8, T.base); k.rect(7, 25.5, 7, 1.6, '#3a3f58'); k.rect(16, 25.5, 7, 1.6, '#3a3f58');
-      k.rect(6 + L * 0.3, 8, 18, 12, T.base); k.rect(6 + L * 0.3, 8, 18, 2, T.light); k.rect(22 + L * 0.3, 8, 2, 12, T.dark);
-      k.ell(15 + L * 0.3, 14, 3, 3, '#ff5a5a'); k.ell(15 + L * 0.3, 14, 1.4, 1.4, '#fff0b0');
-      k.rect(11 + L, 2, 10, 6.5, T.base); k.rect(11 + L, 2, 10, 1, T.light);
-      angryFace(k, 18.5 + L, 5, { two: true, gap: 4, mouth: false, glow: '#ff5a5a' });
-      k.line(13 + L, 2, 12 + L, -1, '#3a3f58', 0.6); k.ell(12 + L, -1, 0.8, 0.8, '#ff5a5a');
+      const L = k.lean, M = tones('#3a3f58');
+      k.rect(8 + k.step * 0.4, 19, 4.4, 7, T.dark); k.rect(17 - k.step * 0.4, 19, 4.4, 7, T.base);
+      k.rect(8.6 + k.step * 0.4, 21, 3.2, 1, M.base); k.rect(17.6 - k.step * 0.4, 21, 3.2, 1, M.base);
+      k.rect(6.5, 25.5, 7, 1.6, M.base); k.rect(15.5, 25.5, 7.5, 1.6, M.base);
+      k.poly([[6 + L * 0.3, 9], [24 + L * 0.3, 9], [22.5 + L * 0.3, 20], [7.5 + L * 0.3, 20]], (x) => x < 9 + L * 0.3 ? T.light : x > 21 + L * 0.3 ? T.dark : T.base);
+      for (const [x, y] of [[8, 11], [22, 11], [8, 18], [21, 18]]) k.px(x + L * 0.3, y, M.light);
+      k.ell(15 + L * 0.3, 14.5, 3, 3, '#ff5a5a'); k.ell(15 + L * 0.3, 14.5, 1.6, 1.6, '#ffd0a0'); k.px(15 + L * 0.3, 14, '#ffffff');
+      k.ball(6.5 + L * 0.3, 10, 3, 2.4, M, { noSpec: true }); k.ball(23.5 + L * 0.3, 10, 3, 2.4, M, { noSpec: true });
+      k.rect(11.5 + L, 2.5, 8.5, 6, T.base); k.rect(11.5 + L, 2.5, 8.5, 1, T.light);
+      k.rect(14 + L, 5, 6, 1.6, '#0a0614'); k.rect(15 + L + (k.f % 2), 5.3, 2, 1, '#ff5a5a');
+      k.line(13 + L, 2.5, 12 + L, -0.5, M.base, 0.6); k.ell(12 + L, -0.8, 0.8, 0.8, '#ff5a5a');
       const ax = 24 + L + (k.atk ? 3 : 0), ay = k.wind ? 6 : 12;
-      k.rect(ax, ay, 6, 4, '#3a3f58'); k.rect(ax + 5, ay - 0.5, 3, 5, '#566c86');
+      k.rect(ax, ay, 6, 4, M.base); k.rect(ax, ay, 6, 1, M.light); k.rect(ax + 5, ay - 0.6, 3, 5.2, '#566c86'); k.rect(ax + 7, ay + 0.6, 1, 2.8, '#0a0614');
+      if (k.atk) k.ell(ax + 9, ay + 2, 1.6, 1.6, '#ffe066');
       return { top: 0 };
     },
+    // Harpy: feathered wings with layered quills, a woman's face under wild hair, a feathered chest and talons.
     harpy: function (k, T, c) {
-      const bob = k.f === 1 ? -2 : 0, L = k.lean;
-      wings(k, 13, 13 + bob, 11, 9, c.c, k.f === 1);
-      k.ball(15 + L * 0.3, 16 + bob, 4.5, 5.5, T);
-      k.ball(17 + L, 9 + bob, 3.8, 3.6, tones('#d8a0c0'));
-      k.line(14 + L, 6 + bob, 11 + L, 10 + bob, '#3a2a4a', 1.4);
-      angryFace(k, 19 + L, 8.5 + bob, { mouthY: 2.5, mouthX: -0.5 });
-      k.line(14, 21 + bob, 14 + (k.atk ? 4 : 0), 25 + bob, BEAK, 0.8); k.line(17, 21 + bob, 17 + (k.atk ? 4 : 0), 25 + bob, BEAK, 0.8);
-      return { top: 4 };
+      const bob = k.f === 1 ? -2 : 0, L = k.lean, up = k.f === 1 || k.wind;
+      const W = tones(c.c), Fc = tones('#e8b8c8'), Hc = tones('#3a2a4a');
+      const tipY = up ? 3 : 9;
+      for (let i = 0; i < 4; i++) k.poly([[13, 13 + bob], [3 + i * 1.8, tipY + i * 2.4 + bob], [6 + i * 1.8, tipY + i * 2.4 + 1.6 + bob], [13, 16 + bob]], i % 2 ? W.dark : W.base);
+      k.ball(15 + L * 0.3, 16 + bob, 4.5, 5.5, W);
+      for (let i = 0; i < 3; i++) k.tri(13 + i * 1.6 + L * 0.3, 15 + bob + i, 14.6 + i * 1.6 + L * 0.3, 15 + bob + i, 13.8 + i * 1.6 + L * 0.3, 17 + bob + i, W.light);
+      k.poly([[13 + L, 7 + bob], [17 + L, 5 + bob], [21 + L, 7.5 + bob], [17 + L, 9 + bob], [12 + L, 13 + bob], [11 + L, 9 + bob]], Hc.base);
+      k.ball(17.5 + L, 9 + bob, 3.6, 3.4, Fc);
+      k.ell(19 + L, 8.6 + bob, 0.8, 0.9, '#2a0e1a'); k.px(19.2 + L, 8.4 + bob, '#ff5a5a'); brows(k, 19 + L, 8.6 + bob, 0);
+      k.tri(20.5 + L, 9.6 + bob, 22 + L, 10.4 + bob, 20.5 + L, 10.8 + bob, '#ffa34d');
+      for (const dx of [0, 3]) { const tx = 14 + dx + (k.atk ? 4 : 0); k.line(14 + dx, 21 + bob, tx, 25 + bob, BEAK, 0.7); k.line(tx, 25 + bob, tx + 1.4, 25.6 + bob, INK, 0.5); k.line(tx, 25 + bob, tx - 1, 26 + bob, INK, 0.5); }
+      return { top: 3 };
     },
+    // Storm cloud: billowing puffs lit from above, a scowl, falling rain and a crackling lightning bolt.
     cloud: function (k, T, c) {
-      const bob = k.f === 1 ? -1 : 0;
-      for (const [dx, dy, r] of [[-6, 1, 4.5], [-1, -2, 5.5], [5, 0, 4.8], [0, 3, 5]]) k.ball(15 + dx, 13 + dy + bob, r, r * 0.85, T, { noSpec: true });
-      angryFace(k, 19, 13 + bob, { two: true, gap: 5, mouthY: 3.5, mouthX: -2.5, glow: '#ffe066' });
-      if (k.atk || k.wind) { k.line(12, 19 + bob, 10, 23 + bob, '#ffe066', 0.8); k.line(10, 23 + bob, 13, 23 + bob, '#ffe066', 0.8); k.line(13, 23 + bob, 11, 27 + bob, '#ffe066', 0.8); }
-      for (let i = 0; i < 3; i++) k.line(9 + i * 5, 20 + bob + (k.f % 2), 8.5 + i * 5, 22 + bob + (k.f % 2), '#73a0f0', 0.6);
+      const bob = k.f === 1 ? -1 : 0, D = tones(mix(c.c, '#1a1c2c', 0.35));
+      for (const [dx, dy, r] of [[-6, 3, 4], [5, 3, 4.2], [0, 4, 5]]) k.ball(15 + dx, 13 + dy + bob, r, r * 0.8, D, { noSpec: true });
+      for (const [dx, dy, r] of [[-6, 0, 4.2], [-1, -2.5, 5.4], [5, -0.5, 4.6]]) k.ball(15 + dx, 13 + dy + bob, r, r * 0.85, T, { noSpec: true });
+      k.ell(13, 9 + bob, 3, 1, T.light);
+      glowEye(k, 20, 13 + bob, '#ffe066'); glowEye(k, 15.5, 13 + bob, '#ffe066', 0.9); brows(k, 20, 13 + bob, 4.5, D.deep);
+      k.rect(16 + 0, 16.2 + bob, 4, k.atk ? 1.6 : 0.8, '#1a0f2a');
+      for (let i = 0; i < 4; i++) k.line(8 + i * 4, 21 + bob + ((i + k.f) % 2) * 1.5, 7.5 + i * 4, 23 + bob + ((i + k.f) % 2) * 1.5, '#73a0f0', 0.5);
+      if (k.atk || k.wind) { k.line(17, 20 + bob, 14.5, 23.5 + bob, '#fff6c8', 0.9); k.line(14.5, 23.5 + bob, 17.5, 23.5 + bob, '#ffe066', 0.9); k.line(17.5, 23.5 + bob, 15, 27 + bob, '#fff6c8', 0.9); }
       return { top: 6 };
     },
     queen: function (k, T, c) {
-      const r = ENEMY_ART.harpy(k, T, c);
-      const bob = k.f === 1 ? -2 : 0;
-      k.rect(15, 4 + bob, 5, 1.4, GOLD); k.tri(15, 4 + bob, 16, 4 + bob, 15, 1.5 + bob, GOLD); k.tri(17, 4 + bob, 18, 4 + bob, 17.5 + 0.2, 1 + bob, GOLD); k.tri(19, 4 + bob, 20, 4 + bob, 20, 1.5 + bob, GOLD);
-      k.line(22, 2 + bob, 20, 6 + bob, '#ffe066', 0.7);
+      const r = ENEMY_ART.harpy(k, T, c), bob = k.f === 1 ? -2 : 0;
+      k.rect(15.5, 3.6 + bob, 5, 1.2, GOLD); for (const [dx, h] of [[0, 2.4], [2.2, 3.2], [4.4, 2.4]]) { k.tri(15.5 + dx - 0.6, 3.7 + bob, 15.5 + dx + 0.6, 3.7 + bob, 15.5 + dx, 3.7 - h + bob, GOLD); }
+      k.px(17.7, 4 + bob, '#73eff7');
+      k.line(23, 1.5 + bob, 21, 5.5 + bob, '#ffe066', 0.6); k.line(21, 5.5 + bob, 23, 5.5 + bob, '#ffe066', 0.6);
       return r;
     },
+    // Little invader: a space suit with a glass dome helmet, a big-eyed green head, an antenna and a ray gun.
     alien: function (k, T, c) {
-      const L = k.lean, S = tones('#c9d2e3');
-      k.leg(12, 21, 5, 1.8, T.dark, -1); k.leg(15.5, 21, 5, 1.8, T.base, 1);
-      k.ball(14 + L * 0.3, 17, 4, 4.8, S);
-      k.ball(16 + L, 9.5, 5.5, 5, T);
-      k.ell(16 + L, 6.5, 6, 3, function (nx, ny) { return ny < 0 ? 'rgba(0,0,0,0)' : null; });
-      k.line(15 + L, 4.5, 14 + L, 1.5, T.dark, 0.6); k.ell(14 + L, 1, 0.9, 0.9, '#ff6bd0');
-      angryFace(k, 19 + L, 9.5, { two: true, gap: 4, mouthY: 3, mouthX: -1.5, glow: INK });
+      const L = k.lean, S = tones('#c9d2e3'), G = tones('#9fe0ff');
+      k.leg(12, 21, 5, 2, S.dark, -1); k.leg(15.5, 21, 5, 2, S.base, 1);
+      k.ell(12.6 + k.step * -0.8, 26.4, 1.6, 0.8, '#566c86'); k.ell(16.4 + k.step * 0.8, 26.4, 1.6, 0.8, '#566c86');
+      k.ball(14 + L * 0.3, 17, 4.3, 4.8, S); k.rect(11 + L * 0.3, 17.5, 6.4, 1, '#566c86'); k.px(14 + L * 0.3, 15.5, '#ff6bd0');
+      k.ball(16 + L, 9.5, 5, 4.6, T);
+      k.ell(18.8 + L, 9.4, 1.6, 2, '#0a0614'); k.px(19.2 + L, 8.6, '#ffffff'); k.ell(15.6 + L, 9.4, 1.3, 1.8, '#0a0614'); k.px(15.9 + L, 8.7, '#ffffff');
+      k.line(17 + L, 12.4, 19 + L, 12.2, T.dark, 0.5);
+      k.ell(16 + L, 8.5, 6.6, 6.2, (nx, ny) => (nx * nx + ny * ny > 0.74 ? (ny < -0.2 && nx < 0 ? G.light : G.base) : null));
+      k.px(12.5 + L, 5, '#ffffff'); k.px(13 + L, 4.4, '#ffffff');
+      k.line(16 + L, 2.4, 16 + L, 0.4, '#566c86', 0.5); k.ell(16 + L, 0.2, 0.8, 0.8, '#ff6bd0');
       const gx = 20 + L + (k.atk ? 2 : 0);
-      k.rect(gx, 15, 4, 2, '#566c86'); k.rect(gx + 3, 14.5, 1, 3, '#ff6bd0');
-      return { top: 1 };
-    },
-    squid: function (k, T, c) {
-      const L = k.lean;
-      for (let i = 0; i < 5; i++) { const x = 9 + i * 2.6, w = Math.sin((k.f + i) * 1.4); k.line(x, 18, x + w, 25, T.dark, 1.2); }
-      k.ell(14 + L * 0.3, 12, 7, 8, function (nx, ny) { return ny < -0.4 ? T.light : T.base; });
-      k.tri(8, 7, 20, 7, 14, -0.5, T.base);
-      angryFace(k, 18 + L, 13, { two: true, gap: 4, mouthY: 3, mouthX: -2, glow: '#ffe066' });
-      for (const [x, y] of [[10, 9], [17, 6]]) k.px(x, y, '#ffe066');
+      k.rect(gx, 15, 4, 2, '#566c86'); k.rect(gx + 3.4, 14.4, 1.4, 3.2, '#a884f3'); k.px(gx + 4.6, 15.8, '#ff6bd0');
+      if (k.atk) k.ell(gx + 6, 16, 1.2, 1.2, '#ff6bd0');
       return { top: 0 };
     },
+    // Star squid: a finned mantle with spots, two big eyes and curling tentacles with suckers.
+    squid: function (k, T, c) {
+      const L = k.lean;
+      for (let i = 0; i < 6; i++) { const x = 9 + i * 2.2, w = Math.sin((k.f + i) * 1.4) * 1.4; k.line(x, 18, x + w, 22.5, T.dark, 1); k.line(x + w, 22.5, x - w * 0.5 + 0.8, 26, T.dark, 0.8); k.px(x + w * 0.6, 21, T.light); }
+      k.ball(14 + L * 0.3, 12, 7, 8, T);
+      k.tri(8, 6, 20, 6, 14, -1, T.base); k.tri(8, 6, 14, 6, 14, -1, T.light);
+      k.tri(7, 12, 7.5, 6, 3, 9, T.dark); k.tri(21, 12, 20.5, 6, 25, 9, T.dark);
+      for (const [x, y, r] of [[10, 9, 0.9], [17, 5, 0.7], [11, 15, 0.7]]) k.ell(x, y, r, r, '#ffe066');
+      k.ell(18 + L, 12.5, 2, 2.2, '#ffffff'); k.ell(18.6 + L, 12.6, 1, 1.4, '#0a0614'); k.ell(13.8 + L, 12.5, 1.6, 2, '#ffffff'); k.ell(14.2 + L, 12.6, 0.8, 1.3, '#0a0614');
+      brows(k, 18 + L, 12, 4.2, T.deep);
+      return { top: 0 };
+    },
+    // Void eye: a veined eyeball with a heavy lid, a slit pupil and dangling nerve tendrils.
     eye: function (k, T, c) {
-      const bob = k.f === 1 ? -1.5 : 0, L = k.lean;
-      for (let i = 0; i < 4; i++) k.line(10 + i * 2.5, 20 + bob, 9 + i * 2.5 + (k.f % 2), 26 + bob, T.base, 0.8);
-      k.ball(15 + L * 0.3, 14 + bob, 7.5, 7.5, T);
-      k.ell(16.5 + L, 14 + bob, 4.5, 4.5, '#fff0f0');
-      k.ell(18 + L + (k.atk ? 1 : 0), 14 + bob, 2.2, 2.6, '#ff3a6a'); k.ell(18.4 + L + (k.atk ? 1 : 0), 14 + bob, 0.9, 1.4, INK);
-      k.line(10 + L, 8.5 + bob, 19 + L, 9.5 + bob, INK, 0.7);
+      const bob = k.f === 1 ? -1.5 : 0, L = k.lean, x = 15 + L * 0.3;
+      for (let i = 0; i < 4; i++) { const tx = 10 + i * 2.6; k.line(tx, 20 + bob, tx - 1 + (k.f + i) % 2, 23.5 + bob, T.base, 0.8); k.line(tx - 1 + (k.f + i) % 2, 23.5 + bob, tx + ((k.f + i) % 2 ? 0 : 1), 26.5 + bob, T.dark, 0.6); }
+      k.ball(x, 14 + bob, 7.6, 7.6, T);
+      k.ell(x + 1.4, 14 + bob, 5, 4.8, '#fff0f0');
+      for (const [a, l] of [[2.5, 3], [3.4, 2.6], [4.2, 2.8], [1.7, 2.4]]) k.line(x + 1.4 + Math.cos(a) * 4.8, 14 + bob + Math.sin(a) * 4.6, x + 1.4 + Math.cos(a) * (4.8 - l), 14 + bob + Math.sin(a) * (4.6 - l), '#e04a6a', 0.4);
+      const px0 = x + 2.6 + (k.atk ? 1 : 0);
+      k.ell(px0, 14 + bob, 2.4, 2.6, '#ff3a6a'); k.ell(px0, 14 + bob, 0.7, 1.9, '#0a0614'); k.px(px0 - 0.8, 13 + bob, '#ffffff');
+      k.poly([[x - 6, 11 + bob], [x + 7, 9.5 + bob], [x + 6, 11.5 + bob], [x - 5, 12.5 + bob]], T.dark);
+      k.line(x - 4, 9.5 + bob, x + 6, 8.5 + bob, T.deep, 0.6);
       return { top: 6 };
     },
+    // Void emperor: a starry robed sovereign with spiked pauldrons, a crown of thorns, glowing eyes and an orb.
     emperor: function (k, T, c) {
-      const L = k.lean, R = tones('#5d275d');
-      k.tri(5, 8, 25, 8, 15, 28, R.base); k.tri(6, 9, 12, 8, 5, 28, R.dark);
-      k.ball(16 + L, 9, 6, 5.5, T);
-      for (let i = 0; i < 5; i++) k.tri(11 + i * 2.4 + L, 4.5, 12.6 + i * 2.4 + L, 4.5, 11.8 + i * 2.4 + L, 0.5 - (i % 2) * 1.2, '#ff6bd0');
-      angryFace(k, 19 + L, 9, { two: true, gap: 4.5, mouthY: 3.5, mouthX: -2, glow: '#ff6bd0' });
-      for (const [x, y] of [[8, 14], [22, 17], [12, 22], [19, 24]]) { k.px(x, y, '#ffffff'); k.px(x + 1, y, '#a884f3'); }
-      const ox = 24 + (k.atk ? 3 : 0), oy = k.wind ? 6 : 14;
-      k.ball(ox, oy, 2.8, 2.8, tones('#ff6bd0'));
+      const L = k.lean, R = tones('#5d275d'), A = tones('#3a2a5a');
+      k.robe(8, 22, 10, 3, 26, 27, R, { teeth: 7, rag: 2, folds: 3 });
+      for (const [x, y] of [[8, 16], [21, 18], [12, 22], [19, 24], [15, 19], [6, 23]]) { k.px(x, y, '#ffffff'); k.px(x + 0.8, y, '#a884f3'); }
+      k.ball(9 + L * 0.3, 11, 3.4, 2.6, A); k.ball(21.5 + L * 0.3, 11, 3.4, 2.6, A);
+      for (const x of [7, 9.5, 20, 22.5]) k.tri(x - 0.8 + L * 0.3, 9.2, x + 0.8 + L * 0.3, 9.2, x + L * 0.3, 6.6, A.light);
+      k.ball(16 + L, 8.5, 5.4, 5, T);
+      for (let i = 0; i < 5; i++) { const x = 11.5 + i * 2.3 + L; k.tri(x - 0.8, 4.4, x + 0.8, 4.4, x, 0.2 - (i % 2) * 1.4, '#ff6bd0'); k.px(x, 1.6 - (i % 2) * 1.4, '#ffd0f0'); }
+      k.rect(11 + L, 4, 10.4, 1, '#c03a90');
+      glowEye(k, 19 + L, 8.4, '#ff6bd0'); glowEye(k, 15 + L, 8.4, '#ff6bd0', 0.9); brows(k, 19 + L, 8.4, 4, '#0a0614');
+      k.rect(15.5 + L, 11, 4, k.atk ? 1.6 : 0.8, '#0a0614');
+      const ox = 25 + (k.atk ? 3 : 0), oy = k.wind ? 6 : 14;
+      k.line(21 + L, 13, ox - 1.5, oy + 1, R.base, 1); k.claws(ox - 1.2, oy + 1, tones('#e8dcc0'));
+      k.ball(ox + 0.8, oy - 1.4, 2.6, 2.6, tones('#ff6bd0')); k.px(ox, oy - 2.4, '#ffffff');
       return { top: 0 };
     }
   };
 
   // Gloom added with chapters 2 and 3.
   Object.assign(ENEMY_ART, {
+    // Spider: a striped abdomen with an hourglass mark, eight jointed legs, a cluster of eyes and fangs.
     spider: function (k, T, c) {
       const L = k.lean, st = k.step;
-      for (let i = 0; i < 4; i++) { const x = 8 + i * 4, up = (i % 2 ? st : -st) * 0.8; k.line(x + L * 0.3, 18, x - 2 + L * 0.3, 22 + up, T.deep, 1); k.line(x - 2 + L * 0.3, 22 + up, x - 3 + L * 0.3, 26, T.deep, 1); }
-      k.ball(11 + L * 0.3, 16, 7, 5.5, T);
-      k.ell(9 + L * 0.3, 15, 2.2, 1.6, T.dark);
-      k.ball(19 + L, 17.5, 4.4, 3.8, T);
-      angryFace(k, 21.5 + L, 17, { two: true, gap: 2.6, mouthY: 2.6, glow: '#ff5a5a' });
-      k.line(22 + L, 20.5, 23.5 + L, 22.5, T.light, 0.7); k.line(20 + L, 20.5, 19.5 + L, 22.8, T.light, 0.7);
+      for (let i = 0; i < 4; i++) { const x = 9 + i * 3.6, up = (i % 2 ? st : -st) * 0.8; k.line(x + L * 0.3, 18, x - 1.5 + L * 0.3, 14.5 + up, T.deep, 0.8); k.line(x - 1.5 + L * 0.3, 14.5 + up, x - 3 + L * 0.3, 26, T.deep, 0.8); }
+      k.ball(10 + L * 0.3, 17, 7, 5.6, T);
+      for (let i = 0; i < 3; i++) k.ell(7 + i * 2.6 + L * 0.3, 15 + i * 0.3, 0.9, 2.4, T.dark);
+      k.poly([[11 + L * 0.3, 18], [13 + L * 0.3, 18], [12 + L * 0.3, 19.5]], '#e04848'); k.poly([[11 + L * 0.3, 21], [13 + L * 0.3, 21], [12 + L * 0.3, 19.5]], '#e04848');
+      k.ball(19 + L, 18, 4.2, 3.6, T);
+      for (const [x, y] of [[20.6, 16.4], [22, 16.8], [21.2, 17.8], [19.4, 17.2]]) k.px(x + L, y, '#ff5a5a');
+      const op = k.atk ? 1.2 : 0.4;
+      k.line(21.5 + L, 20.6, 23 + L + op, 23, '#f4efe0', 0.7); k.line(19.8 + L, 20.8, 19.8 + L - op, 23.2, '#f4efe0', 0.7);
       return { top: 10 };
     },
+    // Gloom knight: a plumed great helm with a glowing visor slit, plate armour with rivets, a cape, a sword and a shield.
     gknight: function (k, T, c) {
-      const L = k.lean, M = tones('#8a94a8');
-      k.leg(12, 21, 4, 2.6, T.dark, -1);
-      k.ell(9 + L * 0.3, 18, 3, 6, tones('#5a2a3a').base);
-      k.ball(14 + L * 0.3, 17, 5.5, 5.5, T);
-      k.rect(10 + L * 0.3, 16, 8, 1.4, M.light);
-      k.leg(15, 21.5, 4, 2.6, T.base, 1);
-      k.ball(16 + L, 9.5, 4.8, 4.6, M);
-      k.rect(16 + L, 9, 4.6, 1.4, '#140c26'); k.px(19 + L, 9.4, '#ff5a5a'); k.px(17.5 + L, 9.4, '#ff5a5a');
-      k.tri(14 + L, 5.2, 17 + L, 5, 15 + L, 1.5, tones('#b13e53').base);
-      const sx = 21 + L + (k.atk ? 4 : 0), sy = k.wind ? 4 : k.atk ? 17 : 12;
-      k.line(19 + L, 17, sx, sy, M.light, 1.2); k.rect(18 + L, 16, 3, 1, '#ffcd4d');
-      return { top: 1 };
+      const L = k.lean, M = tones('#8a94a8'), Cp = tones('#5a2a3a');
+      k.robe(8, 13, 10, 5.5, 13, 24, Cp, { teeth: 3, rag: 1.4, folds: 1 });
+      k.leg(12, 21, 5, 2.6, M.dark, -1); k.ell(12.8 + k.step * -0.8, 26.4, 1.9, 0.9, M.deep);
+      k.ball(14 + L * 0.3, 17, 5.5, 5.6, T);
+      k.rect(9.5 + L * 0.3, 16, 9, 1.2, M.light); for (const x of [10.5, 14, 17.5]) k.px(x + L * 0.3, 16.4, '#ffcd4d');
+      k.ball(11.5 + L * 0.3, 13, 2.6, 2, M, { noSpec: true });
+      k.leg(15, 21.5, 5, 2.6, M.base, 1); k.ell(16 + k.step * 0.8, 26.5, 2, 0.9, M.dark);
+      k.ball(16.5 + L, 9.5, 4.8, 4.8, M);
+      k.rect(15.5 + L, 8.8, 5.4, 1.4, '#0a0614'); k.rect(16.5 + L, 9.1, 3.2, 0.7, '#ff5a5a');
+      k.line(18.5 + L, 10.6, 18.5 + L, 13, M.dark, 0.5);
+      k.poly([[14 + L, 5.2], [17 + L, 5], [16 + L, 1.5], [13 + L, 0.4], [14.5 + L, 2.5]], tones('#b13e53').base);
+      const sh = tones('#566c86');
+      k.poly([[20 + L, 13.5], [24.5 + L, 13.5], [24.5 + L, 19], [22.2 + L, 21.5], [20 + L, 19]], sh.base); k.line(22.2 + L, 14, 22.2 + L, 20.5, '#ffcd4d', 0.6); k.line(20.5 + L, 16, 24 + L, 16, '#ffcd4d', 0.6);
+      const sx = 21 + L + (k.atk ? 4 : 0), sy = k.wind ? 3 : k.atk ? 17 : 11;
+      if (k.atk || k.wind) { k.line(19 + L, 16, sx, sy, '#d8e0f0', 1.1); k.line(19 + L, 16, sx - 0.3, sy + 0.3, '#ffffff', 0.4); k.rect(18 + L, 15.5, 2.6, 1, '#ffcd4d'); }
+      return { top: 0 };
     },
+    // Wraith: a hooded shade in a tattered, trailing shroud, with a void for a face, two cold eyes, skeletal hands and a chain.
     wraith: function (k, T, c) {
       const L = k.lean, bob = k.f === 1 ? -1.5 : 0;
-      k.ell(14 + L * 0.4, 16 + bob, 7, 8, function (nx, ny) { return ny > 0.55 ? ((Math.floor(nx * 4 + 4) % 2) ? null : T.dark) : (nx > 0.5 ? T.dark : T.base); });
-      k.ball(17 + L, 9.5 + bob, 4.8, 4.6, T);
-      k.ell(18.5 + L, 10 + bob, 3, 2.8, '#140c26');
-      k.ell(19.5 + L, 9.5 + bob, 0.8, 0.8, '#73eff7'); k.ell(17.6 + L, 9.5 + bob, 0.8, 0.8, '#73eff7');
-      const hx = 22 + L + (k.atk ? 3 : 0), hy = k.wind ? 10 + bob : 15 + bob;
-      k.line(19 + L, 15 + bob, hx, hy, T.base, 1.2); k.ell(hx, hy, 1.4, 1.4, T.light);
+      k.robe(10, 20, 12 + bob, 6, 24, 25 + bob, T, { teeth: 7, rag: 3, folds: 2 });
+      k.poly([[11 + L, 12 + bob], [13.5 + L, 4 + bob], [18 + L, 3.5 + bob], [22 + L, 9 + bob], [21 + L, 13 + bob], [12 + L, 13.5 + bob]], T.base);
+      k.ell(18 + L, 9.5 + bob, 3, 3, '#0a0614');
+      glowEye(k, 19.4 + L, 9.2 + bob, '#73eff7', 0.7); glowEye(k, 17 + L, 9.2 + bob, '#73eff7', 0.6);
+      k.line(13.5 + L, 5 + bob, 12 + L, 12 + bob, T.light, 0.5);
+      const hx = 23 + L + (k.atk ? 3 : 0), hy = k.wind ? 10 + bob : 15 + bob;
+      k.line(20 + L, 15 + bob, hx - 1, hy, T.base, 1.1); k.claws(hx - 0.5, hy, tones('#c9c0d8'), '#e8e0f0');
+      for (let i = 0; i < 4; i++) k.ell(9 + i * 1.4, 18 + i * 0.6 + bob, 0.6, 0.5, '#8a94a8');
       if (k.atk) k.ell(hx + 2.5, hy, 1.4, 1.4, '#a884f3');
-      return { top: 4 };
+      return { top: 2 };
     },
+    // Totem: three carved, painted wooden faces stacked on a post, with wing boards and feather tufts on top.
     totem: function (k, T, c) {
-      const L = k.lean, hop = k.f === 1 ? -1 : 0;
+      const L = k.lean, hop = k.f === 1 ? -1 : 0, W = tones('#8a5a32');
       const faces = [['#ffcd4d', 21], ['#ef7d57', 15], ['#73eff7', 9]];
       for (let i = 0; i < 3; i++) {
-        const y = faces[i][1] + hop, F = tones(mix(c.c, faces[i][0], 0.15));
-        k.rect(9 + L * 0.2 * i, y - 3, 11, 6, F.base); k.rect(9 + L * 0.2 * i, y - 3, 11, 1, F.light); k.rect(18 + L * 0.2 * i, y - 3, 2, 6, F.dark);
-        k.rect(11 + L * 0.2 * i, y - 1, 2, 1.4, faces[i][0]); k.rect(15.5 + L * 0.2 * i, y - 1, 2, 1.4, faces[i][0]);
-        k.rect(12.5 + L * 0.2 * i, y + 1.2, 4 , k.atk && i === 0 ? 1.6 : 0.8, '#140c26');
+        const y = faces[i][1] + hop, x = 9 + L * 0.2 * i, F = tones(mix(c.c, faces[i][0], 0.12));
+        k.rect(x, y - 3, 11, 6, F.base); k.rect(x, y - 3, 11, 0.8, F.light); k.rect(x + 9, y - 3, 2, 6, F.dark); k.rect(x, y + 2.4, 11, 0.6, F.deep);
+        k.rect(x + 1.6, y - 1.6, 2.6, 1.6, '#0a0614'); k.rect(x + 2.2, y - 1.2, 1.4, 0.8, faces[i][0]); k.rect(x + 6.2, y - 1.6, 2.6, 1.6, '#0a0614'); k.rect(x + 6.8, y - 1.2, 1.4, 0.8, faces[i][0]);
+        k.rect(x + 2.5, y + 0.8, 6, k.atk && i === 0 ? 1.6 : 0.9, '#2a0e1a'); if (i !== 1) k.fangs(x + 3, x + 8, y + 0.8, false, 3);
+        k.line(x + 1, y - 2.2, x + 4, y - 2, faces[i][0], 0.4); k.line(x + 6, y - 2, x + 9.5, y - 2.2, faces[i][0], 0.4);
       }
-      k.tri(7 + L * 0.4, 7 + hop, 9 + L * 0.4, 5 + hop, 8 + L * 0.4, 2 + hop, T.dark); k.tri(20 + L * 0.4, 5 + hop, 22 + L * 0.4, 7 + hop, 21 + L * 0.4, 2 + hop, T.dark);
-      return { top: 3 };
+      k.poly([[9 + L * 0.4, 9 + hop], [3 + L * 0.4, 6 + hop], [4 + L * 0.4, 10 + hop], [9 + L * 0.4, 12 + hop]], W.base);
+      k.poly([[20 + L * 0.4, 9 + hop], [26 + L * 0.4, 6 + hop], [25 + L * 0.4, 10 + hop], [20 + L * 0.4, 12 + hop]], W.dark);
+      for (let i = 0; i < 3; i++) k.tri(12 + i * 2.4 + L * 0.4, 6 + hop, 13.6 + i * 2.4 + L * 0.4, 6 + hop, 12.6 + i * 2.4 + L * 0.4, 2 + hop - (i % 2), ['#e04848', '#ffcd4d', '#5ac54f'][i]);
+      return { top: 1 };
     },
+    // Crystal golem: a body of faceted shards (lit and shadowed faces), crystal limbs and a glowing core.
     crystal: function (k, T, c) {
       const L = k.lean;
-      k.leg(10, 20, 5, 3, T.dark, -1);
-      k.tri(6 + L * 0.3, 21, 22 + L * 0.3, 21, 14 + L * 0.3, 4, T.base);
-      k.tri(6 + L * 0.3, 21, 14 + L * 0.3, 21, 14 + L * 0.3, 4, T.light);
-      k.tri(14 + L * 0.3, 4, 16 + L * 0.3, 10, 12 + L * 0.3, 10, T.spec);
-      k.tri(18 + L * 0.3, 14, 25 + L, 9, 21 + L, 17, T.dark);
-      k.leg(16, 20.5, 5, 3, T.base, 1);
-      angryFace(k, 17 + L * 0.5, 13, { two: true, gap: 3, mouthY: 3, glow: '#ffffff' });
-      const ax = 23 + L + (k.atk ? 3 : 0), ay = k.wind ? 8 : 15;
-      k.tri(ax - 2, ay + 2, ax + 2, ay + 2, ax, ay - 3, T.light);
-      return { top: 3 };
+      k.poly([[9 + k.step * 0.4, 20], [12 + k.step * 0.4, 20], [11.5 + k.step * 0.4, 26.5], [9 + k.step * 0.4, 26.5]], T.dark);
+      k.poly([[16 - k.step * 0.4, 20], [19 - k.step * 0.4, 20], [19 - k.step * 0.4, 26.5], [16.5 - k.step * 0.4, 26.5]], T.base);
+      const x = 14 + L * 0.3;
+      k.poly([[x - 7, 20], [x - 6, 10], [x - 1, 4], [x + 5, 9], [x + 7, 20]], T.base);
+      k.poly([[x - 7, 20], [x - 6, 10], [x - 1, 4], [x - 1, 20]], T.light);
+      k.poly([[x + 3, 12], [x + 5, 9], [x + 7, 20], [x + 3, 20]], T.dark);
+      k.line(x - 1, 4, x - 1, 20, T.spec, 0.4); k.line(x - 6, 10, x + 5, 9, T.dark, 0.4);
+      k.poly([[x - 9, 12], [x - 7, 6], [x - 5.5, 12]], T.light); k.poly([[x + 1, 5], [x + 3, 0.5], [x + 4, 6]], T.base);
+      k.ell(x, 14.5, 1.6, 1.6, '#ffffff'); k.ell(x, 14.5, 0.8, 0.8, T.spec);
+      glowEye(k, x + 3, 9.5, '#ffffff', 0.7); glowEye(k, x + 0.4, 9.6, '#ffffff', 0.6);
+      const ax = 22 + L + (k.atk ? 3 : 0), ay = k.wind ? 8 : 15;
+      k.line(x + 6, 12, ax, ay, T.dark, 1); k.poly([[ax - 1.6, ay + 1.6], [ax + 1.8, ay + 1.4], [ax + 0.6, ay - 3.6]], T.light);
+      return { top: 1 };
     },
+    // Giant rat: shaggy fur with a ridge of bristles, pink ears and nose, whiskers, buck teeth and a long scaly tail.
     rat: function (k, T, c) {
-      const L = k.lean;
-      k.line(5, 20, 1, 18 - k.step, mix(c.c, '#ff8fb1', 0.5), 0.8); k.line(1, 18 - k.step, 0, 15, mix(c.c, '#ff8fb1', 0.5), 0.8);
-      k.leg(9, 21, 3, 2, T.dark, -1); k.leg(16, 21, 3, 2, T.dark, -1);
-      k.ball(12 + L * 0.3, 18.5, 7, 4.8, T);
-      for (let x = 7; x < 16; x += 3) k.tri(x + L * 0.3, 14.5, x + 2 + L * 0.3, 14.5, x + 1 + L * 0.3, 12.5, T.dark);
-      k.ball(20 + L, 17, 4, 3.6, T); k.tri(22.5 + L, 16, 22.5 + L, 19, 26.5 + L, 18, T.base); k.px(26.5 + L, 17.8, '#ff8fb1');
-      k.ball(18.5 + L, 13.5, 1.8, 1.8, T, { noSpec: true }); k.ell(18.5 + L, 13.5, 0.9, 0.9, '#ff8fb1');
-      angryFace(k, 21.5 + L, 16.5, { mouthY: 2.5, glow: '#ff5a5a' });
-      k.leg(11, 22, 3, 2, T.base, 1); k.leg(18, 22, 3, 2, T.base, 1);
+      const L = k.lean, pink = mix(c.c, '#ff8fb1', 0.55);
+      k.line(5, 20, 2, 18 - k.step, pink, 0.8); k.line(2, 18 - k.step, 1, 14.5, pink, 0.7); for (const y of [17, 15.5]) k.px(1.6, y, mix(pink, INK, 0.3));
+      k.leg(8.5, 21, 3.6, 2, T.dark, -1); k.leg(15.5, 21, 3.6, 2, T.dark, -1);
+      k.ball(12 + L * 0.3, 18.5, 7.2, 5, T);
+      for (let x = 6.5; x < 17; x += 2) k.tri(x + L * 0.3, 14.4, x + 1.6 + L * 0.3, 14.4, x + 0.6 + L * 0.3, 12.4 - (x % 4 ? 0 : 0.8), T.dark);
+      for (const [x, y] of [[8, 18], [11, 20], [14, 17]]) k.line(x + L * 0.3, y, x + 1 + L * 0.3, y + 1, T.dark, 0.4);
+      k.ball(20 + L, 17, 4.2, 3.6, T); k.poly([[22.5 + L, 15.6], [22.5 + L, 19], [27 + L, 18]], T.base); k.ell(27 + L, 17.8, 0.9, 0.8, '#ff8fb1');
+      k.ball(18.4 + L, 13.4, 1.9, 1.9, T, { noSpec: true }); k.ell(18.6 + L, 13.4, 1, 1, '#ff8fb1');
+      glowEye(k, 21.8 + L, 16.4, '#ff5a5a', 0.8);
+      k.rect(24.5 + L, 19, 1.4, 1.4, '#f4efe0');
+      for (const dy of [-0.6, 0.6]) k.line(25.5 + L, 17.6 + dy, 28.5 + L, 17.2 + dy * 2, '#e8e0d0', 0.3);
+      k.leg(10.5, 22, 3.6, 2, T.base, 1); k.leg(17.5, 22, 3.6, 2, T.base, 1);
       return { top: 10 };
     },
+    // Jellyfish: a translucent frilled bell with glowing organs inside, oral arms and long trailing tentacles.
     jelly: function (k, T, c) {
-      const L = k.lean, bob = k.f === 1 ? -2 : 0;
-      for (let i = 0; i < 5; i++) { const x = 9 + i * 2.6, sway = Math.sin(i + k.f) * 1.2; k.line(x + L * 0.3, 16 + bob, x + sway + L * 0.3, 25 + bob, i % 2 ? T.dark : T.light, 0.8); }
-      k.ell(14.5 + L * 0.4, 12 + bob, 8, 6, function (nx, ny) { if (ny > 0.55) return null; return (nx + 0.38) * (nx + 0.38) + (ny + 0.48) * (ny + 0.48) < 0.12 ? T.spec : ny > 0.2 ? T.dark : T.base; });
-      angryFace(k, 18 + L * 0.5, 12 + bob, { two: true, gap: 3.5, mouthY: 2.5 });
+      const L = k.lean, bob = k.f === 1 ? -2 : 0, x = 14.5 + L * 0.4;
+      for (let i = 0; i < 6; i++) { const tx = 8.5 + i * 2.4, sway = Math.sin(i + k.f) * 1.4; k.line(tx + L * 0.3, 16 + bob, tx + sway + L * 0.3, 21 + bob, i % 2 ? T.dark : T.light, 0.6); k.line(tx + sway + L * 0.3, 21 + bob, tx - sway * 0.5 + L * 0.3, 26 + bob, i % 2 ? T.dark : T.base, 0.5); }
+      k.poly([[x - 2, 15 + bob], [x + 2, 15 + bob], [x + 3, 21 + bob], [x + 1, 19 + bob], [x - 1, 22 + bob], [x - 3, 19 + bob]], T.light);
+      k.ell(x, 11.5 + bob, 8, 6, (nx, ny) => { if (ny > 0.55) return null; return (nx + 0.38) * (nx + 0.38) + (ny + 0.48) * (ny + 0.48) < 0.1 ? T.spec : ny > 0.2 ? T.dark : T.base; });
+      for (let i = 0; i < 8; i++) k.ell(x - 7 + i * 2, 15 + bob, 1.1, 0.8, i % 2 ? T.light : T.base);
+      for (const [dx, dy] of [[-3, 0], [0, 1], [3, 0]]) k.ell(x + dx, 12 + dy + bob, 1, 1, '#fff0b0');
+      glowEye(k, x + 4, 10.5 + bob, '#ffffff', 0.7); glowEye(k, x + 1.5, 10.5 + bob, '#ffffff', 0.6);
       return { top: 5 };
     },
+    // Walking bomb: an iron sphere with a riveted band, a cap, a sparking fuse, stubby boots and a manic grin.
     bomber: function (k, T, c) {
-      const L = k.lean, sq = k.atk ? 1 : 0;
-      k.leg(11, 22, 3, 2.4, T.dark, -1); k.leg(17, 22, 3, 2.4, T.dark, -1);
+      const L = k.lean, sq = k.atk ? 1 : 0, M = tones('#8a94a8');
+      k.leg(11, 22, 3.4, 2.4, T.dark, -1); k.leg(17, 22, 3.4, 2.4, T.dark, -1);
       k.ball(14 + L * 0.3, 16, 8 + sq, 7.5 - sq * 0.5, T);
-      k.rect(11 + L * 0.3, 7.5, 4, 2.5, '#8a94a8'); k.line(13 + L * 0.3, 7.5, 15 + L * 0.3, 4, '#c9a26b', 0.7);
-      k.ell(15.5 + L * 0.3, 3.5, 1.2, 1.2, k.f % 2 ? '#ffe066' : '#ef7d57');
-      angryFace(k, 18 + L * 0.5, 15, { two: true, gap: 4, mouthY: 3.5, glow: '#ef7d57' });
-      k.leg(13, 22.5, 3, 2.4, T.base, 1); k.leg(19, 22.5, 3, 2.4, T.base, 1);
+      k.ell(14 + L * 0.3, 16, 8 + sq, 1.2, M.dark); for (const x of [8, 11, 14, 17, 20]) k.px(x + L * 0.3, 16, M.light);
+      k.rect(11.4 + L * 0.3, 7.4, 4.6, 2.4, M.base); k.rect(11.4 + L * 0.3, 7.4, 4.6, 0.7, M.light);
+      k.line(13.5 + L * 0.3, 7.4, 14.5 + L * 0.3, 5, '#c9a26b', 0.7); k.line(14.5 + L * 0.3, 5, 16.5 + L * 0.3, 4, '#c9a26b', 0.7);
+      const sp = k.f % 2;
+      k.ell(16.8 + L * 0.3, 3.6, 1.2, 1.2, sp ? '#ffe066' : '#ef7d57'); k.px(18 + L * 0.3, 2.4 + sp, '#ffffff'); k.px(15.6 + L * 0.3, 2.4 - sp, '#ffe066');
+      glowEye(k, 18.4 + L * 0.5, 13.6, '#ef7d57'); glowEye(k, 14.6 + L * 0.5, 13.6, '#ef7d57', 0.9); brows(k, 18.4 + L * 0.5, 13.6, 3.8);
+      grin(k, 16.6 + L * 0.5, 17.6, 5, { n: 4 });
+      k.ell(12 + k.step * 0.8, 26.4, 2, 0.9, '#3a2a1a'); k.ell(18 + k.step * -0.8, 26.4, 2, 0.9, '#3a2a1a');
       return { top: 2 };
     }
   });
@@ -7232,7 +7467,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       '<div class="pstats">' + stat('clock', mmss(t), 'time') + stat('skull', b.stats.kills, 'defeated') + stat('army', b.stats.deploys, 'sent') + stat('tower', Math.round(b.enemy.hp / b.enemy.max * 100) + '%', 'Gloom tower') + '</div>' +
       (goals.length ? '<div class="goals pgoals">' + goals.map((g) => '<div><img class="px" src="' + SPR.url(g[1] === false ? 'icon_starOff' : 'icon_star') + '" alt=""> <span class="' + (g[1] === false ? 'off' : '') + '">' + esc(g[0]) + '</span></div>').join('') + '</div>' : '') + '</div>';
     h += '<div class="sw-card fx-card">' + head('skull', 'Gloom here') + '<div class="pfoes">' + foesOf(def).map((f) => { const e = AW.ENEMY[f.id], known = state.seen[f.id] || b.seen[f.id]; return '<span class="pf' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(e.name) : '???') + '">' + enemyFit(f.id, 40, 30, known ? '' : 'unk') + (known ? elIcon(e.el, 1, 'pfe') : '') + '</span>'; }).join('') + '</div>' + synergyHtml(state.lineup) + '</div></div>';
-    return h + '<div class="sw-card fx-card">' + head('gear', 'Settings') + '<div class="pset">' + settingsToggles() + '</div></div>';
+    return h;
   }
   function pause(on) {
     if (!battle || ended) return;
@@ -7242,7 +7477,6 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       openModal('Paused', pauseHtml(),
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
         () => { paused = false; PF.gameplayStart(); }, false, 'paused');
-      bindToggles();
     }
   }
   function quitBattle() {
@@ -8059,7 +8293,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     let h = '<p class="panel-note">Entries refill every day at midnight.</p>';
     for (const E of CT.EVENTS) {
       const left = AW.eventEntriesLeft(state, E.id), open = AW.eventOpen(state, E.id, 0);
-      h += '<div class="tile fx-card"><div class="mapview" data-art="320x48" style="height:140px;background-image:url(' + R.themeArt(E.theme, 320, 48, false, 160) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' ' + E.unlock + ' stages') + '</div></div><p class="muted">' + esc(E.desc) + '</p>';
+      h += '<div class="tile fx-card' + (open ? '' : ' ev-locked') + '"' + (open ? '' : ' data-evlock="' + E.id + '" role="button" tabindex="0"') + '><div class="mapview" data-art="320x48" style="height:140px;background-image:url(' + R.themeArt(E.theme, 320, 48, false, 160) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' Unlocks at ' + stageReq(E.unlock).replace('Clear stage ', '')) + '</div></div><p class="muted">' + esc(E.desc) + (open ? '' : ' <b class="evhint">Tap to see how to unlock it.</b>') + '</p>';
       if (open) {
         h += '<div class="evls">';
         for (let l = 0; l < 5; l++) {
@@ -8073,10 +8307,20 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     el.innerHTML = h;
     on(el, '[data-ev]', (b) => {
       const id = b.getAttribute('data-ev'), l = Number(b.getAttribute('data-lv'));
-      if (!AW.eventOpen(state, id, l)) { lockTip(b, 'Clear ' + Math.max(AW.EVENT[id].unlock, AW.EVENT_LEVELS[l].need) + ' story stages to unlock'); return; }
+      if (!AW.eventOpen(state, id, l)) { const n = Math.max(AW.EVENT[id].unlock, AW.EVENT_LEVELS[l].need); lockTip(b, stageReq(n) + ' to unlock Level ' + (l + 1) + ' (' + AW.storyCleared(state) + ' / ' + n + ' story stages cleared)'); return; }
       if (AW.eventEntriesLeft(state, id) <= 0) { toast('No entries left today. Come back tomorrow!', 'pink'); return; }
       openStage(AW.eventDef(id, l));
     });
+    on(el, '[data-evlock]', (b) => eventUnlockInfo(b.getAttribute('data-evlock')));
+  }
+  // What a locked event needs: the event itself, then each of its five levels, with progress.
+  function eventUnlockInfo(id) {
+    const E = AW.EVENT[id], have = AW.storyCleared(state);
+    const row = (label, n) => { const ok = have >= n; return '<div class="evreq' + (ok ? ' ok' : '') + '"><span class="er-l">' + (ok ? '✓ ' : SPR.img('icon_lock', 1)) + label + '</span><span class="er-s">' + esc(stageReq(n).replace('Clear stage', 'Stage')) + '</span>' + bar(Math.min(1, have / n), 'er-bar') + '<b class="num">' + Math.min(have, n) + ' / ' + n + '</b></div>'; };
+    let h = '<p class="muted">' + esc(E.desc) + '</p><div class="evreqs">' + row(esc(E.name) + ' opens', E.unlock);
+    for (let l = 0; l < 5; l++) h += row('Level ' + (l + 1) + ': ' + rewardText(AW.eventDef(id, l).rewards), Math.max(E.unlock, AW.EVENT_LEVELS[l].need));
+    h += '</div><p class="muted">Story stages cleared count on Normal. You have cleared <b>' + have + '</b>. Each event has ' + E.entries + ' entries a day once open.</p>';
+    openModal('How to unlock ' + E.name, h, [['Go to the map', 'green', () => { closeModal(); openPanel('map'); }]]);
   }
 
   // --- Tower ----------------------------------------------------------------------

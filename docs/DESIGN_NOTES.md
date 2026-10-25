@@ -148,3 +148,11 @@ The owner asked for landscape-only play on mobile, a AAA-standard UI pass, bette
 - **Scale:** the interface draws at 82% on phones and short windows (74% below 420 px tall), and menu windows keep a margin from the screen edges with a slimmer header. Lab and Medal cards are compact.
 - **Store art:** covers are key art composed from the game's sprites and paintings on one pixel grid (`tools/keyart.html`); the landscape and portrait preview videos open and close on it around a staged boss battle.
 - **SDK:** loading and gameplay start/stop calls made before the CrazyGames SDK finished `init()` are now replayed as current state once it is ready, and a loading stop is never sent without its start.
+
+## Version 1.6.1: Gloom redraw, trailer, menus
+
+- **Gloom sprites redrawn as creatures:** all 39 Gloom body types are painted with anatomy and props instead of plain shapes: limbs, claws, fangs, cloth robes with folds and ragged hems, armour plates, weapons and glowing eyes. New painter tools: `poly` (filled polygons), `robe`, `claws` and `fangs`. The lighting pass and the coloured outline from 1.6 sit on top.
+- **Trailer:** a fast montage of hard cuts with no fades, the interface drawn at 72% so the battle fills the frame, and a vibrance grade. Covers have no text.
+- **Pause menu:** the settings card is gone; settings stay on the home screen's gear button.
+- **Events:** tapping a locked event opens how to unlock it: the stage that opens it and the stage each of its five levels needs, with progress bars and what each level pays.
+- **Rewards:** the Prizes button is now called Rewards, and the home nav buttons are a little wider so its label keeps full size.

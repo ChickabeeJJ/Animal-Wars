@@ -571,7 +571,7 @@
       '<div class="pstats">' + stat('clock', mmss(t), 'time') + stat('skull', b.stats.kills, 'defeated') + stat('army', b.stats.deploys, 'sent') + stat('tower', Math.round(b.enemy.hp / b.enemy.max * 100) + '%', 'Gloom tower') + '</div>' +
       (goals.length ? '<div class="goals pgoals">' + goals.map((g) => '<div><img class="px" src="' + SPR.url(g[1] === false ? 'icon_starOff' : 'icon_star') + '" alt=""> <span class="' + (g[1] === false ? 'off' : '') + '">' + esc(g[0]) + '</span></div>').join('') + '</div>' : '') + '</div>';
     h += '<div class="sw-card fx-card">' + head('skull', 'Gloom here') + '<div class="pfoes">' + foesOf(def).map((f) => { const e = AW.ENEMY[f.id], known = state.seen[f.id] || b.seen[f.id]; return '<span class="pf' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(e.name) : '???') + '">' + enemyFit(f.id, 40, 30, known ? '' : 'unk') + (known ? elIcon(e.el, 1, 'pfe') : '') + '</span>'; }).join('') + '</div>' + synergyHtml(state.lineup) + '</div></div>';
-    return h + '<div class="sw-card fx-card">' + head('gear', 'Settings') + '<div class="pset">' + settingsToggles() + '</div></div>';
+    return h;
   }
   function pause(on) {
     if (!battle || ended) return;
@@ -581,7 +581,6 @@
       openModal('Paused', pauseHtml(),
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
         () => { paused = false; PF.gameplayStart(); }, false, 'paused');
-      bindToggles();
     }
   }
   function quitBattle() {
@@ -1398,7 +1397,7 @@
     let h = '<p class="panel-note">Entries refill every day at midnight.</p>';
     for (const E of CT.EVENTS) {
       const left = AW.eventEntriesLeft(state, E.id), open = AW.eventOpen(state, E.id, 0);
-      h += '<div class="tile fx-card"><div class="mapview" data-art="320x48" style="height:140px;background-image:url(' + R.themeArt(E.theme, 320, 48, false, 160) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' ' + E.unlock + ' stages') + '</div></div><p class="muted">' + esc(E.desc) + '</p>';
+      h += '<div class="tile fx-card' + (open ? '' : ' ev-locked') + '"' + (open ? '' : ' data-evlock="' + E.id + '" role="button" tabindex="0"') + '><div class="mapview" data-art="320x48" style="height:140px;background-image:url(' + R.themeArt(E.theme, 320, 48, false, 160) + ')"><div class="mv-title">' + title(E.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + (open ? left + ' / ' + E.entries + ' entries' : SPR.img('icon_lock', 1) + ' Unlocks at ' + stageReq(E.unlock).replace('Clear stage ', '')) + '</div></div><p class="muted">' + esc(E.desc) + (open ? '' : ' <b class="evhint">Tap to see how to unlock it.</b>') + '</p>';
       if (open) {
         h += '<div class="evls">';
         for (let l = 0; l < 5; l++) {
@@ -1412,10 +1411,20 @@
     el.innerHTML = h;
     on(el, '[data-ev]', (b) => {
       const id = b.getAttribute('data-ev'), l = Number(b.getAttribute('data-lv'));
-      if (!AW.eventOpen(state, id, l)) { lockTip(b, 'Clear ' + Math.max(AW.EVENT[id].unlock, AW.EVENT_LEVELS[l].need) + ' story stages to unlock'); return; }
+      if (!AW.eventOpen(state, id, l)) { const n = Math.max(AW.EVENT[id].unlock, AW.EVENT_LEVELS[l].need); lockTip(b, stageReq(n) + ' to unlock Level ' + (l + 1) + ' (' + AW.storyCleared(state) + ' / ' + n + ' story stages cleared)'); return; }
       if (AW.eventEntriesLeft(state, id) <= 0) { toast('No entries left today. Come back tomorrow!', 'pink'); return; }
       openStage(AW.eventDef(id, l));
     });
+    on(el, '[data-evlock]', (b) => eventUnlockInfo(b.getAttribute('data-evlock')));
+  }
+  // What a locked event needs: the event itself, then each of its five levels, with progress.
+  function eventUnlockInfo(id) {
+    const E = AW.EVENT[id], have = AW.storyCleared(state);
+    const row = (label, n) => { const ok = have >= n; return '<div class="evreq' + (ok ? ' ok' : '') + '"><span class="er-l">' + (ok ? '✓ ' : SPR.img('icon_lock', 1)) + label + '</span><span class="er-s">' + esc(stageReq(n).replace('Clear stage', 'Stage')) + '</span>' + bar(Math.min(1, have / n), 'er-bar') + '<b class="num">' + Math.min(have, n) + ' / ' + n + '</b></div>'; };
+    let h = '<p class="muted">' + esc(E.desc) + '</p><div class="evreqs">' + row(esc(E.name) + ' opens', E.unlock);
+    for (let l = 0; l < 5; l++) h += row('Level ' + (l + 1) + ': ' + rewardText(AW.eventDef(id, l).rewards), Math.max(E.unlock, AW.EVENT_LEVELS[l].need));
+    h += '</div><p class="muted">Story stages cleared count on Normal. You have cleared <b>' + have + '</b>. Each event has ' + E.entries + ' entries a day once open.</p>';
+    openModal('How to unlock ' + E.name, h, [['Go to the map', 'green', () => { closeModal(); openPanel('map'); }]]);
   }
 
   // --- Tower ----------------------------------------------------------------------

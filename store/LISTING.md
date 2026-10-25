@@ -7,10 +7,10 @@
 | Landscape cover | `cover-landscape-1920x1080.png` | 1920×1080 |
 | Portrait cover | `cover-portrait-800x1200.png` | 800×1200 |
 | Square cover | `cover-square-800x800.png` | 800×800 |
-| Landscape preview video | `preview-landscape-1920x1080.mp4` | 1920×1080, about 20 s, H.264, no audio |
-| Portrait preview video | `preview-portrait-1080x1920.mp4` | 1080×1920, about 20 s, H.264, no audio |
+| Landscape preview video | `preview-landscape-1920x1080.mp4` | 1920×1080, about 24 s, H.264, no audio |
+| Portrait preview video | `preview-portrait-1080x1920.mp4` | 1080×1920, about 24 s, H.264, no audio |
 
-Check these against the current requirements in the Developer Portal before uploading. Covers are key art composed from the game's own sprites and paintings on one pixel grid (`tools/keyart.html`, rendered by `npm run covers`). The videos come from `node tools/preview.js`: a key-art opening, a real boss battle scaled 2× with sharp pixels, and a key-art close; the portrait video frames the same battle inside the portrait key art (the game itself is landscape only on phones).
+Check these against the current requirements in the Developer Portal before uploading. The three covers carry no text or logo: key art composed from the game's own sprites and paintings on one pixel grid, with the hamster crest in place of the logo (`tools/keyart.html?logo=0`, rendered by `npm run covers`). The videos come from `node tools/preview.js`: a fast montage of hard cuts (no fades) through six lands, bosses and a Legend hatch, recorded from real gameplay with the interface drawn smaller and the colour graded for extra vibrance, closing on a short key-art beat; the portrait video frames the same montage inside the portrait key art (the game itself is landscape only on phones).
 
 ## Category
 

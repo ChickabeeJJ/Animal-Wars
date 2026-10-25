@@ -184,7 +184,7 @@ img.px { display: inline-block; vertical-align: middle; }
   background: linear-gradient(180deg, transparent 0 22px, #2a160c 22px 25px, #c08a52 25px 28px, #9a6438 28px 52px, #7a4a28 52px 54px, #9a6438 54px 78px, #6a3e22 78px); pointer-events: none; }
 .actionbar > * { pointer-events: auto; }
 .nav { display: flex; gap: 8px; align-items: flex-end; }
-.nb { position: relative; width: 108px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
+.nb { position: relative; width: 116px; height: 76px; flex-direction: column; gap: 3px; padding: 0; }
 .nb .ni img.px { width: 32px; height: 32px; display: block; }
 .nb .nl img.ptxt { display: block; }
 .nb #hatch-egg img.px { animation: wob 900ms steps(2) infinite; }
@@ -1176,3 +1176,14 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
 .lfx .bt2 { min-height: 38px; min-width: 92px; padding: 0 12px; }
 .lhead .tiers img.px { width: 14px; height: 14px; }
 .labg { align-items: start; } .lfx { min-height: 36px; } .lfx .bt2 { min-height: 34px; }
+/* Event unlock requirements */
+.tile.ev-locked { cursor: pointer; }
+.tile.ev-locked .mapview { filter: grayscale(.6) brightness(.8); }
+.evhint { color: #c03040; }
+.evreqs { display: flex; flex-direction: column; gap: 6px; }
+.evreq { display: grid; grid-template-columns: minmax(0, 1.6fr) auto minmax(60px, 1fr) auto; align-items: center; gap: 8px; padding: 5px 8px; font-size: 13px; background: rgba(42, 22, 12, .07); box-shadow: inset 0 0 0 1px rgba(42, 22, 12, .15); }
+.evreq.ok { background: rgba(46, 154, 58, .12); }
+.evreq .er-l { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.evreq .er-s { font-size: 11px; color: #8a6a48; }
+.evreq .er-bar { height: auto; }
+.evreq .er-bar i { display: block; height: 6px; background: linear-gradient(180deg, #c8f0a0, #5ac54f); }
