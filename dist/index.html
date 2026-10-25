@@ -1108,6 +1108,58 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   .hsum { grid-template-columns: repeat(5, 76px); gap: 6px; } .hs-in { height: 74px; } .hs-in .hi img.px { max-height: 38px; width: auto; } .hs-in .hn { font-size: 9px; }
 }
 .pt img.px { max-width: 48px; height: auto; }
+
+/* Hatchery side panel (v1.5.2) */
+.hm-side { gap: 10px; }
+.hs-head { display: flex; align-items: center; gap: 10px; }
+.hs-head .hs-egg { flex: 0 0 auto; filter: drop-shadow(0 0 8px rgba(255, 220, 120, .55)); animation: eggBob 1.6s steps(4) infinite; }
+.hm-side.element .hs-egg { filter: drop-shadow(0 0 8px rgba(168, 132, 243, .7)); } .hm-side.silver .hs-egg { filter: drop-shadow(0 0 8px rgba(140, 240, 200, .6)); }
+.hs-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hs-t p { margin: 0; font-size: 12px; line-height: 1.4; color: #d8cce8; text-shadow: 1px 1px 0 var(--ink); }
+.hs-odds { display: flex; gap: 3px; }
+.hs-odds .oc { min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 3px 2px 4px; color: #fff; text-shadow: 1px 1px 0 var(--ink); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .35), inset 0 2px 0 rgba(255, 255, 255, .25); }
+.hs-odds .oc b { font-size: 14px; line-height: 1.1; } .hs-odds .oc span { font-size: 10px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.hs-odds .r1 { background: #2f6fc8; } .hs-odds .r2 { background: #7048c8; } .hs-odds .r3 { background: #c88a10; } .hs-odds .r4 { background: #c83a90; }
+.hs-meters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hs-meter { padding: 6px 8px; background: rgba(0, 0, 0, .28); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08); color: #fff; }
+.hs-meter .hm-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; color: var(--butter); text-shadow: 1px 1px 0 var(--ink); }
+.hs-meter.lg .hm-top { color: #ff9fd8; }
+.hs-meter .hm-top b { font-size: 18px; color: #fff; }
+.hs-meter .segs { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; margin: 4px 0 3px; }
+.hs-meter .segs i { height: 8px; background: rgba(255, 255, 255, .12); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .3); }
+.hs-meter.my .segs i.on { background: #ffc23d; } .hs-meter.lg .segs i.on { background: #ff6fd0; }
+.hs-meter small { font-size: 10px; color: #b8a8d8; }
+.hs-note { display: flex; gap: 8px; align-items: center; padding: 6px 8px; font-size: 12px; line-height: 1.35; color: #e8dcf8; background: rgba(0, 0, 0, .25); }
+.hs-note img.px { width: 20px; height: 20px; flex: 0 0 auto; }
+.hs-free { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px; text-align: left; color: #fff; background: linear-gradient(#2e8a5a, #1c5a3c); box-shadow: inset 0 0 0 2px #0b0b16, inset 0 2px 0 rgba(255, 255, 255, .25), 0 3px 0 #0b0b16; cursor: pointer; }
+.hs-free[disabled] { cursor: default; background: linear-gradient(#2a3a4a, #1a2430); }
+.hs-free .hf-t { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hs-free b { font-size: 14px; text-shadow: 1px 1px 0 var(--ink); } .hs-free small { font-size: 11px; color: #cfe8dc; }
+.hf-bar { height: 8px; background: rgba(0, 0, 0, .4); box-shadow: 0 0 0 1px rgba(0, 0, 0, .5); } .hf-bar i { display: block; height: 100%; background: linear-gradient(90deg, #a7f070, #5ac54f); }
+.hs-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.hs-buy { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; min-height: 118px; padding: 12px 6px 8px; color: #fff; cursor: pointer; box-shadow: inset 0 0 0 2px #0b0b16, inset 0 3px 0 rgba(255, 255, 255, .3), inset 0 -6px 0 rgba(0, 0, 0, .25), 0 4px 0 #0b0b16; transition: transform 60ms; }
+.hs-buy:active { transform: translateY(2px); }
+.hs-buy.n1 { background: linear-gradient(#e85aa8, #b0307a); }
+.hm-side.element .hs-buy.n1 { background: linear-gradient(#4a7ae0, #2a4aa0); } .hm-side.silver .hs-buy.n1 { background: linear-gradient(#3a9ae0, #1e62a8); }
+.hs-buy.n10 { background: linear-gradient(#ffd24a, #d0901a); }
+.hs-buy .art { height: 48px; display: flex; align-items: flex-end; justify-content: center; }
+.hs-buy .art img.px { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .35)); }
+.hs-buy .stack { display: flex; align-items: flex-end; } .hs-buy .stack img.px:nth-child(2) { margin: 0 -10px; position: relative; z-index: 1; transform: translateY(-6px); }
+.hs-buy .price { display: inline-flex; align-items: center; gap: 4px; padding: 1px 10px 1px 4px; background: rgba(11, 11, 22, .72); box-shadow: 0 0 0 2px rgba(0, 0, 0, .3); font-size: 14px; font-weight: 700; }
+.hs-buy .price img.px { width: 20px; height: 20px; }
+.hs-buy.poor .price b { color: #ff8a8a; }
+.hs-buy .tag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 700; padding: 1px 6px; background: #c03040; box-shadow: 0 0 0 2px var(--ink); }
+.hs-wallet { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 4px; font-size: 12px; color: #b8a8d8; }
+.hs-wallet .wp { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 3px; background: rgba(0, 0, 0, .35); color: #fff; font-weight: 700; }
+.hs-wallet .wp img.px { width: 18px; height: 18px; }
+@media (max-height: 520px) {
+  .hs-head p, .hs-meter small { display: none; }
+  .hs-odds .oc span { display: none; } .hs-odds .oc b { font-size: 11px; }
+  .hs-meter { padding: 3px 6px; } .hs-meter .hm-top b { font-size: 13px; }
+  .hs-buy { min-height: 84px; padding: 9px 4px 5px; gap: 3px; } .hs-buy .art { height: 30px; } .hs-buy .art img.px { width: 20px; height: 24px; }
+  .hs-free { padding: 4px 6px; } .hs-free small { display: none; }
+}
+@media (max-height: 520px) { .hs-btns { gap: 6px; } .hs-buy { min-width: 0; overflow: visible; } .hs-buy .tag { font-size: 8px; padding: 0 4px; } .hs-buy .price { font-size: 12px; padding: 0 6px 0 2px; } .hs-buy .price img.px { width: 16px; height: 16px; } }
 </style>
 </head>
 <body>
@@ -7275,22 +7327,36 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     h += '<div class="hm-show ' + tab + '"' + (tab === 'element' ? ' style="--ec:' + E.color + '"' : '') + '><i class="hm-rays"></i><i class="hm-motes"></i>' + ends +
       (sc.ids[2] ? stand(sc.ids[2], 'c2') : '') + (sc.ids[0] ? stand(sc.ids[0], 'l') : '') +
       '<span class="hm-nest">' + SPR.img('egg_' + eggR, 6, 'hm-egg') + SPR.img('nest', 3, 'hm-straw') + '</span>' + (sc.ids[1] ? stand(sc.ids[1], 'r') : '') + '</div>';
-    // Side panel.
-    const pityRow = (lab, n, max, cls) => '<div class="prow"><span>' + lab + '</span>' + bar(n / max, 'pbar ' + cls) + '<b class="num">' + (max - n) + ' left</b></div>';
-    h += '<div class="hm-side fx-windark">' + title(B.name, innerHeight <= 520 ? 2 : 3, tab === 'royal' ? 'gold' : tab === 'silver' ? 'green' : 'cream') + '<p>' + esc(B.desc) + '</p>';
-    if (tab === 'element') h += '<div class="hm-el">' + elChip(dEl) + '<span>Strong vs</span>' + E.strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted2">· tomorrow: ' + CT.ELEMENTS[AW.dayElement(day + 1)].name + '</span></div>';
-    h += oddsBar(B);
-    if (B.pity) h += '<div class="pity">' + pityRow('Mythic+', state.gacha.sinceMythic, B.pity.mythic, 'my') + pityRow('Legend', state.gacha.sinceLegend, B.pity.legend, 'lg') + '</div>';
-    h += '<div class="bn-btns">';
+    // Side panel: egg and title, the odds as rarity cells, pity meters (or the free egg timer), two equal hatch
+    // tiles (×1 and ×10) with their price, and what you have to spend.
+    const small = innerHeight <= 520;
+    h += '<div class="hm-side fx-windark ' + tab + '"><div class="hs-head">' + SPR.img('egg_' + eggR, small ? 2 : 3, 'hs-egg') + '<div class="hs-t">' + title(B.name, small || B.name.length > 12 ? 2 : 3, tab === 'royal' ? 'gold' : tab === 'silver' ? 'green' : 'cream') + '<p>' + esc(B.desc) + '</p></div></div>';
+    if (tab === 'element') h += '<div class="hm-el">' + elChip(dEl) + '<span>beats</span>' + E.strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted2">Tomorrow: ' + CT.ELEMENTS[AW.dayElement(day + 1)].name + '</span></div>';
+    const rs = [1, 2, 3, 4].filter((r) => B.rates[r]);
+    h += '<div class="hs-odds">' + rs.map((r) => '<div class="oc r' + r + '" style="flex:' + Math.max(B.rates[r], 20) + '"><b class="num">' + B.rates[r] + '%</b><span>' + rarityName(r) + '</span></div>').join('') + '</div>';
+    const meter = (lab, n, max, cls) => {
+      const left = max - n, seg = 12, on = Math.round(n / max * seg);
+      return '<div class="hs-meter ' + cls + '"><div class="hm-top"><span>' + lab + '</span><b class="num">' + left + '</b></div><div class="segs">' + Array.from({ length: seg }, (_, i) => '<i' + (i < on ? ' class="on"' : '') + '></i>').join('') + '</div><small>hatches until it is certain</small></div>';
+    };
+    if (B.pity) h += '<div class="hs-meters">' + meter('Mythic+', state.gacha.sinceMythic, B.pity.mythic, 'my') + meter('Legend', state.gacha.sinceLegend, B.pity.legend, 'lg') + '</div>';
+    else if (tab === 'element') h += '<div class="hs-note">' + icon('star') + '<span>Build a synergy team: 3 heroes of one element give +10% health and attack, 5 give +20%.</span></div>';
     if (tab === 'silver') {
-      h += '<button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
-        '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="1">×1 ' + icon('silver') + '1</button><button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button>';
-    } else {
-      const pay1 = state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + B.cost, pay10 = state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + B.cost10;
-      h += '<button type="button" class="bt2 fx-btn-' + (tab === 'royal' ? 'pink' : 'blue') + '" data-hatch="' + tab + '" data-n="1">×1 ' + pay1 + '</button>' +
-        '<button type="button" class="bt2 lg fx-btn-gold tagged" data-hatch="' + tab + '" data-n="10">×10 ' + pay10 + '<span class="btag nopix">Epic+ inside · save 10%</span></button>';
+      const total = AW.CONFIG.freeEggHours * 3600000, left = Math.max(0, state.gacha.freeAt - t), frac = silverFree ? 1 : 1 - left / total;
+      h += '<button type="button" class="hs-free nopix' + (silverFree ? ' ready pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + SPR.img('egg_1', 2) + '<span class="hf-t"><b>' + (silverFree ? 'Free egg ready!' : 'Next free egg') + '</b><span class="hf-bar"><i style="width:' + Math.round(frac * 100) + '%"></i></span><small>' + (silverFree ? 'Tap to hatch it' : 'in ' + timeLeft(left) + ' · one every ' + AW.CONFIG.freeEggHours + ' hours') + '</small></span></button>';
     }
-    h += '</div><div class="have">You have ' + (tab === 'silver' ? icon('silver') + '<b>' + state.tickets.silver + '</b> Silver Eggs · a free one every 4 hours' : icon('gem') + '<b>' + fmt(state.gems) + '</b> ' + icon('gold') + '<b>' + state.tickets.gold + '</b>') + '</div></div></div>';
+    // Hatch tiles.
+    const tile = (n) => {
+      let cost, cur, can;
+      if (tab === 'silver') { cost = n; cur = 'silver'; can = state.tickets.silver >= n; }
+      else if (state.tickets.gold >= n) { cost = n; cur = 'gold'; can = true; }
+      else { cost = n >= 10 ? B.cost10 : B.cost; cur = 'gem'; can = state.gems >= cost; }
+      const eggs = n >= 10 ? '<span class="stack">' + SPR.img('egg_' + eggR, 2) + SPR.img('egg_' + eggR, 2) + SPR.img('egg_' + eggR, 2) + '</span>' : SPR.img('egg_' + eggR, 2);
+      return '<button type="button" class="hs-buy nopix n' + n + (can ? '' : ' poor') + '" data-hatch="' + tab + '" data-n="' + n + '">' + (n >= 10 ? '<span class="tag">EPIC+ INSIDE' + (tab === 'silver' ? '' : ' · −10%') + '</span>' : '') +
+        '<span class="art">' + eggs + '</span>' + title('Hatch ×' + n, small ? 1 : 2, 'cream') + '<span class="price">' + icon(cur) + '<b class="num">' + fmt(cost) + '</b></span></button>';
+    };
+    h += '<div class="hs-btns">' + tile(1) + tile(10) + '</div>';
+    const pill = (k, v, lab) => '<span class="wp" title="' + lab + '">' + icon(k) + '<b class="num">' + v + '</b></span>';
+    h += '<div class="hs-wallet"><span>You have</span>' + (tab === 'silver' ? pill('silver', state.tickets.silver, 'Silver Eggs') : pill('gem', fmt(state.gems), 'Gems') + pill('gold', state.tickets.gold, 'Gold Eggs: used first')) + '</div></div></div>';
     // Pool strip.
     const pool = AW.bannerPool(tab, day), got = pool.filter((id) => state.heroes[id]).length;
     h += '<div class="hm-pool fx-inset"><div class="hp-h">' + icon('nest') + '<b>In this nest</b><span>' + got + ' / ' + pool.length + ' owned</span></div><div class="hp-strip">' +

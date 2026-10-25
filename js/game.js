@@ -986,22 +986,36 @@
     h += '<div class="hm-show ' + tab + '"' + (tab === 'element' ? ' style="--ec:' + E.color + '"' : '') + '><i class="hm-rays"></i><i class="hm-motes"></i>' + ends +
       (sc.ids[2] ? stand(sc.ids[2], 'c2') : '') + (sc.ids[0] ? stand(sc.ids[0], 'l') : '') +
       '<span class="hm-nest">' + SPR.img('egg_' + eggR, 6, 'hm-egg') + SPR.img('nest', 3, 'hm-straw') + '</span>' + (sc.ids[1] ? stand(sc.ids[1], 'r') : '') + '</div>';
-    // Side panel.
-    const pityRow = (lab, n, max, cls) => '<div class="prow"><span>' + lab + '</span>' + bar(n / max, 'pbar ' + cls) + '<b class="num">' + (max - n) + ' left</b></div>';
-    h += '<div class="hm-side fx-windark">' + title(B.name, innerHeight <= 520 ? 2 : 3, tab === 'royal' ? 'gold' : tab === 'silver' ? 'green' : 'cream') + '<p>' + esc(B.desc) + '</p>';
-    if (tab === 'element') h += '<div class="hm-el">' + elChip(dEl) + '<span>Strong vs</span>' + E.strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted2">· tomorrow: ' + CT.ELEMENTS[AW.dayElement(day + 1)].name + '</span></div>';
-    h += oddsBar(B);
-    if (B.pity) h += '<div class="pity">' + pityRow('Mythic+', state.gacha.sinceMythic, B.pity.mythic, 'my') + pityRow('Legend', state.gacha.sinceLegend, B.pity.legend, 'lg') + '</div>';
-    h += '<div class="bn-btns">';
+    // Side panel: egg and title, the odds as rarity cells, pity meters (or the free egg timer), two equal hatch
+    // tiles (×1 and ×10) with their price, and what you have to spend.
+    const small = innerHeight <= 520;
+    h += '<div class="hm-side fx-windark ' + tab + '"><div class="hs-head">' + SPR.img('egg_' + eggR, small ? 2 : 3, 'hs-egg') + '<div class="hs-t">' + title(B.name, small || B.name.length > 12 ? 2 : 3, tab === 'royal' ? 'gold' : tab === 'silver' ? 'green' : 'cream') + '<p>' + esc(B.desc) + '</p></div></div>';
+    if (tab === 'element') h += '<div class="hm-el">' + elChip(dEl) + '<span>beats</span>' + E.strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted2">Tomorrow: ' + CT.ELEMENTS[AW.dayElement(day + 1)].name + '</span></div>';
+    const rs = [1, 2, 3, 4].filter((r) => B.rates[r]);
+    h += '<div class="hs-odds">' + rs.map((r) => '<div class="oc r' + r + '" style="flex:' + Math.max(B.rates[r], 20) + '"><b class="num">' + B.rates[r] + '%</b><span>' + rarityName(r) + '</span></div>').join('') + '</div>';
+    const meter = (lab, n, max, cls) => {
+      const left = max - n, seg = 12, on = Math.round(n / max * seg);
+      return '<div class="hs-meter ' + cls + '"><div class="hm-top"><span>' + lab + '</span><b class="num">' + left + '</b></div><div class="segs">' + Array.from({ length: seg }, (_, i) => '<i' + (i < on ? ' class="on"' : '') + '></i>').join('') + '</div><small>hatches until it is certain</small></div>';
+    };
+    if (B.pity) h += '<div class="hs-meters">' + meter('Mythic+', state.gacha.sinceMythic, B.pity.mythic, 'my') + meter('Legend', state.gacha.sinceLegend, B.pity.legend, 'lg') + '</div>';
+    else if (tab === 'element') h += '<div class="hs-note">' + icon('star') + '<span>Build a synergy team: 3 heroes of one element give +10% health and attack, 5 give +20%.</span></div>';
     if (tab === 'silver') {
-      h += '<button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
-        '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="1">×1 ' + icon('silver') + '1</button><button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button>';
-    } else {
-      const pay1 = state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + B.cost, pay10 = state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + B.cost10;
-      h += '<button type="button" class="bt2 fx-btn-' + (tab === 'royal' ? 'pink' : 'blue') + '" data-hatch="' + tab + '" data-n="1">×1 ' + pay1 + '</button>' +
-        '<button type="button" class="bt2 lg fx-btn-gold tagged" data-hatch="' + tab + '" data-n="10">×10 ' + pay10 + '<span class="btag nopix">Epic+ inside · save 10%</span></button>';
+      const total = AW.CONFIG.freeEggHours * 3600000, left = Math.max(0, state.gacha.freeAt - t), frac = silverFree ? 1 : 1 - left / total;
+      h += '<button type="button" class="hs-free nopix' + (silverFree ? ' ready pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + SPR.img('egg_1', 2) + '<span class="hf-t"><b>' + (silverFree ? 'Free egg ready!' : 'Next free egg') + '</b><span class="hf-bar"><i style="width:' + Math.round(frac * 100) + '%"></i></span><small>' + (silverFree ? 'Tap to hatch it' : 'in ' + timeLeft(left) + ' · one every ' + AW.CONFIG.freeEggHours + ' hours') + '</small></span></button>';
     }
-    h += '</div><div class="have">You have ' + (tab === 'silver' ? icon('silver') + '<b>' + state.tickets.silver + '</b> Silver Eggs · a free one every 4 hours' : icon('gem') + '<b>' + fmt(state.gems) + '</b> ' + icon('gold') + '<b>' + state.tickets.gold + '</b>') + '</div></div></div>';
+    // Hatch tiles.
+    const tile = (n) => {
+      let cost, cur, can;
+      if (tab === 'silver') { cost = n; cur = 'silver'; can = state.tickets.silver >= n; }
+      else if (state.tickets.gold >= n) { cost = n; cur = 'gold'; can = true; }
+      else { cost = n >= 10 ? B.cost10 : B.cost; cur = 'gem'; can = state.gems >= cost; }
+      const eggs = n >= 10 ? '<span class="stack">' + SPR.img('egg_' + eggR, 2) + SPR.img('egg_' + eggR, 2) + SPR.img('egg_' + eggR, 2) + '</span>' : SPR.img('egg_' + eggR, 2);
+      return '<button type="button" class="hs-buy nopix n' + n + (can ? '' : ' poor') + '" data-hatch="' + tab + '" data-n="' + n + '">' + (n >= 10 ? '<span class="tag">EPIC+ INSIDE' + (tab === 'silver' ? '' : ' · −10%') + '</span>' : '') +
+        '<span class="art">' + eggs + '</span>' + title('Hatch ×' + n, small ? 1 : 2, 'cream') + '<span class="price">' + icon(cur) + '<b class="num">' + fmt(cost) + '</b></span></button>';
+    };
+    h += '<div class="hs-btns">' + tile(1) + tile(10) + '</div>';
+    const pill = (k, v, lab) => '<span class="wp" title="' + lab + '">' + icon(k) + '<b class="num">' + v + '</b></span>';
+    h += '<div class="hs-wallet"><span>You have</span>' + (tab === 'silver' ? pill('silver', state.tickets.silver, 'Silver Eggs') : pill('gem', fmt(state.gems), 'Gems') + pill('gold', state.tickets.gold, 'Gold Eggs: used first')) + '</div></div></div>';
     // Pool strip.
     const pool = AW.bannerPool(tab, day), got = pool.filter((id) => state.heroes[id]).length;
     h += '<div class="hm-pool fx-inset"><div class="hp-h">' + icon('nest') + '<b>In this nest</b><span>' + got + ' / ' + pool.length + ' owned</span></div><div class="hp-strip">' +

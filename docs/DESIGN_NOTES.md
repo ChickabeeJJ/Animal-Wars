@@ -132,3 +132,7 @@ The owner asked for landscape-only play on mobile, a AAA-standard UI pass, bette
 
 - **No more black outlines:** every hero and Gloom sprite now has a selective outline. Each edge pixel is a darker shade of the colour it borders, tinted toward a deep plum (heroes) or wine (Gloom) rather than black, and lit from the top left: top edges are lightest, then left, right and the bottom edge (darkest), with a slightly firmer edge on light colours so they read against bright skies. Third forms keep their rarity-tinted outline.
 - **Closed outlines:** sprite canvases now get a 1-pixel margin before outlining, so feet on the ground line and weapons, ears or capes that reached the canvas edge are outlined all the way round.
+
+## Version 1.5.2: Hatchery side panel
+
+- Rebuilt the panel beside each nest: the nest's egg next to its title and description; the odds as coloured rarity cells with percentages; pity as two meter cards (hatches left until a Mythic+ or a Legend is certain, on a 12-segment gauge) instead of thin, empty-looking bars; for the Elemental Nest the day's element, what it beats, tomorrow's element and a synergy tip; for the Meadow Nest a free-egg card with a countdown bar. The hatch buttons are now two equal tiles (×1 with one egg, ×10 with a stack and an "Epic+ inside" tag) showing the price, in red when you cannot afford it, and Gold Eggs are used first. What you have to spend sits in pills at the bottom.
