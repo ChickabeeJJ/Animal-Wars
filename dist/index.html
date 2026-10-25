@@ -1160,6 +1160,33 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   .hs-free { padding: 4px 6px; } .hs-free small { display: none; }
 }
 @media (max-height: 520px) { .hs-btns { gap: 6px; } .hs-buy { min-width: 0; overflow: visible; } .hs-buy .tag { font-size: 8px; padding: 0 4px; } .hs-buy .price { font-size: 12px; padding: 0 6px 0 2px; } .hs-buy .price img.px { width: 16px; height: 16px; } }
+
+/* v1.6: interface scale on small screens, and menu windows that keep clear of the screen edges */
+:root { --ui-z: 1; }
+@media (max-height: 560px), (max-width: 760px) { :root { --ui-z: .82; } }
+@media (max-height: 420px) { :root { --ui-z: .74; } }
+#home, #panel > .window, .modal-box, #bhud, #dock, .h-pips, .h-stage, .h-info, .h-btns, .h-callout, #tut, #locktip { zoom: var(--ui-z); }
+.wrap { padding: max(34px, 6vh) max(14px, 4vw) max(16px, 4vh); }
+.window { width: min(1120px, 100%); }
+.w-head { min-height: 46px; padding-bottom: 6px; }
+.w-head .sq { width: 46px; height: 44px; }
+.w-body { padding: 6px 8px 12px; gap: 12px; }
+@media (max-height: 560px) { .wrap { padding: 30px 12px 10px; } }
+/* Horizontal strips can be dragged with the mouse. */
+.hscroll-drag { cursor: grabbing !important; }
+.hscroll-drag * { pointer-events: none; }
+/* Compact Lab and Medal cards */
+.labg { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+.lr { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; padding: 6px 8px 7px 6px; }
+.lr .li { width: 48px; height: 48px; }
+.lr .li img.px { width: 28px; height: 28px; }
+.lmain { gap: 4px; }
+.lr .lx { min-height: 0; }
+.lbar { height: 8px; }
+.lfx { margin-top: 0; }
+.lfx .bt2 { min-height: 38px; min-width: 92px; padding: 0 12px; }
+.lhead .tiers img.px { width: 14px; height: 14px; }
+.labg { align-items: start; } .lfx { min-height: 36px; } .lfx .bt2 { min-height: 34px; }
 </style>
 </head>
 <body>
@@ -1666,6 +1693,18 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     }
   });
 
+  // Balance pass: every hero gets the same value for its acorns within a rarity, with only a small premium for
+  // higher rarities (they are bigger and dearer, not a better deal). Value is health × damage per second per
+  // acorn², worth more for area attacks and reach. Health and attack are scaled together so each hero keeps its
+  // shape (tank, glass cannon...), and abilities are untouched.
+  const VALUE = (h) => h.hp * h.atk / h.rate / (h.cost * h.cost) * (h.area ? 1.4 : 1) * (1 + h.rng / 120);
+  const PREMIUM = [1, 1, 1.05, 1.1, 1.15], BASE_VALUE = 0.072;
+  HEROES.forEach((h) => {
+    const k = Math.sqrt(BASE_VALUE * PREMIUM[h.rarity] / VALUE(h));
+    h.hp = Math.max(40, Math.round(h.hp * k / 10) * 10);
+    h.atk = Math.max(1, Math.round(h.atk * k));
+  });
+
   // New Gloom: eight new kinds (two each), eight returning kinds in new colours, and sixteen bosses for chapters 2 and 3.
   const ENEMY_EL = { gloop: 'shadow', grubby: 'thorn', bonkle: 'shadow', flapper: 'storm', grumbo: 'stone', gloomking: 'shadow', clank: 'stone', scorpo: 'ember', sandmaw: 'stone',
     boo: 'moon', wisp: 'frost', snowgrump: 'frost', yeti: 'frost', shroomy: 'thorn', sludge: 'tide', toadlord: 'tide', baghag: 'thorn', cinder: 'ember', ghoulie: 'shadow',
@@ -1773,82 +1812,82 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   const T = {
   mag: [
     [
-      [0.603, 0.213, 0.19, 0.296, 0.338, 0.171, 0.377, 1.143, 1.236, 0.745, 1.701, 0.393],
-      [4.628, 1.019, 0.578, 0.509, 0.417, 0.287, 0.415, 0.554, 0.74, 0.531, 0.641, 0.348],
-      [2.61, 1.185, 0.892, 0.541, 0.599, 0.377, 0.554, 0.989, 1.221, 1.057, 1.228, 0.494],
-      [3.262, 0.745, 1.095, 0.509, 0.342, 0.258, 0.435, 0.554, 0.697, 0.614, 0.633, 0.42],
-      [2.014, 0.892, 0.931, 0.805, 0.519, 0.465, 0.714, 0.684, 0.701, 0.84, 0.607, 0.37],
-      [2.772, 1.753, 0.614, 1.038, 0.672, 0.488, 0.768, 0.856, 0.585, 0.84, 1.573, 0.538],
-      [2.286, 0.519, 1.082, 0.882, 0.311, 1.095, 1.178, 0.625, 1.057, 1.621, 0.512, 1.031],
-      [1.109, 0.887, 0.145, 1.044, 0.353, 0.231, 0.417, 0.644, 0.284, 0.253, 0.544, 0.267],
-      [2.5135, 0.708, 1.3187, 0.7221, 0.4397, 0.4995, 0.6281, 0.488, 0.9184, 0.5051, 0.5472, 0.0828],
-      [2.1728, 1.2564, 0.9686, 0.4761, 0.6324, 0.3901, 0.5282, 0.6556, 0.6239, 0.64, 0.544, 0.2954],
-      [4.1848, 1.2024, 1.6142, 1.0209, 0.6899, 0.6041, 0.9213, 0.5615, 0.6386, 1.1164, 0.5107, 0.2051],
-      [3.2983, 1.8778, 1.5221, 0.9659, 0.4567, 0.4541, 0.4941, 0.6444, 0.9578, 0.9648, 0.4475, 0.2423],
-      [4.4533, 3.0073, 1.7911, 1.1247, 0.9788, 1.2853, 0.8676, 1.1592, 1.3565, 0.607, 0.98, 0.572],
-      [1.9042, 1.4688, 0.7081, 0.6748, 0.6162, 0.6394, 0.7434, 0.6019, 0.8047, 0.9145, 0.5826, 0.4956],
-      [3.9415, 0.9426, 0.9303, 1.0876, 0.7234, 0.6148, 0.8814, 0.5038, 0.6772, 0.5008, 0.5685, 0.2504],
-      [2.8466, 1.4664, 0.3242, 0.7058, 0.7031, 0.4182, 0.4999, 0.7477, 0.6378, 0.3917, 0.6912, 0.2362],
-      [6.1788, 2.2475, 0.9155, 0.9607, 0.9163, 0.7693, 0.587, 0.9868, 0.7021, 0.5531, 0.8073, 0.3344],
-      [4.3676, 1.5223, 1.5199, 0.8829, 1.2743, 0.6615, 0.8276, 1.1599, 1.0241, 0.8356, 1.4052, 0.4862],
-      [2.9026, 2.0537, 1.4871, 0.9098, 0.8737, 0.9004, 0.8021, 0.8022, 0.8508, 0.4962, 0.6822, 0.4944],
-      [8.9971, 1.5096, 1.3525, 1.0248, 0.8661, 1.043, 0.6828, 0.7165, 1.2143, 0.4801, 0.6213, 0.3801],
-      [8.1333, 1.203, 1.8919, 0.982, 1.5475, 0.8431, 2.3187, 1.3029, 1.7833, 0.9568, 0.9411, 0.804],
-      [13.0501, 1.4949, 1.0803, 1.3585, 1.059, 0.5623, 0.8753, 0.7903, 0.8347, 0.6314, 0.8569, 0.3665],
-      [2.5744, 1.1267, 1.6149, 1.2876, 0.8669, 0.8603, 0.998, 0.5578, 1.0239, 0.8183, 0.6423, 0.2606],
-      [3.825, 2.3895, 1.6064, 1.8071, 1.4055, 1.3754, 1.3584, 1.5019, 1.8442, 0.7778, 1.1087, 0.4453]
+      [0.603, 0.213, 0.19, 0.1479, 0.1455, 0.1638, 0.204, 0.426, 0.3853, 0.2049, 0.5647, 0.2526],
+      [2.4235, 0.2644, 0.3021, 0.3054, 0.1781, 0.1526, 0.258, 0.2366, 0.2676, 0.1817, 0.2546, 0.1637],
+      [1.0212, 0.6179, 0.3254, 0.3152, 0.2183, 0.2275, 0.2193, 0.3021, 0.3307, 0.2659, 0.4014, 0.1924],
+      [0.9408, 0.325, 0.3482, 0.2362, 0.2177, 0.1562, 0.2199, 0.2849, 0.3319, 0.2513, 0.2515, 0.2117],
+      [1.371, 0.532, 0.7766, 0.9684, 0.3569, 0.6015, 0.7729, 0.5124, 0.4075, 0.8038, 0.4906, 0.3907],
+      [4.3895, 1.5091, 0.7996, 1.1346, 1.0641, 0.6355, 0.7147, 0.8234, 0.6201, 0.3932, 0.7654, 0.3439],
+      [1.4878, 0.7182, 1.0278, 0.9083, 0.4795, 0.6442, 0.7321, 0.4048, 0.5271, 0.733, 0.4601, 0.5024],
+      [0.9252, 0.8411, 0.2423, 0.7367, 0.2734, 0.2533, 0.2197, 0.4004, 0.1457, 0.2243, 0.2855, 0.1637],
+      [3.7995, 0.3126, 0.5107, 0.3446, 0.2558, 0.1852, 0.2453, 0.2411, 0.3197, 0.3209, 0.2459, 0.1022],
+      [0.6946, 0.2611, 0.2875, 0.2174, 0.2888, 0.1971, 0.224, 0.2545, 0.2941, 0.2923, 0.2256, 0.1927],
+      [2.4324, 0.5967, 0.5762, 0.5044, 0.2999, 0.2719, 0.4712, 0.2121, 0.3712, 0.4218, 0.1929, 0.1192],
+      [1.3503, 0.8176, 0.5606, 0.5473, 0.2588, 0.1779, 0.28, 0.3651, 0.3572, 0.4089, 0.2536, 0.1373],
+      [2.8185, 1.1025, 0.6983, 0.6264, 0.5452, 0.7159, 0.4252, 0.6456, 0.5651, 0.3381, 0.4803, 0.362],
+      [0.7406, 0.7637, 0.3682, 0.3509, 0.3204, 0.3325, 0.3402, 0.313, 0.324, 0.292, 0.2346, 0.2577],
+      [2.8348, 0.6779, 0.6691, 0.6649, 0.5203, 0.4422, 0.5578, 0.3623, 0.4871, 0.317, 0.3598, 0.1801],
+      [2.1087, 1.0863, 0.2402, 0.5228, 0.5208, 0.3098, 0.3703, 0.5539, 0.3534, 0.2902, 0.4506, 0.175],
+      [3.2272, 1.381, 0.495, 0.4571, 0.436, 0.3112, 0.3607, 0.6064, 0.3797, 0.3399, 0.4365, 0.1591],
+      [1.5589, 0.7264, 0.6165, 0.4213, 0.608, 0.3156, 0.3949, 0.3999, 0.4887, 0.3987, 0.5192, 0.232],
+      [1.8153, 0.9607, 0.6338, 0.569, 0.5464, 0.4955, 0.4414, 0.4415, 0.5321, 0.3103, 0.4267, 0.2353],
+      [2.3839, 0.9081, 0.8136, 0.6165, 0.521, 0.6274, 0.4107, 0.431, 0.7304, 0.2888, 0.3737, 0.2286],
+      [1.6781, 0.5635, 0.8862, 0.46, 0.6379, 0.3949, 0.9558, 0.2366, 0.7351, 0.4482, 0.4408, 0.3766],
+      [2.7995, 0.728, 0.4549, 0.5822, 0.5157, 0.3112, 0.4263, 0.4374, 0.4065, 0.3075, 0.4173, 0.2028],
+      [1.6833, 0.7367, 0.5379, 0.652, 0.5668, 0.5625, 0.5742, 0.3647, 0.5184, 0.4143, 0.42, 0.1704],
+      [2.501, 1.5624, 1.0503, 1.0398, 0.919, 0.8993, 0.7816, 0.6575, 0.9175, 0.5086, 0.7249, 0.2912]
     ],
     [
-      [23.856, 23.856, 11.027, 4.41, 3.68, 2.026, 4.078, 13.213, 10.195, 6.07, 11.093, 3.886],
-      [23.856, 5.348, 6.605, 2.472, 2.69, 2.37, 2.789, 3.053, 3.127, 5.785, 2.789, 1.297],
-      [8.56, 3.748, 2.384, 1.411, 1.025, 0.697, 1.281, 2.063, 1.582, 1.403, 1.701, 0.66],
-      [4.916, 1.076, 1.313, 0.607, 0.425, 0.298, 0.485, 0.585, 0.697, 0.887, 0.503, 0.301],
-      [2.218, 0.937, 0.85, 0.861, 0.633, 0.42, 0.622, 0.618, 0.405, 0.845, 0.618, 0.346],
-      [2.126, 1.143, 0.314, 0.66, 0.423, 0.266, 0.37, 0.554, 0.423, 0.269, 0.68, 0.311],
-      [1.321, 0.519, 0.575, 0.745, 0.178, 0.224, 0.463, 0.22, 0.22, 0.718, 0.172, 0.219],
-      [0.471, 0.388, 0.059, 0.313, 0.096, 0.052, 0.074, 0.176, 0.05, 0.08, 0.159, 0.056],
-      [1.8852, 0.1668, 0.2891, 0.149, 0.0598, 0.1109, 0.125, 0.1446, 0.2822, 0.1709, 0.1362, 0.0189],
-      [0.3049, 0.5035, 0.1436, 0.0607, 0.133, 0.0652, 0.1355, 0.2272, 0.1453, 0.192, 0.1797, 0.1062],
-      [0.9286, 0.5668, 0.4089, 0.2665, 0.2421, 0.1634, 0.2184, 0.2318, 0.2022, 0.1946, 0.1627, 0.051],
-      [0.7819, 0.4788, 0.3632, 0.2601, 0.148, 0.1221, 0.1137, 0.2129, 0.2853, 0.5484, 0.1081, 0.0628],
-      [0.9587, 1.1407, 0.4021, 0.2848, 0.2376, 0.1873, 0.1567, 0.6056, 0.4706, 0.4156, 0.4507, 0.4588],
-      [0.3742, 0.4409, 0.1667, 0.2152, 0.1629, 0.2174, 1.0501, 0.334, 0.9776, 0.3429, 0.3292, 0.4297],
-      [0.8281, 0.2244, 0.2306, 0.2857, 0.3781, 0.3965, 0.4489, 0.1887, 0.1826, 0.1433, 0.2884, 0.0573],
-      [0.6744, 0.2633, 0.1019, 0.4842, 0.1647, 0.2137, 0.1235, 0.1003, 0.1028, 0.0517, 0.1696, 0.071],
-      [1.6039, 0.6013, 0.2953, 0.2632, 0.2572, 0.1703, 0.1655, 0.305, 0.2196, 0.1249, 0.2134, 0.0642],
-      [0.8381, 0.3655, 0.3504, 0.2481, 0.161, 0.1273, 0.1916, 0.3717, 0.328, 0.1948, 0.8034, 0.1208],
-      [0.5119, 0.4838, 0.365, 0.19, 0.1487, 0.2568, 0.2812, 0.1615, 0.1582, 0.1254, 0.1488, 0.1383],
-      [1.8454, 0.3568, 0.3798, 0.2539, 0.2221, 0.2779, 0.1216, 0.1553, 0.3689, 0.131, 0.1463, 0.1167],
-      [1.8162, 0.2237, 0.4549, 0.2853, 0.4395, 0.2005, 0.2757, 0.2997, 0.5377, 0.2501, 0.3301, 0.1944],
-      [2.5976, 0.2794, 0.2406, 0.2501, 0.2374, 0.2904, 0.0966, 0.1648, 0.1968, 0.1234, 0.2883, 0.0566],
-      [0.3802, 0.2574, 0.2816, 0.2707, 0.2303, 0.5092, 0.256, 0.1311, 0.2484, 0.1354, 0.0983, 0.056],
-      [1.2021, 0.8787, 0.3572, 0.3916, 0.3843, 0.5572, 0.2195, 0.6188, 0.2278, 0.1021, 0.1772, 0.1339]
+      [23.856, 23.856, 11.027, 2.2036, 1.5841, 1.941, 2.2067, 4.9241, 3.1777, 1.6696, 3.6824, 2.4981],
+      [12.4924, 1.3875, 3.4524, 1.4831, 1.1488, 1.2601, 1.734, 1.3039, 1.1309, 1.9791, 1.1078, 0.6101],
+      [3.3493, 1.9545, 0.8697, 0.8222, 0.3735, 0.4206, 0.507, 0.6303, 0.4285, 0.3529, 0.556, 0.257],
+      [1.4178, 0.4693, 0.4175, 0.2817, 0.2706, 0.1804, 0.2452, 0.3009, 0.3319, 0.3631, 0.1998, 0.1517],
+      [1.5099, 0.5588, 0.709, 1.0358, 0.4353, 0.5433, 0.6733, 0.463, 0.2354, 0.8086, 0.4995, 0.3654],
+      [3.3665, 0.984, 0.4089, 0.7215, 0.6698, 0.3464, 0.3443, 0.5329, 0.4484, 0.1259, 0.3309, 0.1988],
+      [0.8598, 0.7182, 0.5462, 0.7672, 0.2745, 0.1318, 0.2877, 0.1425, 0.1097, 0.3247, 0.1546, 0.1067],
+      [0.3929, 0.3679, 0.0986, 0.2209, 0.0743, 0.057, 0.039, 0.1094, 0.0256, 0.0709, 0.0835, 0.0343],
+      [2.8497, 0.0736, 0.112, 0.0711, 0.0348, 0.0411, 0.0488, 0.0714, 0.0982, 0.1086, 0.0612, 0.0233],
+      [0.0975, 0.1046, 0.0426, 0.0277, 0.0607, 0.0329, 0.0575, 0.0882, 0.0685, 0.0877, 0.0745, 0.0693],
+      [0.5397, 0.2813, 0.146, 0.1317, 0.1053, 0.0735, 0.1117, 0.0876, 0.1175, 0.0735, 0.0615, 0.0296],
+      [0.3201, 0.2085, 0.1338, 0.1474, 0.0839, 0.0478, 0.0644, 0.1206, 0.1064, 0.2324, 0.0613, 0.0356],
+      [0.6068, 0.4182, 0.1568, 0.1586, 0.1323, 0.1043, 0.0768, 0.3373, 0.1961, 0.2315, 0.2209, 0.2904],
+      [0.1455, 0.2293, 0.0867, 0.1119, 0.0847, 0.113, 0.4805, 0.1737, 0.3936, 0.1095, 0.1326, 0.2234],
+      [0.5956, 0.1614, 0.1659, 0.1747, 0.2719, 0.2852, 0.2841, 0.1357, 0.1313, 0.0907, 0.1825, 0.0412],
+      [0.4996, 0.1951, 0.0755, 0.3587, 0.122, 0.1583, 0.0915, 0.0743, 0.057, 0.0383, 0.1106, 0.0526],
+      [0.8377, 0.3695, 0.1597, 0.1252, 0.1224, 0.0689, 0.1017, 0.1874, 0.1187, 0.0767, 0.1154, 0.0305],
+      [0.2991, 0.1744, 0.1421, 0.1184, 0.0768, 0.0607, 0.0914, 0.1281, 0.1565, 0.093, 0.2969, 0.0576],
+      [0.3202, 0.2263, 0.1556, 0.1188, 0.093, 0.1413, 0.1548, 0.0889, 0.0989, 0.0784, 0.0931, 0.0658],
+      [0.489, 0.2146, 0.2285, 0.1527, 0.1336, 0.1672, 0.0731, 0.0934, 0.2219, 0.0788, 0.088, 0.0702],
+      [0.3747, 0.1048, 0.2131, 0.1336, 0.1812, 0.0939, 0.1136, 0.0544, 0.2216, 0.1171, 0.1546, 0.0911],
+      [0.5572, 0.1361, 0.1013, 0.1072, 0.1156, 0.1607, 0.047, 0.0912, 0.0958, 0.0601, 0.1404, 0.0313],
+      [0.2486, 0.1683, 0.0938, 0.1371, 0.1506, 0.3329, 0.1473, 0.0857, 0.1258, 0.0686, 0.0643, 0.0366],
+      [0.786, 0.5745, 0.2336, 0.2253, 0.2513, 0.3643, 0.1263, 0.2709, 0.1133, 0.0668, 0.1159, 0.0875]
     ],
     [
-      [23.856, 10.571, 4.712, 3.465, 2.548, 1.129, 1.942, 4.916, 3.465, 2.502, 4.545, 1.297],
-      [11.433, 2.37, 1.403, 0.727, 0.637, 0.46, 1.095, 1.063, 1.345, 1.057, 0.959, 0.74],
-      [3.839, 1.386, 1.095, 0.538, 0.554, 0.282, 0.544, 0.664, 0.544, 0.903, 0.603, 0.255],
-      [1.942, 0.398, 0.497, 0.222, 0.145, 0.105, 0.199, 0.238, 0.516, 0.359, 0.258, 0.128],
-      [1.095, 0.405, 0.3, 0.348, 0.126, 0.144, 0.243, 0.211, 0.152, 0.277, 0.101, 0.11],
-      [0.825, 0.435, 0.11, 0.25, 0.169, 0.098, 0.132, 0.213, 0.161, 0.116, 0.233, 0.138],
-      [0.512, 0.118, 0.21, 0.303, 0.074, 0.07, 0.167, 0.074, 0.073, 0.183, 0.053, 0.055],
-      [0.148, 0.123, 0.05, 0.109, 0.05, 0.05, 0.05, 0.056, 0.05, 0.108, 0.052, 0.05],
-      [0.6379, 0.0501, 0.0894, 0.0516, 0.0281, 0.0342, 0.0444, 0.0437, 0.0746, 0.0538, 0.052, 0.0072],
-      [0.1136, 0.0685, 0.0476, 0.0235, 0.0394, 0.0218, 0.0627, 0.0583, 0.0468, 0.0228, 0.0593, 0.0319],
-      [0.2904, 0.1148, 0.1205, 0.0853, 0.0591, 0.0507, 0.08, 0.0906, 0.0781, 0.0945, 0.0652, 0.0215],
-      [0.1955, 0.1392, 0.1004, 0.0848, 0.0411, 0.0423, 0.0443, 0.0587, 0.0623, 0.1539, 0.0278, 0.0322],
-      [0.2043, 0.3168, 0.103, 0.1155, 0.0792, 0.0739, 0.0335, 0.1699, 0.1465, 0.1132, 0.132, 0.173],
-      [0.086, 0.0939, 0.0466, 0.0486, 0.0407, 0.0696, 0.0585, 0.0552, 0.2303, 0.0969, 0.1161, 0.1288],
-      [0.2073, 0.0822, 0.0706, 0.0535, 0.1837, 0.0814, 0.0711, 0.0251, 0.0564, 0.0375, 0.0554, 0.0179],
-      [0.1121, 0.1005, 0.0365, 0.0547, 0.1601, 0.0608, 0.0585, 0.062, 0.0412, 0.0253, 0.0445, 0.0179],
-      [0.3212, 0.1319, 0.0865, 0.0832, 0.0689, 0.0832, 0.0508, 0.0706, 0.0465, 0.0431, 0.0823, 0.031],
-      [0.1481, 0.0625, 0.1301, 0.0842, 0.0522, 0.0663, 0.0765, 0.0545, 0.0654, 0.0452, 0.142, 0.0307],
-      [0.244, 0.1608, 0.1298, 0.0904, 0.0768, 0.0682, 0.0816, 0.0835, 0.0447, 0.0403, 0.039, 0.0369],
-      [0.8562, 0.1357, 0.164, 0.082, 0.0774, 0.0901, 0.0607, 0.0611, 0.0782, 0.0321, 0.0468, 0.0376],
-      [1.0227, 0.1086, 0.1819, 0.1056, 0.1335, 0.1599, 0.1662, 0.1184, 0.0793, 0.0587, 0.0382, 0.0445],
-      [1.1084, 0.1189, 0.126, 0.113, 0.1189, 0.0734, 0.0565, 0.0495, 0.0363, 0.0347, 0.0184, 0.0368],
-      [0.1953, 0.092, 0.1025, 0.1064, 0.0754, 0.0768, 0.1005, 0.0691, 0.1177, 0.0667, 0.0362, 0.0121],
-      [0.2876, 0.2216, 0.1042, 0.1174, 0.1115, 0.113, 0.0791, 0.0985, 0.1792, 0.0755, 0.1043, 0.0169]
+      [23.856, 10.571, 4.712, 1.7314, 1.0968, 1.0816, 1.0508, 1.832, 1.08, 0.6882, 1.5087, 0.8338],
+      [5.987, 0.6149, 0.7333, 0.4362, 0.272, 0.2446, 0.6808, 0.454, 0.4864, 0.3616, 0.3809, 0.3481],
+      [1.5021, 0.7228, 0.3995, 0.3135, 0.2019, 0.1702, 0.2153, 0.2029, 0.1474, 0.2271, 0.1971, 0.0993],
+      [0.5601, 0.1736, 0.158, 0.103, 0.0923, 0.0636, 0.1006, 0.1224, 0.2457, 0.147, 0.1025, 0.0645],
+      [0.7454, 0.2415, 0.2502, 0.4187, 0.0866, 0.1863, 0.263, 0.1581, 0.0884, 0.2651, 0.0816, 0.1162],
+      [1.3064, 0.3745, 0.1433, 0.2733, 0.2676, 0.1276, 0.1228, 0.2049, 0.1707, 0.0543, 0.1134, 0.0882],
+      [0.3332, 0.1633, 0.1995, 0.312, 0.1141, 0.0412, 0.1038, 0.0479, 0.0364, 0.0828, 0.0476, 0.0268],
+      [0.1235, 0.1166, 0.0836, 0.0769, 0.0387, 0.0548, 0.0263, 0.0348, 0.0256, 0.0958, 0.0273, 0.0307],
+      [0.9643, 0.0221, 0.0346, 0.0246, 0.0163, 0.0127, 0.0173, 0.0216, 0.026, 0.0342, 0.0234, 0.0089],
+      [0.0363, 0.0142, 0.0141, 0.0107, 0.018, 0.011, 0.0266, 0.0226, 0.0221, 0.0104, 0.0246, 0.0208],
+      [0.1688, 0.057, 0.043, 0.0421, 0.0257, 0.0228, 0.0409, 0.0342, 0.0454, 0.0357, 0.0246, 0.0125],
+      [0.08, 0.0606, 0.037, 0.048, 0.0233, 0.0166, 0.0251, 0.0333, 0.0232, 0.0652, 0.0158, 0.0182],
+      [0.1293, 0.1161, 0.0402, 0.0643, 0.0441, 0.0412, 0.0164, 0.0946, 0.061, 0.063, 0.0647, 0.1095],
+      [0.0334, 0.0488, 0.0242, 0.0253, 0.0212, 0.0362, 0.0268, 0.0287, 0.0927, 0.0309, 0.0467, 0.067],
+      [0.1491, 0.0591, 0.0508, 0.0327, 0.1321, 0.0585, 0.045, 0.0181, 0.0406, 0.0237, 0.0351, 0.0129],
+      [0.083, 0.0744, 0.027, 0.0405, 0.1186, 0.045, 0.0433, 0.0459, 0.0228, 0.0187, 0.029, 0.0133],
+      [0.1678, 0.081, 0.0468, 0.0396, 0.0328, 0.0337, 0.0312, 0.0434, 0.0251, 0.0265, 0.0445, 0.0148],
+      [0.0529, 0.0298, 0.0528, 0.0402, 0.0249, 0.0316, 0.0365, 0.0188, 0.0312, 0.0216, 0.0525, 0.0146],
+      [0.1526, 0.0752, 0.0553, 0.0565, 0.048, 0.0375, 0.0449, 0.046, 0.028, 0.0252, 0.0244, 0.0176],
+      [0.2269, 0.0816, 0.0987, 0.0493, 0.0466, 0.0542, 0.0365, 0.0368, 0.047, 0.0193, 0.0282, 0.0226],
+      [0.211, 0.0509, 0.0852, 0.0495, 0.055, 0.0749, 0.0685, 0.0215, 0.0327, 0.0275, 0.0179, 0.0208],
+      [0.2378, 0.0579, 0.0531, 0.0484, 0.0579, 0.0406, 0.0275, 0.0274, 0.0177, 0.0169, 0.009, 0.0204],
+      [0.1277, 0.0602, 0.0341, 0.0539, 0.0493, 0.0502, 0.0578, 0.0452, 0.0596, 0.0338, 0.0237, 0.0079],
+      [0.188, 0.1449, 0.0681, 0.0675, 0.0729, 0.0739, 0.0455, 0.0431, 0.0892, 0.0494, 0.0682, 0.011]
     ]
   ],
   hp: [
@@ -1967,7 +2006,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       [[25000, 0, 0], [250000, 0, 8]]
     ],
     dupeCoins: [0, 2000, 6000, 20000, 60000],
-    pouch: { rate: 12, ratePer: 6, max: 450, maxPer: 330, levels: 8, cost: 40 },
+    pouch: { rate: 7.8, ratePer: 3.9, max: 450, maxPer: 330, levels: 8, cost: 40 },
     baseHp: 1500,
     // Battle Cry: every hero on the field glows and fights harder for a few seconds.
     // Extra challenge on top of the tuned stages: stronger Gloom, sturdier towers and faster waves.
@@ -3202,6 +3241,34 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       if (Math.abs(lum(c) - lum(best)) < 0.22) next[y * w + x] = best;
     }
     this.p = next;
+  };
+  // Lighting pass for flat-filled sprites (run before the outline): a rim light on edges that face the light (top
+  // and left), a shadow on edges that face away (bottom and right) with a softer second band inside it, darker
+  // feet (ground shade over the lowest quarter), and a faint speckle on wide flat areas so they read as a material.
+  // Near-black ink (eyes, mouths) and pure white glints are left alone.
+  Painter.prototype.shade = function (light, dark) {
+    const L = light || '#fff4dc', D = dark || '#1c1030';
+    const w = this.w, h = this.h, src = this.p.slice(), on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && !!src[y * w + x];
+    let top = h, bot = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (src[y * w + x]) { top = Math.min(top, y); bot = Math.max(bot, y); }
+    const span = Math.max(1, bot - top);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = src[y * w + x];
+      if (!c) continue;
+      const r = hexRgb(c), lum = (r[0] * 0.3 + r[1] * 0.59 + r[2] * 0.11) / 255;
+      if (lum < 0.16 || c === '#ffffff' || c === WHITE) continue;
+      let out = c;
+      const lit = !on(x - 1, y) || !on(x, y - 1), away = !on(x + 1, y) || !on(x, y + 1);
+      const away2 = !away && (!on(x + 2, y) || !on(x, y + 2));
+      if (lit && !away) out = mix(out, L, 0.28);
+      else if (away) out = mix(out, D, 0.3);
+      else if (away2) out = mix(out, D, 0.13);
+      const k = (y - top) / span;
+      if (k > 0.75) out = mix(out, D, (k - 0.75) * 0.5);
+      // Speckle only deep inside flat areas: all four neighbours share this colour.
+      if (!lit && !away && src[y * w + x - 1] === c && src[y * w + x + 1] === c && src[(y - 1) * w + x] === c && src[(y + 1) * w + x] === c && ((x * 7 + y * 13) % 11) === 0) out = mix(out, D, 0.12);
+      this.p[y * w + x] = out;
+    }
   };
   // Selective outline (sel-out): every edge pixel takes a darker shade of the colour it borders, tinted toward a deep
   // hue instead of black, and lit from the top left: top edges are lightest, then left, right and bottom (darkest).
@@ -4545,6 +4612,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     const k = new Kit(P, u, frame);
     const T = tones(def.look.c);
     (ENEMY_ART[def.look.sp] || ENEMY_ART.blob)(k, T, def.look);
+    P.clean(); P.shade();
     P.outline('#2a0e2e', true);
     return mirror(P.canvas());
   }
@@ -5585,6 +5653,9 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
             }
           } catch (e) { /* settings are optional */ }
           self.loadUser();
+          // Calls made before the SDK was ready are replayed as the current state: still loading, or in a battle.
+          if (self.loading) { self.loadingSent = true; self.call('game.loadingStart'); }
+          if (self.playing && !self.adActive) self.call('game.gameplayStart');
           self.emit('ready');
         })
         .catch(function () { self.sdk = null; self.ready = false; });
@@ -5601,8 +5672,12 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       } catch (e) { /* never let the platform crash the game */ }
     },
 
-    loadingStart: function () { this.call('game.loadingStart'); },
-    loadingStop: function () { this.call('game.loadingStop'); },
+    // Loading and gameplay are tracked as state, so a call made before the SDK finished init() is not lost and a
+    // stop is never sent without its start.
+    loading: false,
+    loadingSent: false,
+    loadingStart: function () { this.loading = true; if (this.ready) { this.loadingSent = true; this.call('game.loadingStart'); } },
+    loadingStop: function () { this.loading = false; if (this.loadingSent) { this.loadingSent = false; this.call('game.loadingStop'); } },
     gameplayStart: function () { if (!this.playing && !this.adActive) { this.playing = true; this.call('game.gameplayStart'); } },
     gameplayStop: function () { if (this.playing) { this.playing = false; this.call('game.gameplayStop'); } },
     happytime: function () { this.call('game.happytime'); },
@@ -5698,6 +5773,75 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   };
 
   root.AWPlatform = P;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script>
+/* Animal Wars: attack styles. Every hero and every Gloom gets its own attack: a body motion (how the sprite moves
+ * while it winds up and strikes) and a hit effect (what bursts where the blow lands); ranged fighters also get a
+ * projectile. Choices follow the unit's role and element, and no two units share the same motion + effect pair.
+ * Pure data, no DOM: the renderer draws them (js/render.js) and the tests check they are all different. */
+(function (root) {
+  'use strict';
+  // Body motions, played over the wind-up (e.at < fore) and the strike that follows.
+  const MOTIONS = ['lunge', 'hop', 'spin', 'rear', 'stomp', 'dash', 'recoil', 'charge', 'float', 'bounce', 'crouch', 'backstep', 'pulse', 'shove', 'sway', 'flip'];
+  // Hit effects, drawn where the blow lands.
+  const EFFECTS = ['slash', 'cross', 'claw', 'star', 'ring', 'spikes', 'sparks', 'petals', 'bubbles', 'snow', 'flames', 'bolt', 'twinkle', 'leaves', 'shards', 'ink',
+    'hearts', 'notes', 'feathers', 'sand', 'drops', 'embers', 'smoke', 'beam', 'runes', 'quake', 'shatter', 'vortex'];
+  // Projectiles for fighters with long reach.
+  const PROJECTILES = ['orb', 'arrow', 'shuriken', 'bolt', 'rock', 'bubble', 'leaf', 'fireball', 'icicle', 'beam', 'boomerang', 'feather', 'note', 'comet', 'spore', 'dart', 'ring', 'skull', 'crescent', 'seed'];
+
+  const BY_ELEMENT = {
+    ember: ['flames', 'embers', 'sparks', 'star', 'smoke', 'ring'], frost: ['snow', 'shatter', 'shards', 'twinkle', 'ring', 'cross'],
+    thorn: ['leaves', 'spikes', 'claw', 'petals', 'slash', 'quake'], storm: ['bolt', 'sparks', 'ring', 'cross', 'vortex', 'beam'],
+    shadow: ['ink', 'smoke', 'runes', 'vortex', 'claw', 'cross'], tide: ['bubbles', 'drops', 'ring', 'vortex', 'slash', 'shatter'],
+    stone: ['quake', 'shards', 'spikes', 'sand', 'star', 'ring'], sun: ['beam', 'star', 'twinkle', 'sparks', 'feathers', 'cross'],
+    moon: ['runes', 'twinkle', 'notes', 'ring', 'beam', 'smoke'], bloom: ['petals', 'hearts', 'leaves', 'notes', 'drops', 'twinkle']
+  };
+  const PROJ_BY_ELEMENT = {
+    ember: ['fireball', 'comet', 'dart', 'orb'], frost: ['icicle', 'orb', 'shuriken', 'crescent'], thorn: ['leaf', 'seed', 'dart', 'spore'],
+    storm: ['bolt', 'beam', 'shuriken', 'orb'], shadow: ['skull', 'crescent', 'orb', 'shuriken'], tide: ['bubble', 'orb', 'ring', 'boomerang'],
+    stone: ['rock', 'boomerang', 'seed', 'dart'], sun: ['beam', 'comet', 'arrow', 'ring'], moon: ['crescent', 'note', 'orb', 'comet'],
+    bloom: ['spore', 'note', 'leaf', 'seed']
+  };
+  function motionPrefs(u) {
+    if (u.boss) return ['pulse', 'stomp', 'rear', 'shove', 'charge', 'sway'];
+    if (u.rng >= 50) return ['recoil', 'float', 'charge', 'pulse', 'sway', 'backstep', 'crouch'];
+    if (u.area) return ['stomp', 'spin', 'rear', 'hop', 'shove', 'flip'];
+    if (u.spd >= 26) return ['dash', 'lunge', 'flip', 'backstep', 'bounce'];
+    if (u.hp >= u.atk * 25) return ['shove', 'stomp', 'sway', 'crouch', 'bounce'];
+    return ['lunge', 'hop', 'bounce', 'crouch', 'spin', 'sway'];
+  }
+  function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+  // Assigns styles to every unit: preferred motion × preferred effect first, then any free pair, never a repeat.
+  function build(CT) {
+    const used = {}, usedProj = {}, out = { hero: {}, enemy: {} };
+    const units = CT.HEROES.map((h) => ({ side: 'hero', id: h.id, el: h.el, rng: h.rng, area: h.area, spd: h.spd, hp: h.hp, atk: h.atk, col: h.look.a || h.look.c, col2: h.look.c, boss: false }))
+      .concat(CT.ENEMIES.map((e) => ({ side: 'enemy', id: e.id, el: e.el, rng: e.rng, area: e.area, spd: e.spd, hp: e.hp, atk: e.atk, col: e.look.c, col2: e.look.c, boss: !!CT.REGIONS.find((R) => R.boss === e.id) })));
+    for (const u of units) {
+      const h = hash(u.side + u.id);
+      const mp = motionPrefs(u), ep = (BY_ELEMENT[u.el] || EFFECTS).slice();
+      // Rotate the preference lists by the unit's hash so neighbours in the roster spread out.
+      const rot = (a, k) => a.slice(k % a.length).concat(a.slice(0, k % a.length));
+      const ms = rot(mp, h).concat(MOTIONS), es = rot(ep, h >>> 8).concat(rot(EFFECTS, h >>> 16));
+      let pick = null;
+      for (const m of ms) { for (const f of es) if (!used[m + '+' + f]) { pick = [m, f]; break; } if (pick) break; }
+      used[pick[0] + '+' + pick[1]] = u.side + ':' + u.id;
+      const st = { motion: pick[0], fx: pick[1], col: u.col, col2: u.col2, seed: h };
+      if (u.rng >= 50) {
+        const pp = rot(PROJ_BY_ELEMENT[u.el] || PROJECTILES, h >>> 4).concat(PROJECTILES);
+        // Projectile + effect together stay unique too (the motion pair already is).
+        st.proj = pp.find((p) => !usedProj[p + '+' + st.fx]) || pp[0];
+        usedProj[st.proj + '+' + st.fx] = 1;
+      }
+      out[u.side][u.id] = st;
+    }
+    return out;
+  }
+
+  const AW_FX = { MOTIONS: MOTIONS, EFFECTS: EFFECTS, PROJECTILES: PROJECTILES, build: build };
+  if (typeof module !== 'undefined' && module.exports) module.exports = AW_FX;
+  root.AW_FX = AW_FX;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
@@ -5973,7 +6117,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   function setBattle(bt) {
     mode = 'battle'; battle = bt;
     themeIdx = bt.def.theme % THEMES.length; theme = THEMES[themeIdx]; tint = bt.def.tint || 0;
-    parts.length = 0; floats.length = 0; rings.length = 0;
+    parts.length = 0; floats.length = 0; rings.length = 0; FXS.length = 0; PROJS.length = 0;
     cam.x = cam.target = minCam(); cam.manual = 0;
     buildLayers();
   }
@@ -6025,6 +6169,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
         if (ev.crit) { float({ x: ev.x, y: y - 8, text: 'CRIT!', c: '#ffcd4d', big: true }); cam.shake = Math.max(cam.shake, 2); }
         break;
       }
+      case 'swing': attackFx(ev); break;
       case 'miss': float({ x: ev.x, y: GY - 26, text: 'miss', c: '#c9b3ff' }); break;
       case 'kb': for (let i = 0; i < 5; i++) particle({ x: ev.x, y: GY - 2, vx: (Math.random() - 0.5) * 30, vy: -Math.random() * 18, life: 0.45, c: theme.dirt, s: 2 }); break;
       case 'die': {
@@ -6093,6 +6238,171 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     return c;
   }
 
+  // ---------------------------------------------------------------------------
+  // Attack styles (js/fx.js): every unit's own body motion while it attacks, its projectile and its hit effect.
+  // ---------------------------------------------------------------------------
+  const FXS = [], PROJS = [];
+  let STYLES = null;
+  function styleOf(e) {
+    if (!STYLES && root.AW_FX && root.AW_CONTENT) STYLES = root.AW_FX.build(root.AW_CONTENT);
+    return STYLES ? STYLES[e.side === 0 ? 'hero' : 'enemy'][e.st.id] : null;
+  }
+  // Sprite offset, squash and flip for the attack motion. p: wind-up progress, q: strike progress (both 0..1).
+  function motionPose(e, sty) {
+    const o = { dx: 0, dy: 0, sx: 1, sy: 1, flip: false, ghost: 0 };
+    if (!sty || e.state !== 'atk') return o;
+    const fore = Math.max(0.05, e.st.fore), p = Math.min(1, e.at / fore), q = e.at < fore ? -1 : Math.min(1, (e.at - fore) / 0.25);
+    const S = Math.sin, PI = Math.PI;
+    switch (sty.motion) {
+      case 'lunge': if (q < 0) o.dx = -2 * p; else o.dx = 7 * S(q * PI); break;
+      case 'hop': if (q < 0) o.dy = -9 * S(p * PI / 2); else o.dy = -9 * (1 - q) * (1 - q); break;
+      case 'spin': if (q >= 0) o.flip = Math.floor(q * 6) % 2 === 1; else o.dx = -1 * p; break;
+      case 'rear': if (q < 0) { o.dy = -4 * p; o.dx = -2 * p; } else { o.dx = 5 * (1 - q); o.dy = -4 * (1 - q) * 0.5; } break;
+      case 'stomp': if (q < 0) { o.sy = 1 - 0.18 * p; o.sx = 1 + 0.12 * p; } else { o.sy = 1 + 0.14 * (1 - q); o.sx = 1 - 0.06 * (1 - q); } break;
+      case 'dash': if (q >= 0) { o.dx = 13 * (1 - q); o.ghost = 1 - q; } else o.dx = -3 * p; break;
+      case 'recoil': if (q >= 0) o.dx = -5 * (1 - q); else o.sy = 1 - 0.06 * p; break;
+      case 'charge': if (q < 0) o.dx = (Math.random() < 0.5 ? -1 : 1) * Math.round(p * 1.5); else o.dx = 4 * (1 - q); break;
+      case 'float': if (q < 0) o.dy = -7 * p; else o.dy = -7 * (1 - q); break;
+      case 'bounce': if (q < 0) o.dy = -Math.abs(S(p * PI * 2)) * 4; else o.dx = 3 * S(q * PI); break;
+      case 'crouch': if (q < 0) { o.sy = 0.8 + 0.2 * (1 - p); o.sx = 1 + 0.1 * p; } else { o.sy = 1 + 0.18 * (1 - q); o.dy = -3 * (1 - q); } break;
+      case 'backstep': if (q < 0) o.dx = -6 * p; else o.dx = -6 * (1 - q) + 5 * S(q * PI); break;
+      case 'pulse': if (q >= 0) { const k = 1 + 0.2 * S(q * PI); o.sx = k; o.sy = k; } else { const k = 1 - 0.06 * p; o.sx = k; o.sy = k; } break;
+      case 'shove': if (q >= 0) { o.dx = 6 * (1 - q); o.sx = 1 + 0.1 * (1 - q); } else o.dx = -2 * p; break;
+      case 'sway': if (q < 0) o.dx = -2.5 * S(p * PI * 2); else o.dx = 4 * S(q * PI); break;
+      case 'flip': if (q >= 0) { o.dy = -8 * S(q * PI); o.flip = q > 0.3 && q < 0.7; } else o.sy = 1 - 0.1 * p; break;
+      default: break;
+    }
+    return o;
+  }
+
+  function nearestFoe(e) {
+    let best = null, bd = 1e9;
+    const dir = e.side === 0 ? 1 : -1;
+    for (const f of battle.ents) {
+      if (f.side === e.side || f.state === 'dead' || f.state === 'burrow') continue;
+      const d = (f.x - e.x) * dir;
+      if (d > -10 && d < e.st.rng + 60 && d < bd) { bd = d; best = f; }
+    }
+    return best;
+  }
+  // A swing: the projectile (if any) flies to the target, then the hit effect plays there.
+  function attackFx(ev) {
+    if (!battle) return;
+    let e = null; for (const x of battle.ents) if (x.id === ev.id) { e = x; break; }
+    if (!e) return;
+    const sty = styleOf(e); if (!sty) return;
+    const dir = e.side === 0 ? 1 : -1, size = e.st.size || 20;
+    const foe = nearestFoe(e);
+    const tx = foe ? foe.x : e.x + dir * Math.min(e.st.rng, 60), ty = foe ? feet(foe) - (foe.st.size || 20) * 0.45 : feet(e) - size * 0.45;
+    if (sty.motion === 'stomp' || sty.motion === 'hop' || sty.motion === 'flip') for (let i = 0; i < 6; i++) particle({ x: e.x + (Math.random() - 0.5) * size * 0.8, y: GY + 1, vx: (Math.random() - 0.5) * 50, vy: -Math.random() * 30, g: 120, life: 0.4, c: theme.dirt, s: 2 });
+    if (sty.proj) {
+      const sx = e.x + dir * size * 0.35, sy = feet(e) - size * 0.55;
+      const dist = Math.abs(tx - sx);
+      PROJS.push({ kind: sty.proj, x0: sx, y0: sy, x1: tx, y1: ty, t: 0, dur: Math.max(0.12, Math.min(0.45, dist / 240)), sty: sty, dir: dir, landed: ev.landed });
+    } else spawnFx(sty, foe ? tx - dir * (foe.st.size || 20) * 0.15 : tx, ty, dir, ev.landed);
+    sty.scale = Math.max(1.3, Math.min(2.2, size / 14));
+  }
+  function spawnFx(sty, x, y, dir, landed) {
+    const c = sty.col || '#ffffff', c2 = sty.col2 || '#ffffff', R = Math.random;
+    const big = (landed ? 1 : 0.65) * (sty.scale || 1);
+    const fx = { kind: sty.fx, x: x, y: y, dir: dir, t: 0, life: 0.38, c: c, c2: c2, seed: sty.seed % 997, big: big };
+    switch (sty.fx) {
+      // Particle-led effects.
+      case 'sparks': for (let i = 0; i < 10; i++) { const a = R() * Math.PI * 2, v = 60 + R() * 70; particle({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.22, c: i % 2 ? '#ffffff' : c, s: 1 }); } fx.life = 0.12; break;
+      case 'petals': for (let i = 0; i < 8; i++) particle({ x: x + (R() - 0.5) * 10, y: y - 4, vx: dir * (10 + R() * 30), vy: -10 - R() * 20, g: 40, life: 0.8, c: i % 2 ? '#ffb3d9' : '#ff8fd0', s: 2 }); fx.life = 0.1; break;
+      case 'leaves': for (let i = 0; i < 7; i++) particle({ x: x, y: y, vx: (R() - 0.3) * 70 * dir, vy: -20 - R() * 30, g: 70, life: 0.7, c: i % 2 ? '#5ac54f' : '#a7f070', s: 2 }); fx.life = 0.1; break;
+      case 'embers': for (let i = 0; i < 9; i++) particle({ x: x + (R() - 0.5) * 12, y: y + 4, vx: (R() - 0.5) * 20, vy: -30 - R() * 40, life: 0.6, c: i % 3 ? '#ff9a3a' : '#ffe066', s: 1 }); fx.life = 0.2; break;
+      case 'drops': for (let i = 0; i < 9; i++) particle({ x: x, y: y, vx: (R() - 0.5) * 80, vy: -40 - R() * 40, g: 260, life: 0.55, c: i % 2 ? '#73d8ff' : '#3b8ae0', s: 1 }); fx.life = 0.15; break;
+      case 'sand': for (let i = 0; i < 10; i++) particle({ x: x + (R() - 0.5) * 8, y: y + 6, vx: (R() - 0.5) * 60, vy: -R() * 30, g: 60, life: 0.6, c: i % 2 ? '#d8c08a' : '#b89a62', s: 2 }); fx.life = 0.12; break;
+      case 'feathers': for (let i = 0; i < 6; i++) particle({ x: x, y: y - 6, vx: (R() - 0.5) * 50, vy: -10 - R() * 25, g: 30, life: 1, c: i % 2 ? '#ffffff' : c, s: 2 }); fx.life = 0.1; break;
+      case 'snow': fx.life = 0.7; break;
+      case 'quake': cam.shake = Math.max(cam.shake, 2); for (let i = 0; i < 8; i++) particle({ x: x + (R() - 0.5) * 24, y: GY + 1, vx: (R() - 0.5) * 30, vy: -20 - R() * 40, g: 160, life: 0.5, c: theme.dirt, s: 2 }); fx.life = 0.45; break;
+      case 'bolt': flash('#fff6c8', 0.06); fx.life = 0.24; break;
+      case 'beam': fx.life = 0.32; break;
+      case 'smoke': case 'ink': case 'vortex': case 'runes': fx.life = 0.5; break;
+      case 'hearts': case 'notes': fx.life = 0.7; break;
+      default: break;
+    }
+    if (FXS.length < 160) FXS.push(fx);
+  }
+
+  // Drawing helpers in world coordinates (x minus the camera, y plus the shake).
+  let SHY = 0;
+  function px(x, y, c, w, h) { b.fillStyle = c; b.fillRect(Math.round(x - cam.x), Math.round(y + SHY), w || 1, h || 1); }
+  function line(x0, y0, x1, y1, c, w) { const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)))); for (let i = 0; i <= n; i++) px(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c, w || 1, w || 1); }
+  function circle(x, y, r, c, step) { for (let a = 0; a < Math.PI * 2; a += (step || 0.35) / Math.max(1, r / 6)) px(x + Math.cos(a) * r, y + Math.sin(a) * r, c); }
+  const SHAPES = {
+    heart: ['.X.X.', 'XXXXX', 'XXXXX', '.XXX.', '..X..'], note: ['..XX', '..X.', '..X.', 'XXX.', 'XX..'], skull: ['.XXX.', 'X.X.X', 'XXXXX', '.X.X.'],
+    rune: ['XXX', 'X.X', 'XX.'], flake: ['.X.', 'XXX', '.X.'], star4: ['..X..', '..X..', 'XXXXX', '..X..', '..X..']
+  };
+  function shape(name, x, y, c) { const s = SHAPES[name]; for (let j = 0; j < s.length; j++) for (let i = 0; i < s[j].length; i++) if (s[j][i] === 'X') px(x - (s[j].length >> 1) + i, y - (s.length >> 1) + j, c); }
+
+  function drawFx(dt) {
+    // Projectiles.
+    for (let i = PROJS.length - 1; i >= 0; i--) {
+      const p = PROJS[i]; p.t += dt;
+      const k = Math.min(1, p.t / p.dur), c = p.sty.col, d = p.dir;
+      const arc = p.kind === 'rock' || p.kind === 'seed' || p.kind === 'spore' ? -18 * Math.sin(k * Math.PI) : p.kind === 'boomerang' ? -10 * Math.sin(k * Math.PI) : 0;
+      const x = p.x0 + (p.x1 - p.x0) * k, y = p.y0 + (p.y1 - p.y0) * k + arc;
+      const sp = Math.floor(p.t * 24) % 4;
+      switch (p.kind) {
+        case 'orb': circle(x, y, 2.5, c, 0.6); px(x - 1, y - 1, '#ffffff', 2, 2); break;
+        case 'arrow': line(x - d * 7, y, x, y, '#c8a070'); px(x, y - 1, '#e8e8f0', 1, 3); px(x - d * 7, y - 1, c, 1, 3); break;
+        case 'shuriken': if (sp % 2) { px(x - 3, y, '#d8e0f0', 7, 1); px(x, y - 3, '#d8e0f0', 1, 7); } else { line(x - 2, y - 2, x + 2, y + 2, '#d8e0f0'); line(x - 2, y + 2, x + 2, y - 2, '#d8e0f0'); } break;
+        case 'bolt': line(x - d * 8, y - 2, x - d * 4, y + 1, '#fff6c8'); line(x - d * 4, y + 1, x, y - 1, '#ffe066'); break;
+        case 'rock': px(x - 1, y - 1, '#8a7a62', 3, 3); px(x - 1, y - 1, '#b8a888', 1, 1); break;
+        case 'bubble': circle(x, y, 3, '#9fd8ff', 0.5); px(x - 1, y - 2, '#ffffff'); break;
+        case 'leaf': px(x - 1, y, '#5ac54f', 3, 1); px(x, y - (sp % 2), '#a7f070'); break;
+        case 'fireball': px(x - 2, y - 2, '#ff9a3a', 4, 4); px(x - 1, y - 1, '#ffe066', 2, 2); for (let t = 1; t < 4; t++) px(x - d * (3 + t * 2), y + (t % 2), t % 2 ? '#e04a3a' : '#ff9a3a'); break;
+        case 'icicle': line(x - d * 6, y, x, y, '#bfefff'); px(x, y, '#ffffff'); break;
+        case 'beam': line(p.x0, p.y0, p.x0 + (p.x1 - p.x0) * Math.min(1, k * 1.6), p.y0 + (p.y1 - p.y0) * Math.min(1, k * 1.6), c, 2); break;
+        case 'boomerang': if (sp % 2) { line(x - 3, y, x, y - 3, '#c8a070'); line(x, y - 3, x + 3, y, '#c8a070'); } else { line(x, y - 3, x + 3, y, '#c8a070'); line(x + 3, y, x, y + 3, '#c8a070'); } break;
+        case 'feather': px(x - 3, y, '#ffffff', 5, 1); px(x - 2, y - 1, c, 3, 1); break;
+        case 'note': shape('note', x, y, c); break;
+        case 'comet': px(x - 1, y - 1, '#ffffff', 3, 3); for (let t = 1; t < 7; t++) px(x - d * t * 2, y, t < 3 ? c : '#fff6c8'); break;
+        case 'spore': circle(x, y, 2, '#c8e8a0', 0.8); px(x, y, c); break;
+        case 'dart': line(x - d * 5, y, x, y, '#566c86'); px(x, y, '#ffffff'); break;
+        case 'ring': circle(x, y, 2 + 3 * k, c, 0.5); break;
+        case 'skull': shape('skull', x, y, '#e8e0f0'); break;
+        case 'crescent': for (let a = -1.2; a <= 1.2; a += 0.3) px(x + d * Math.cos(a) * 4, y + Math.sin(a) * 4, '#e0d8ff'); break;
+        case 'seed': px(x, y, '#8a6a3a', 2, 2); break;
+        default: px(x, y, c, 2, 2);
+      }
+      if (k >= 1) { PROJS.splice(i, 1); spawnFx(p.sty, p.x1, p.y1, p.dir, p.landed); }
+    }
+    // Hit effects.
+    for (let i = FXS.length - 1; i >= 0; i--) {
+      const f = FXS[i]; f.t += dt;
+      if (f.t > f.life) { FXS.splice(i, 1); continue; }
+      const k = f.t / f.life, x = f.x, y = f.y, d = f.dir, c = f.c, W = '#ffffff', s = f.big;
+      b.globalAlpha = k > 0.6 ? (1 - k) / 0.4 : 1;
+      switch (f.kind) {
+        case 'slash': { const r = 9 * s; for (let a = -1.3; a <= -1.3 + 2.6 * Math.min(1, k * 2); a += 0.08) { px(x + d * Math.cos(a) * r, y + Math.sin(a) * r, W, 2, 2); px(x + d * Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2), c, 2, 2); } break; }
+        case 'cross': { const r = 7 * s * Math.min(1, k * 2.5); line(x - r, y - r, x + r, y + r, W, 2); line(x - r, y + r, x + r, y - r, c, 2); break; }
+        case 'claw': for (let j = -1; j <= 1; j++) { const r = 8 * s * Math.min(1, k * 2.5); line(x - d * 3 + j * 4, y - r, x + d * 3 + j * 4, y + r * 0.6, j ? c : W, 2); } break;
+        case 'star': { const r = 2 + 7 * s * Math.sin(k * Math.PI); px(x - r, y - 1, W, r * 2 + 1, 2); px(x - 1, y - r, W, 2, r * 2 + 1); px(x - r / 2, y - r / 2, c, 1, 1); px(x + r / 2, y + r / 2, c, 1, 1); px(x + r / 2, y - r / 2, c, 1, 1); px(x - r / 2, y + r / 2, c, 1, 1); break; }
+        case 'ring': circle(x, y, 2 + 12 * s * k, k < 0.5 ? W : c, 0.25); circle(x, y, 1 + 12 * s * k, c, 0.25); break;
+        case 'spikes': for (let j = 0; j < 3; j++) { const hh = Math.round(10 * s * Math.sin(Math.min(1, k * 1.6) * Math.PI) * (j === 1 ? 1 : 0.65)); for (let t = 0; t < hh; t++) px(x - 5 + j * 5 - Math.round((hh - t) / 4) + Math.round((hh - t) / 4), GY + 2 - t, t > hh - 2 ? W : c, Math.max(1, Math.round((hh - t) / 3)), 1); } break;
+        case 'snow': for (let j = 0; j < 5; j++) shape('flake', x + Math.sin(f.seed + j * 2.3) * 9, y - 8 + k * 16 + j * 2, j % 2 ? W : '#bfefff'); break;
+        case 'flames': for (let j = 0; j < 5; j++) { const hh = 3 + ((f.seed + j * 7 + Math.floor(f.t * 20)) % 5); px(x - 6 + j * 3, y + 6 - hh, j % 2 ? '#ff9a3a' : '#e04a3a', 2, hh); px(x - 6 + j * 3, y + 6 - hh - 1, '#ffe066', 1, 1); } break;
+        case 'bolt': { let bx = x, by = y - 40; for (let j = 0; j < 6; j++) { const nx = x + ((f.seed + j * 13) % 7 - 3), ny = y - 40 + (j + 1) * 7; line(bx, by, nx, ny, j % 2 ? '#fff6c8' : '#ffe066', 1); bx = nx; by = ny; } circle(x, y, 3 + 4 * k, '#fff6c8', 0.6); break; }
+        case 'twinkle': for (let j = 0; j < 5; j++) { const a = j * 1.25 + f.seed; if ((Math.floor(f.t * 14) + j) % 3) shape('star4', x + Math.cos(a) * 9 * s, y + Math.sin(a) * 7 * s, j % 2 ? W : c); } break;
+        case 'shards': for (let j = 0; j < 7; j++) { const a = j * 0.9 + f.seed, r = 4 + 14 * k; px(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8, j % 2 ? '#d8d0c0' : c, 2, 1); } break;
+        case 'ink': { const r = 3 + 6 * s * Math.min(1, k * 2); for (let a = 0; a < 6.28; a += 0.5) px(x + Math.cos(a) * r * (0.7 + ((f.seed + a * 10) % 3) / 6), y + Math.sin(a) * r * 0.7, '#2a1a3a', 2, 2); px(x - 1, y - 1, '#5d275d', 3, 3); for (let j = 0; j < 3; j++) px(x - 4 + j * 4, y + r * 0.7 + k * 6, '#2a1a3a', 1, 2); break; }
+        case 'hearts': for (let j = 0; j < 3; j++) shape('heart', x - 6 + j * 6, y - k * 16 - j * 3, j % 2 ? '#ff8fd0' : '#e04a7a'); break;
+        case 'notes': for (let j = 0; j < 3; j++) shape('note', x - 6 + j * 6 + Math.sin(f.t * 10 + j) * 2, y - k * 18 - j * 4, j % 2 ? c : W); break;
+        case 'smoke': b.globalAlpha *= 0.7; for (let j = 0; j < 3; j++) circle(x - 4 + j * 4, y - k * 8 - j, 2 + 3 * k, j % 2 ? '#6a6a7a' : '#4a4a5a', 0.6); break;
+        case 'beam': { const w = Math.round(6 * s * Math.sin(k * Math.PI)) + 1; px(x - w / 2, 0, '#fff6c8', w, GY + 2); px(x - w / 4, 0, W, Math.max(1, w / 2), GY + 2); break; }
+        case 'runes': for (let j = 0; j < 4; j++) { const a = f.t * 8 + j * 1.57; shape('rune', x + Math.cos(a) * 10, y + Math.sin(a) * 5, j % 2 ? c : '#c9b3ff'); } break;
+        case 'quake': for (let j = 0; j < 4; j++) line(x, GY + 2, x + (j - 1.5) * 8 * Math.min(1, k * 3), GY + 2 + (j % 2), '#2a1a12'); break;
+        case 'shatter': for (let j = 0; j < 8; j++) { const a = j * 0.785, r = 3 + 16 * k; const xx = x + Math.cos(a) * r, yy = y + Math.sin(a) * r; line(xx, yy, xx + Math.cos(a + 1) * 2, yy + Math.sin(a + 1) * 2, j % 2 ? '#bfefff' : W); } break;
+        case 'vortex': for (let j = 0; j < 10; j++) { const a = j * 0.63 + f.t * 14, r = 14 * (1 - k) * (0.4 + j / 16); px(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.7, j % 2 ? c : W); } break;
+        default: break;
+      }
+      b.globalAlpha = 1;
+    }
+  }
+
   function frameFor(e) {
     const st = e.state;
     if (st === 'atk') return e.at < e.st.fore * 0.7 ? 2 : (e.at < e.st.fore + 0.2 ? 3 : 0);
@@ -6138,9 +6448,18 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       b.drawImage(glow(name), x0 - 2, y0 - 2);
       if (Math.random() < 0.08) particle({ x: e.x + (Math.random() - 0.5) * img.width * 0.6, y: fy - Math.random() * img.height * 0.8, vx: 0, vy: -16, life: 0.6, c: Math.random() < 0.5 ? '#ffe066' : '#fff6c8', s: 1 });
     }
+    // The unit's own attack motion: offset, squash and stretch about its feet, a mirror flip, an afterimage.
+    const pose = motionPose(e, styleOf(e)), dir = e.side === 0 ? 1 : -1;
+    const pw = Math.round(img.width * pose.sx), ph = Math.round(img.height * pose.sy);
+    const px0 = Math.round(sx - ox * pose.sx + dir * pose.dx), py0 = Math.round(fy - ph + dy + pose.dy);
+    const put = (im) => {
+      if (!pose.flip) { b.drawImage(im, px0, py0, pw, ph); return; }
+      b.save(); b.translate(px0 + pw, py0); b.scale(-1, 1); b.drawImage(im, 0, 0, pw, ph); b.restore();
+    };
+    if (pose.ghost > 0) { b.globalAlpha = 0.3 * pose.ghost * alpha; b.drawImage(img, x0, y0); b.globalAlpha = 0.18 * pose.ghost * alpha; b.drawImage(img, Math.round((x0 + px0) / 2), y0); }
     b.globalAlpha = alpha;
-    b.drawImage(img, x0, y0);
-    if (e.flash > 0) { b.globalAlpha = Math.min(1, e.flash * 8) * 0.8 * alpha; b.drawImage(silhouette(name), x0, y0); }
+    put(img);
+    if (e.flash > 0) { b.globalAlpha = Math.min(1, e.flash * 8) * 0.8 * alpha; put(silhouette(name)); }
     b.globalAlpha = 1;
     // Status effects.
     if (e.freeze > 0) { b.fillStyle = 'rgba(115,239,247,0.45)'; b.fillRect(x0 + 2, y0 + 2, img.width - 4, img.height - 3); b.fillStyle = '#ffffff'; b.fillRect(x0 + 3, y0 + 3, 1, 1); b.fillRect(x0 + img.width - 5, y0 + 5, 1, 1); }
@@ -6256,6 +6575,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
       const list = battle.ents.slice().sort(function (p, q) { return p.y - q.y || p.side - q.side; });
       for (const e of list) drawEnt(e);
       drawWaves();
+      SHY = shy; drawFx(dt);
     } else drawHome(dt);
     // Rings (wave launches, roar).
     for (let i = rings.length - 1; i >= 0; i--) {
@@ -7822,7 +8142,46 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   // ---------------------------------------------------------------------------
   // Input
   // ---------------------------------------------------------------------------
+  // Every strip that scrolls sideways can also be dragged with the mouse or scrolled with the wheel (touch
+  // already pans natively). A drag of more than a few pixels swallows the click that ends it.
+  function bindHScroll() {
+    const scroller = (el) => {
+      for (; el && el !== document.body; el = el.parentElement) {
+        if (el.scrollWidth > el.clientWidth + 2) { const ox = getComputedStyle(el).overflowX; if (ox === 'auto' || ox === 'scroll') return el; }
+      }
+      return null;
+    };
+    document.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const el = scroller(e.target);
+      if (!el) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;  // let the page scroll on
+      el.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 32 : 1);
+      e.preventDefault();
+    }, { passive: false });
+    let drag = null;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      const el = scroller(e.target);
+      if (el) drag = { el: el, x: e.clientX, left: el.scrollLeft, moved: false };
+    });
+    document.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) > 5) { drag.moved = true; drag.el.classList.add('hscroll-drag'); }
+      if (drag.moved) drag.el.scrollLeft = drag.left - dx;
+    });
+    const end = () => {
+      if (!drag) return;
+      if (drag.moved) { const el = drag.el; el.classList.remove('hscroll-drag'); const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; document.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', stop, true), 0); }
+      drag = null;
+    };
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+  }
   function bindInput() {
+    bindHScroll();
     $('btn-battle').addEventListener('click', () => { AU.unlock(); AU.click(); const n = nextStory(); if (n) openStage(n); else openPanel('map'); });
     $('quests').addEventListener('click', () => { AU.click(); openPanel('rewards'); });
     $('profile').addEventListener('click', () => { AU.click(); openPanel('medals'); });
@@ -7978,7 +8337,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     R.resize();
     PF.on('mute', (m) => AU.setExternalMute(m));
     PF.on('pause', (p) => { if (p) AU.suspend(); else AU.resume(); });
-    PF.on('ready', () => { adoptCloud(); PF.loadingStop(); if (state.tower) PF.submitScore(state.tower); if (mode === 'home') refreshHome(); });
+    PF.on('ready', () => { adoptCloud(); if (state.tower) PF.submitScore(state.tower); if (mode === 'home') refreshHome(); });
     PF.on('user', () => { if (mode === 'home') refreshHome(); });
     const away = now() - state.lastSeen;
     if (COVER) coverMode();
