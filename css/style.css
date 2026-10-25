@@ -261,7 +261,7 @@ img.px { display: inline-block; vertical-align: middle; }
 .cards { flex: 1 1 auto; min-width: 0; height: 100%; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: 1fr 1fr; gap: 6px; }
 .card { position: relative; min-width: 0; min-height: 0; overflow: hidden; display: flex; align-items: flex-start; justify-content: center; padding: 0; }
 .cards .card { border-width: 6px; border-image-width: 6px; }
-.card .cbg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 36%, var(--cg, #5a6478) 0, #1c1a34 80%); }
+.card .cbg { position: absolute; inset: 0; background-color: #1c1a34; background-position: center bottom; background-repeat: no-repeat; image-rendering: pixelated; }
 .card.r0 { --cg: #66708a; } .card.r1 { --cg: #2f6ac8; } .card.r2 { --cg: #7048c8; } .card.r3 { --cg: #c08a1a; } .card.r4 { --cg: #c83a90; }
 .card .cart { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: calc(100% - 16px); }
 .card .cart img.px { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .4)); }
@@ -274,7 +274,7 @@ img.px { display: inline-block; vertical-align: middle; }
 .card.poor .cart img.px { filter: grayscale(.6) brightness(.8); }
 .card.poor .cost { color: #ff8a8a; }
 .card.cool .cart img.px { filter: grayscale(.5) brightness(.8); }
-.card.ok .cbg { background: radial-gradient(ellipse at 50% 36%, color-mix(in srgb, var(--cg) 70%, #ffffff) 0, var(--cg) 30%, #1c1a34 85%); }
+.card.poor .cbg, .card.cool .cbg { filter: brightness(.65) saturate(.6); }
 .card.ok:hover { filter: brightness(1.1); }
 .card.ok:active { transform: translateY(2px); }
 .card.ready { animation: readyPop 300ms steps(3); }
@@ -827,3 +827,48 @@ img.px.fit { max-width: none !important; flex: 0 0 auto; }
 .hand img.px { width: 48px; height: 48px; display: block; }
 @keyframes handTap { 50% { transform: translate(5px, 12px); } }
 #tut.tut { z-index: 63; max-width: 320px; font-size: 16px; padding: 4px 10px; }
+
+/* Phones: one row of five cards and a small page button for the other five. */
+.cpage { display: none; }
+@media (max-height: 520px) {
+  .cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .cards:not(.p2) .card:nth-child(n+6), .cards.p2 .card:nth-child(-n+5) { display: none; }
+  .cpage { position: relative; display: flex; flex: 0 0 auto; width: 36px; height: calc(100% - 6px); flex-direction: column; padding: 0; }
+  .cp-dots { display: flex; flex-direction: column; gap: 5px; }
+  .cp-dots i { display: block; width: 8px; height: 8px; background: #3a2214; box-shadow: 0 0 0 1px #1a0f12; }
+  .cpage:not(.p2) .cp-dots i:first-child, .cpage.p2 .cp-dots i:last-child { background: #ffe066; }
+  .cp-n { position: absolute; top: -10px; right: -10px; min-width: 18px; height: 18px; padding: 0 4px; font-size: 11px; line-height: 18px; text-align: center; color: #fff; background: #e04848; box-shadow: 0 0 0 2px var(--ink); z-index: 2; }
+}
+
+/* Stage window ------------------------------------------------------------------------------ */
+.modal.stage .modal-box { width: min(760px, 100%); }
+.modal.stage #modal-body { gap: 12px; padding-top: 22px; }
+.sw-banner { position: relative; height: 132px; flex: 0 0 auto; background-position: center bottom; image-rendering: pixelated; box-shadow: 0 0 0 3px #2a160c, inset 0 0 0 2px rgba(255, 255, 255, .2); overflow: hidden; }
+.sw-tags { position: absolute; left: 8px; top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.sw-tag { padding: 2px 8px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(26, 15, 18, .82); box-shadow: 0 0 0 2px var(--ink); text-shadow: 1px 1px 0 var(--ink); }
+.sw-tag.d0 { background: #2e8a3a; } .sw-tag.d1 { background: #c08010; } .sw-tag.d2 { background: #b02a8a; } .sw-tag.boss { background: #c03040; }
+.sw-foes { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; justify-content: center; align-items: flex-end; gap: 18px; padding: 0 10px; }
+.sw-foe { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sw-foe b { font-size: 11px; color: #fff; padding: 0 5px; background: rgba(26, 15, 18, .8); text-shadow: 1px 1px 0 var(--ink); white-space: nowrap; }
+.sw-foe.boss img.px { filter: drop-shadow(0 0 4px #ff6fd0); }
+.sw-foe img.unk { filter: brightness(0) opacity(.7); }
+.sw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sw-card { display: flex; flex-direction: column; gap: 8px; padding: 4px 8px 8px; }
+.sw-card .sec h3 { font-size: 16px; }
+.sw-card .loot { gap: 8px; }
+.sw-card .lt { min-width: 72px; }
+.boosts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.bst { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 72px; padding: 2px 4px 4px; color: var(--brown); }
+.bst .bi img.px { width: 32px; height: 32px; display: block; }
+.bst b { font-size: 12px; text-align: center; line-height: 1.15; }
+.bst .bc { position: absolute; right: -6px; top: -6px; font-size: 11px; font-weight: 700; padding: 0 5px; background: var(--ink); color: var(--butter); }
+.bst.none { opacity: .5; }
+.bst.on { filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 6px #5ac54f); }
+.bst.on::after { content: "ON"; position: absolute; left: -6px; top: -6px; font-size: 10px; font-weight: 700; padding: 0 4px; background: #5ac54f; color: var(--ink); }
+@media (max-width: 640px), (max-height: 520px) { .sw-banner { height: 110px; } .sw-grid { grid-template-columns: 1fr; } .bst { min-height: 70px; } }
+
+/* Home header: the currency bar is centred on the screen (the logo below shares that centre). */
+@media (min-width: 1000px) { .h-top .curs { position: absolute; left: 50%; top: 0; transform: translateX(-50%); padding-top: 10px; flex: none; } }
+.logo .logo-img { display: block; }
+.h-center { top: 72px; gap: 10px; }
+@media (max-height: 520px) { .h-center { top: 52px; } }

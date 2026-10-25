@@ -14,7 +14,7 @@
     { name: 'peaks', sky: ['#8fb4e8', '#e4f0ff'], far: '#c8d8f0', mid: '#5a7a9a', ground: '#eef4ff', dirt: '#7f95c8', deep: '#4a5a90', prop: 'pine', fx: 'snow', cloud: '#ffffff' },
     { name: 'bog', sky: ['#3a4a5a', '#7a8a78'], far: '#4a5a4a', mid: '#3a4a3a', ground: '#557c46', dirt: '#3a4a34', deep: '#29342a', prop: 'shroom', fx: 'fog', cloud: '#9aaa98' },
     { name: 'caldera', sky: ['#3a1424', '#a8442a'], far: '#5a2a2a', mid: '#3a1a1a', ground: '#c0583e', dirt: '#7a2a24', deep: '#4a1a1a', prop: 'rock', fx: 'ember', cloud: '#7a4a4a' },
-    { name: 'city', sky: ['#22223e', '#5a5a80'], far: '#3a3a5a', mid: '#2a2a40', ground: '#6a7498', dirt: '#2c3256', deep: '#1a1e3a', prop: 'lamp', fx: 'rain', cloud: '#5a5a7a' },
+    { name: 'city', sky: ['#22223e', '#5a5a80'], far: '#3a3a5a', mid: '#2a2a40', ground: '#6a7498', dirt: '#2c3256', deep: '#1a1e3a', prop: 'lamp', fx: 'petal', cloud: '#5a5a7a' },
     { name: 'sky', sky: ['#5ab4ff', '#e8f8ff'], far: '#ffffff', mid: '#a8d8a0', ground: '#eef2ff', dirt: '#8a96c8', deep: '#5a6494', prop: 'island', fx: 'feather', cloud: '#ffffff' },
     { name: 'rift', sky: ['#07071a', '#29366f'], far: '#4a4a6a', mid: '#3a3a58', ground: '#8e8ebc', dirt: '#3a3e66', deep: '#24264a', prop: 'crystal', fx: 'star', cloud: '#5a5a8a' }
   ];
@@ -79,13 +79,8 @@
     sgrad.addColorStop(0, mix(top, '#0b1030', 0.35)); sgrad.addColorStop(1, top);
     sg.fillStyle = sgrad; sg.fillRect(0, 0, 1, BH);
     if (y0 > 0) fg.drawImage(sky, 0, 0, 1, y0, 0, 0, farW, y0);
-    // A skyline in front of the recoloured painting for the city.
     let mid = null;
-    if (th.name === 'city') {
-      const midW = Math.ceil(BW + span * 0.55 + 60);
-      mid = mk(midW, BH);
-      ridge(mid.getContext('2d'), midW, GY - BH * 0.06, BH * 0.16, th.mid, r, 'skyline');
-    }
+
     return { sky: sky, far: far, mid: mid };
   }
 
@@ -97,7 +92,7 @@
     const art = SPR.asset && SPR.asset('bg_' + th.name);
     if (art) {
       const pl = paintedLayers(art, th, span, r);
-      layers = { sky: pl.sky, far: pl.far, mid: pl.mid, ground: groundStrip(th, r) };
+      layers = { sky: pl.sky, far: pl.far, mid: pl.mid, ground: groundStrip(th, r, root.AW_ASSETS && root.AW_ASSETS['bg_' + th.name]) };
       return;
     }
     // Sky.
@@ -128,22 +123,43 @@
     for (let x = 10; x < midW; x += 22 + r() * 40) prop(mg, th.prop, x, GY - BH * 0.03 - r() * 4, th, r);
     layers = { sky: sky, far: far, mid: mid, ground: groundStrip(th, r) };
   }
-  // Ground strip (1.0 parallax), tiled: the lane the armies walk on. Clean shapes only: a lit lip with
-  // scalloped tufts, two broken strata lines and a few shaded pebbles; nothing touches the tile seam.
-  function groundStrip(th, r) {
+  // Ground strip (1.0 parallax), tiled: the lane the armies walk on. Its colours come from the painting's own
+  // terrain where one is used (art.ground), and its texture from the land: grass, sand, snow or paving.
+  // Clean shapes only, and nothing touches the tile seam.
+  const GROUND_STYLE = { meadow: 'grass', bog: 'grass', dunes: 'sand', caldera: 'sand', peaks: 'snow', sky: 'snow', city: 'stone', rift: 'stone' };
+  function groundStrip(th, r, art) {
     const gw = 96, gh = BH - GY + 2;
     const ground = mk(gw, gh), gg = ground.getContext('2d');
     const px = function (c, x, y, w, h) { gg.fillStyle = c; gg.fillRect(x, y, w, h); };
-    const lip = mix(th.ground, '#ffffff', 0.3), shade = mix(th.ground, th.dirt, 0.55);
-    px(th.dirt, 0, 0, gw, gh);
-    px(th.ground, 0, 0, gw, 5);
-    px(lip, 0, 0, gw, 1);
-    px(shade, 0, 5, gw, 1);
-    for (let x = 4; x < gw - 4; x += 12) { px(th.ground, x, 5, 4, 1); px(shade, x + 1, 6, 2, 1); }
-    for (const [y, x0] of [[10, 6], [10, 52], [16, 28], [16, 74]]) if (y < gh - 1) px(th.deep, x0, y, 14 + Math.floor(r() * 6), 1);
+    const style = GROUND_STYLE[th.name] || 'grass';
+    const top = art && art.ground ? art.ground.top : th.ground;
+    const dirt = art && art.ground ? mix(art.ground.band, top, 0.18) : th.dirt;
+    const deep = mix(dirt, '#0b0b16', 0.35), lip = mix(top, '#ffffff', 0.32), shade = mix(top, dirt, 0.55), lite = mix(dirt, '#ffffff', 0.16);
+    px(dirt, 0, 0, gw, gh);
+    if (style === 'grass') {
+      px(top, 0, 0, gw, 5); px(lip, 0, 0, gw, 1); px(shade, 0, 5, gw, 1);
+      for (let x = 4; x < gw - 4; x += 12) { px(top, x, 5, 4, 1); px(shade, x + 1, 6, 2, 1); }
+      for (let x = 3; x < gw - 3; x += 8) { px(lip, x, 1, 1, 2); px(lip, x + 3, 2, 1, 1); }
+    } else if (style === 'snow') {
+      px(top, 0, 0, gw, 6); px(mix(top, '#ffffff', 0.6), 0, 0, gw, 1); px(shade, 0, 6, gw, 1);
+      for (let x = 2; x < gw - 8; x += 16) { px(mix(top, '#ffffff', 0.45), x, 1, 6, 1); px(top, x + 5, 6, 4, 1); px(top, x + 6, 7, 2, 1); }
+    } else if (style === 'sand') {
+      px(top, 0, 0, gw, 4); px(lip, 0, 0, gw, 1); px(shade, 0, 4, gw, 1);
+      for (let x = 6; x < gw - 12; x += 22) { px(lite, x, 9, 8, 1); px(lite, x + 8, 8, 4, 1); }
+    } else {
+      // Paving: a lit kerb, then staggered slabs with mortar joints.
+      px(top, 0, 0, gw, 4); px(lip, 0, 0, gw, 1); px(deep, 0, 4, gw, 1);
+      for (let y = 5, row = 0; y < gh; y += 6, row++) {
+        px(deep, 0, y + 5, gw, 1);
+        for (let x = (row % 2 ? 8 : 0); x < gw; x += 16) { px(deep, x, y, 1, 5); px(lite, x + 1, y, 14, 1); }
+      }
+      for (let x = 0; x < gw; x += 24) px(deep, x, 0, 1, 4);
+      return ground;
+    }
+    for (const [y, x0] of [[11, 6], [11, 52], [17, 28], [17, 74]]) if (y < gh - 1) px(deep, x0, y, 14 + Math.floor(r() * 6), 1);
     for (let i = 0; i < 4; i++) {
-      const x = 6 + Math.floor(r() * (gw - 14)), y = 8 + Math.floor(r() * Math.max(1, gh - 11));
-      px(th.deep, x, y + 1, 4, 1); px(mix(th.dirt, '#ffffff', 0.18), x + 1, y, 2, 1);
+      const x = 6 + Math.floor(r() * (gw - 14)), y = 9 + Math.floor(r() * Math.max(1, gh - 12));
+      px(deep, x, y + 1, 4, 1); px(lite, x + 1, y, 2, 1);
     }
     return ground;
   }

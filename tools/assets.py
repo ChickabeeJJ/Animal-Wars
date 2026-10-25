@@ -122,7 +122,23 @@ def background(name, src, kind=None, colours=40):
         small = grade(small, kind)
     q = quantize(small, colours)
     q = despeckle(q)
-    return to_png(q)
+    im, data = to_png(q)
+    return im, data, ground_colours(q)
+
+
+def ground_colours(q):
+    """The colours of the terrain where the lane meets the painting (rows just above the flat bottom band),
+    so the lane strip the units walk on can match each background."""
+    def lit(rows):
+        # The lit side of the material: the median of the brighter half of the pixels in those rows.
+        px = q[rows[0]:rows[1]].reshape(-1, 3).astype(float)
+        lum = px @ np.array([0.3, 0.59, 0.11])
+        return np.median(px[lum >= np.median(lum)], axis=0)
+    def common(rows):
+        px = q[rows[0]:rows[1]].reshape(-1, 3).astype(float)
+        return np.median(px, axis=0)
+    hexc = lambda c: '#%02x%02x%02x' % tuple(int(round(v)) for v in c)
+    return {'top': hexc(lit((156, 164))), 'band': hexc(common((168, 178)))}
 
 
 def sprite(name, src, height, colours=36):
@@ -188,7 +204,7 @@ def main():
         ('bg_peaks', lambda: background('bg_peaks', 'peaks.png')),
         ('bg_bog', lambda: background('bg_bog', 'meadow.png', 'bog')),
         ('bg_caldera', lambda: background('bg_caldera', 'dunes.png', 'caldera')),
-        ('bg_city', lambda: background('bg_city', 'rift.png', 'city')),
+        ('bg_city', lambda: background('bg_city', 'city.png')),
         ('bg_sky', lambda: background('bg_sky', 'peaks.png', 'sky')),
         ('bg_rift', lambda: background('bg_rift', 'rift.png')),
         ('base', lambda: sprite('base', 'base.png', 92)),
@@ -197,10 +213,14 @@ def main():
              '(function (root) {', "  'use strict';", '  const A = {};']
     total = 0
     for name, fn in jobs:
-        im, data = fn()
+        res = fn()
+        im, data = res[0], res[1]
+        ground = res[2] if len(res) > 2 else None
         im.save(os.path.join(OUT, name + '.png'))
         total += len(data)
-        lines.append("  A.%s = { w: %d, h: %d, src: 'data:image/png;base64,%s' };" % (name, im.width, im.height, base64.b64encode(data).decode()))
+        extra = (", ground: { top: '%s', band: '%s' }" % (ground['top'], ground['band'])) if ground else ''
+        lines.append("  A.%s = { w: %d, h: %d%s, src: 'data:image/png;base64,%s' };" % (name, im.width, im.height, extra, base64.b64encode(data).decode()))
+        if ground: print('   ground', ground)
         print('%-11s %4dx%-4d %6d bytes' % (name, im.width, im.height, len(data)))
     lines += ['  root.AW_ASSETS = A;', "})(typeof globalThis !== 'undefined' ? globalThis : this);", '']
     with open(os.path.join(ROOT, 'js', 'assets.js'), 'w') as f:

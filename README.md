@@ -41,7 +41,8 @@ js/core.js           all rules: saves, hero stats, stage generator, battle simul
 js/assets.js         the painted tree-house base and region backgrounds as native-size pixel art (written by tools/assets.py)
 js/sprites.js        palette, Painter (with a pixel-art clean-up pass), 50 hero and 33 Gloom painters (4 frames each), bases, eggs, hand-drawn icons, the UI frame kit and pixel-font titles
 js/render.js         the battlefield: painted parallax regions, camera, units, Battle Cry glow, waves, particles, minimap, home parade, region art for menus
-js/audio.js          chiptune sound effects and a step sequencer playing 3 original themes (all synthesized, no audio files)
+js/audio.js          chiptune sound effects (synthesized) and the music: audio/menu.mp3 at home, audio/battle.mp3 in battle (a synthesized fallback plays if they cannot load)
+audio/               the menu and battle music tracks (re-encoded at 96 kbps)
 js/platform.js       CrazyGames SDK v3 adapter + storage; every call is safe without the SDK
 js/game.js           UI, input, battle loop, tutorial, results, windows, saving, platform hooks
 tools/sim.js         campaign simulator: a scripted player plays the real rules and reports pacing
@@ -82,7 +83,7 @@ Stages are generated from each region's Gloom pools (`stageDef` in `js/core.js`)
 ## Deploying to CrazyGames
 
 1. `npm run build`.
-2. Upload `dist/animal-wars.zip` (one `index.html`, about 450 KB zipped; everything is inlined, including the painted backgrounds).
+2. Upload `dist/animal-wars.zip` (`index.html` with everything inlined, plus the `audio/` folder with the two music tracks; about 4.5 MB).
 3. Use `store/` for the listing: three covers, a landscape preview video, and the text in [`store/LISTING.md`](store/LISTING.md).
 4. Category **Action** or **Strategy** (tower defense), mobile and touch supported. On phones and tablets the game is **landscape only**: in portrait a "turn your device sideways" screen covers it (and pauses a battle), and the game asks the browser to lock landscape where that is allowed.
 
@@ -103,4 +104,4 @@ The SDK integration was written from the v3 API and has **not** been run against
 
 ## Original work
 
-Animal Wars is inspired by the lane-battler genre (send units down a lane, manage an income meter, fire a base weapon, destroy the enemy base), but all names, characters, art, music and text are original. There are no cats in the army, no copied characters, enemies, sprites, sounds or UI art, and the currencies, items and modes have their own names (acorns, Battle Cry, Royal Nest, Gloom Tower, and so on); there is no base cannon: the Battle Cry powers up your heroes instead. Characters, towers, eggs and icons are drawn by code in `js/sprites.js`; the tree-house base and region backgrounds are the owner's painted art in `assets/src`, converted by `tools/assets.py`; all audio is synthesized in `js/audio.js`.
+Animal Wars is inspired by the lane-battler genre (send units down a lane, manage an income meter, fire a base weapon, destroy the enemy base), but all names, characters, art, music and text are original. There are no cats in the army, no copied characters, enemies, sprites, sounds or UI art, and the currencies, items and modes have their own names (acorns, Battle Cry, Royal Nest, Gloom Tower, and so on); there is no base cannon: the Battle Cry powers up your heroes instead. Characters, towers, eggs and icons are drawn by code in `js/sprites.js`; the tree-house base and region backgrounds are the owner's painted art in `assets/src`, converted by `tools/assets.py`; sound effects are synthesized in `js/audio.js`; the music tracks in `audio/` were supplied by the owner.

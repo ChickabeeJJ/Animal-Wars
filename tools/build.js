@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Production build: inlines CSS, fonts and JS into one dist/index.html and zips it for upload.
  *   node tools/build.js
- * The game has no other assets: sprites are drawn in code and all sound is synthesized.
+ * Everything is inlined except the music (audio/*.mp3), which is copied next to index.html and zipped with it.
  */
 'use strict';
 const fs = require('fs');
@@ -29,10 +29,14 @@ fs.writeFileSync(path.join(DIST, 'index.html'), html);
 // Vercel's default static output folder is public/.
 fs.mkdirSync(path.join(ROOT, 'public'), { recursive: true });
 fs.writeFileSync(path.join(ROOT, 'public', 'index.html'), html);
+for (const dir of [DIST, path.join(ROOT, 'public')]) {
+  fs.mkdirSync(path.join(dir, 'audio'), { recursive: true });
+  for (const f of fs.readdirSync(path.join(ROOT, 'audio'))) fs.copyFileSync(path.join(ROOT, 'audio', f), path.join(dir, 'audio', f));
+}
 
 const zip = path.join(DIST, 'animal-wars.zip');
 if (fs.existsSync(zip)) fs.unlinkSync(zip);
-try { execFileSync('zip', ['-q', '-9', zip, 'index.html'], { cwd: DIST }); } catch (e) { console.warn('zip not available; upload dist/index.html directly'); }
+try { execFileSync('zip', ['-q', '-9', '-r', zip, 'index.html', 'audio'], { cwd: DIST }); } catch (e) { console.warn('zip not available; upload dist/index.html directly'); }
 
 const kb = (f) => (fs.statSync(f).size / 1024).toFixed(1) + ' KB';
 console.log('dist/index.html', kb(path.join(DIST, 'index.html')));

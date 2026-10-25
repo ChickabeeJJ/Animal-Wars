@@ -18,7 +18,7 @@ const { chromium } = loadPlaywright();
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'store');
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
 const SIZES = [
   { name: 'cover-landscape-1920x1080', w: 1920, h: 1080, region: 0 },
   { name: 'cover-portrait-800x1200', w: 800, h: 1200, region: 6 },

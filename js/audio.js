@@ -1,5 +1,7 @@
-/* Animal Wars — chiptune sound effects and music, all synthesized with Web Audio (no audio files).
- * Music is a tiny step sequencer playing three original themes: home, battle and boss.
+/* Animal Wars — chiptune sound effects (synthesized with Web Audio) and music.
+ * Music: the recorded tracks in audio/ (menu and battle), played with plain <audio> elements so they also work
+ * from file:// and in the single-file build next to the audio folder. If a track cannot load, a tiny step
+ * sequencer plays the original synthesized themes (home, battle, boss) instead.
  */
 (function (root) {
   'use strict';
@@ -35,12 +37,14 @@
       drums: 'heavy'
     }
   };
+  const TRACKS = { home: 'audio/menu.mp3', battle: 'audio/battle.mp3', boss: 'audio/battle.mp3' };
   Object.keys(SONGS).forEach(function (k) { SONGS[k].steps = SONGS[k].melody.map(function (bar) { return bar.split(' ').map(function (t) { return t === '.' ? null : Number(t); }); }); });
 
   const A = {
     ctx: null, master: null, sfxGain: null, musicGain: null, noise: null,
     muted: false, external: false, sfxOn: true, musicOn: true, hidden: false,
     song: null, want: 'home', step: 0, nextT: 0, timer: null, last: {},
+    tracks: {}, cur: null, trackFail: false,
 
     unlock: function () {
       if (this.ctx) { if (this.ctx.state === 'suspended' && !this.hidden) this.ctx.resume().catch(function () {}); return; }
@@ -66,13 +70,14 @@
       this.master.gain.setTargetAtTime(this.silent() ? 0 : 0.55, t, 0.03);
       this.sfxGain.gain.setTargetAtTime(this.sfxOn ? 1 : 0, t, 0.03);
       this.musicGain.gain.setTargetAtTime(this.musicOn ? 0.3 : 0, t, 0.2);
+      if (this.cur) this.cur.volume = this.silent() || !this.musicOn ? 0 : 0.45;
     },
     setMuted: function (m) { this.muted = !!m; this.applyGain(); },
     setExternalMute: function (m) { this.external = !!m; this.applyGain(); },
     setSfx: function (on) { this.sfxOn = !!on; this.applyGain(); },
     setMusic: function (on) { this.musicOn = !!on; this.applyGain(); },
-    suspend: function () { this.hidden = true; this.applyGain(); if (this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(function () {}); },
-    resume: function () { this.hidden = false; this.applyGain(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(function () {}); },
+    suspend: function () { this.hidden = true; this.applyGain(); if (this.cur) this.cur.pause(); if (this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(function () {}); },
+    resume: function () { this.hidden = false; this.applyGain(); if (this.cur) this.cur.play().catch(function () {}); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(function () {}); },
     ok: function () { return this.ctx && this.ctx.state === 'running' && !this.silent() && this.sfxOn; },
 
     makeNoise: function () {
@@ -111,9 +116,31 @@
     gate: function (k, gap) { const t = this.ctx.currentTime; if (this.last[k] && t - this.last[k] < gap) return false; this.last[k] = t; return true; },
 
     // --- Music ---------------------------------------------------------------
-    play: function (name) { this.want = name; if (this.ctx && (!this.song || this.song.name !== name)) this.startMusic(); },
+    play: function (name) { this.want = name; if (this.ctx && this.playing !== name) this.startMusic(); },
+    track: function (src) {
+      if (this.tracks[src]) return this.tracks[src];
+      const el = new root.Audio(src);
+      el.loop = true; el.preload = 'auto';
+      el.addEventListener('error', () => { this.trackFail = true; if (this.cur === el) { this.cur = null; this.playing = null; this.startMusic(); } });
+      this.tracks[src] = el;
+      return el;
+    },
     startMusic: function () {
       if (!this.ctx) return;
+      this.playing = this.want;
+      const src = TRACKS[this.want];
+      if (src && !this.trackFail && typeof root.Audio === 'function') {
+        this.song = null;
+        const el = this.track(src);
+        if (this.cur === el) return;  // battle and boss share a track: keep it going
+        if (this.cur) this.cur.pause();
+        this.cur = el;
+        el.currentTime = 0;
+        this.applyGain();
+        if (!this.hidden) el.play().catch(function () {});
+        return;
+      }
+      if (this.cur) { this.cur.pause(); this.cur = null; }
       const s = SONGS[this.want];
       if (!s) return;
       this.song = { name: this.want, s: s };

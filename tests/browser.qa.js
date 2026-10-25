@@ -18,7 +18,7 @@ const { chromium } = loadPlaywright();
 
 const ROOT = path.resolve(__dirname, '..', process.env.QA_ROOT || '.');
 const SHOTS = process.argv[2] || null;
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg' };
 
 function serve() {
   return new Promise((resolve) => {
