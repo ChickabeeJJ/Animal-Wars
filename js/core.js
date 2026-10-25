@@ -33,7 +33,8 @@
     // Battle Cry: every hero on the field glows and fights harder for a few seconds.
     // Extra challenge on top of the tuned stages: stronger Gloom, sturdier towers and faster waves.
     // Eased in over the first stages so 1-1 and 1-2 stay a gentle welcome.
-    challenge: { mag: 1.22, hp: 1.2, tempo: 1.08, ramp: 6, region: { 6: 0.92 } },
+    challenge: { mag: 1.4, hp: 1.2, tempo: 1.08, ramp: 6, region: { 0: 0.9, 6: 0.92, 7: 0.88 } },
+    element: { strong: 1.5, weak: 0.75, syn3: 0.1, syn5: 0.2 },
     roar: { charge: 30, minCharge: 12, time: 8, atk: 0.5, speed: 0.3, guard: 0.3 },
     kbDist: 28, kbTime: 0.35, bossKbDist: 10,
     allyCap: 30, enemyCap: 40,
@@ -109,7 +110,7 @@
       items: { rush: 0, armor: 0, roar: 0, charm: 0 },
       heroes: { pip: { lvl: 1, plus: 0, form: 0 }, shelly: { lvl: 1, plus: 0, form: 0 } },
       lineup: ['pip', 'shelly', null, null, null, null, null, null, null, null],
-      clear: [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],
+      clear: [0, 1, 2].map(() => CT.REGIONS.map(() => 0)),
       stars: {},
       lab: {},
       gacha: { pulls: 0, sinceMythic: 0, sinceLegend: 0, freeAt: 0, welcome: false },
@@ -228,7 +229,7 @@
     return {
       id: id, name: def.names[own.form], rarity: def.rarity, form: own.form, level: L,
       hp: Math.round(def.hp * m), atk: Math.round(def.atk * m), rng: def.rng, spd: def.spd,
-      rate: Math.max(def.rate, def.fore + 0.25), fore: def.fore, kb: def.kb, area: !!def.area, ab: ab, traits: [],
+      rate: Math.max(def.rate, def.fore + 0.25), fore: def.fore, kb: def.kb, area: !!def.area, ab: ab, traits: [], el: def.el,
       cost: def.cost, cd: def.cd * (1 - Math.min(0.4, labVal(s, 'cd'))), size: def.look.s
     };
   }
@@ -311,6 +312,7 @@
   // Builds a stage from its region's enemy pools. Deterministic: the same stage always plays the same way.
   // region: per-land trims where the extra challenge stacked into a wall (Skyreach Isles was already the steepest).
   function challenge(key, n, r) { const C = CONFIG.challenge; return (1 + (C[key] - 1) * Math.min(1, n / C.ramp)) * (key === 'mag' && C.region[r] ? C.region[r] : 1); }
+  function chapterOf(r) { let c = 0; CT.CHAPTERS.forEach((C, k) => { if (r >= C.from) c = k; }); return c; }
   function stageDef(d, r, i) {
     const R = CT.REGIONS[r], D = CT.DIFFICULTIES[d];
     const k = i / 11, n = d * 96 + r * 12 + i;
@@ -343,7 +345,7 @@
     const baseHp = Math.round(lerp(R.baseHp[0], R.baseHp[1], k) * (d === 0 ? 1 : D.mag * 0.7) * tuned('hp', d, r, i) * challenge('hp', n) / 10) * 10;
     return {
       kind: 'story', d: d, r: r, i: i, key: stageKey(d, r, i),
-      name: R.names[i], region: R.name, theme: R.theme,
+      name: R.names[i], region: R.name, theme: R.theme, tint: R.tint || 0, chapter: chapterOf(r),
       lane: R.lane + (i % 3) * 20, baseHp: baseHp, lines: lines,
       coins: Math.round(lerp(R.coins[0], R.coins[1], k) * D.coins / 10) * 10,
       gems: Math.round((i === 11 ? 100 : i === 5 ? 40 : 20) * D.gems),
@@ -416,7 +418,7 @@
     const e = ENEMY[id], m = mag / 100;
     return {
       id: id, name: e.name, hp: Math.round(e.hp * m), atk: Math.round(e.atk * m), rng: e.rng, spd: e.spd,
-      rate: Math.max(e.rate, e.fore + 0.25), fore: e.fore, kb: e.kb, area: !!e.area, ab: e.ab || {}, traits: e.traits, drop: e.drop, size: e.look.s
+      rate: Math.max(e.rate, e.fore + 0.25), fore: e.fore, kb: e.kb, area: !!e.area, ab: e.ab || {}, traits: e.traits, drop: e.drop, size: e.look.s, el: e.el
     };
   }
 
@@ -440,9 +442,13 @@
     b.pouch.acorns = Math.min(b.pouch.max, b.pouch.acorns);
     b.labState = { wrate: s.lab.wrate, wcap: s.lab.wcap };
     b.sref = s;
+    const syn = synergy(lineup.filter((id) => id && s.heroes[id]));
+    b.synergy = syn;
     for (const id of lineup) {
       if (!id || !s.heroes[id]) { b.slots.push(null); continue; }
       const st = heroStats(s, id);
+      const sb = syn[st.el];
+      if (sb) { st.hp = Math.round(st.hp * (1 + sb.bonus)); st.atk = Math.round(st.atk * (1 + sb.bonus)); }
       b.slots.push({ id: id, st: st, cd: 0, cdMax: st.cd });
     }
     return b;
@@ -527,6 +533,23 @@
     return towerIn ? ['tower'] : [];
   }
 
+  // Elements: 1.5× against an element you beat, 0.75× against one that beats you.
+  function affinity(a, d) {
+    const A = a && CT.ELEMENTS[a], D = d && CT.ELEMENTS[d];
+    if (!A || !D) return 1;
+    if (A.strong.indexOf(d) >= 0) return CONFIG.element.strong;
+    if (D.strong.indexOf(a) >= 0) return CONFIG.element.weak;
+    return 1;
+  }
+  // Lineup synergy: 3+ heroes of one element give each of them a bonus to health and attack (5+ a bigger one).
+  function synergy(lineup) {
+    const n = {};
+    for (const id of lineup) if (id && HERO[id]) n[HERO[id].el] = (n[HERO[id].el] || 0) + 1;
+    const out = {};
+    for (const el in n) { const b = n[el] >= 5 ? CONFIG.element.syn5 : n[el] >= 3 ? CONFIG.element.syn3 : 0; if (b) out[el] = { count: n[el], bonus: b }; }
+    return out;
+  }
+
   function knock(b, e, dist, ev) {
     if (e.state === 'dead' || e.state === 'down') return;
     e.state = 'kb'; e.kbT = 0; e.kbFrom = e.x;
@@ -570,6 +593,7 @@
       if (tr.indexOf('toxic') >= 0) e.poison = 3;
       if (e.buff > 0) dmg *= 1 - CONFIG.roar.guard;
     }
+    dmg *= affinity(ast.el, e.st.el);
     if (att && att.weaken > 0) dmg *= 0.5;
     dmg = Math.max(1, Math.round(dmg));
     applyDamage(b, e, dmg, ev, ast, crit);
@@ -868,8 +892,21 @@
     return 1;
   }
 
-  function pickHero(rarity, feat, rng) {
-    const pool = CT.HEROES.filter((h) => h.rarity === rarity);
+  // The Elemental Nest features one element a day, in a fixed rotation.
+  function dayElement(day) { const ks = Object.keys(CT.ELEMENTS); return ks[((day % ks.length) + ks.length) % ks.length]; }
+  function rarityPool(rarity, el) {
+    const all = CT.HEROES.filter((h) => h.rarity === rarity);
+    const of = el ? all.filter((h) => h.el === el) : all;
+    return of.length ? of : all;
+  }
+  // Every hero a nest can hatch on a given day (for the pool preview).
+  function bannerPool(id, day) {
+    const B = BANNER[id], el = B.element ? dayElement(day || 0) : null, out = [];
+    for (let r = 4; r >= 1; r--) if (B.rates[r]) for (const h of rarityPool(r, el)) out.push(h.id);
+    return out;
+  }
+  function pickHero(rarity, feat, rng, el) {
+    const pool = rarityPool(rarity, el);
     const f = rarity === 2 ? feat.epic : rarity === 3 ? feat.mythic : rarity === 4 ? feat.legend : null;
     if (f && rng() < 0.5) return f;
     return pool[Math.floor(rng() * pool.length)].id;
@@ -885,6 +922,7 @@
       else return null;
     }
     const feat = id === 'royal' ? featured(day || 0) : { epic: null, mythic: null, legend: null };
+    const el = B.element ? dayElement(day || 0) : null;
     const out = [];
     for (let k = 0; k < n; k++) {
       let r = rollRarity(B, rng);
@@ -898,7 +936,7 @@
         s.gacha.sinceMythic = r >= 3 ? 0 : s.gacha.sinceMythic + 1;
         s.gacha.sinceLegend = r >= 4 ? 0 : s.gacha.sinceLegend + 1;
       }
-      const hid = pickHero(r, feat, rng);
+      const hid = pickHero(r, feat, rng, el);
       out.push(grantHero(s, hid));
     }
     s.gacha.pulls += n;
@@ -1053,6 +1091,7 @@
   }
 
   const AW = {
+    affinity, synergy, chapterOf, dayElement, bannerPool,
     CONFIG, CT, HERO, ENEMY, LABS, BANNER, EVENT, EVENT_LEVELS, STAT_KEYS,
     clamp, fmt, mulberry32, hashString, dayNumber, cleanName,
     createState, sanitize, serialize, parseSave,

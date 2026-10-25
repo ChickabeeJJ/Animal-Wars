@@ -26,7 +26,7 @@ function lineupFor(d, r, i) {
 
 function setup(d, r, i, lvl) {
   const s = AW.createState(0);
-  for (let rr = 0; rr < 8; rr++) for (let dd = 0; dd < 3; dd++) {
+  for (let rr = 0; rr < CT.REGIONS.length; rr++) for (let dd = 0; dd < 3; dd++) {
     if (dd < d || (dd === d && rr < r)) s.clear[dd][rr] = 12;
     else if (dd === d && rr === r) s.clear[dd][rr] = i;
   }

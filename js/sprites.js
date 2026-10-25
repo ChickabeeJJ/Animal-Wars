@@ -7,6 +7,8 @@
 (function (root) {
   'use strict';
 
+  // Characters are drawn 25% larger than their stat size so every feature gets more pixels.
+  const ART = 1.25;
   const PAL = {
     night: '#1a1c2c', plum: '#5d275d', berry: '#b13e53', peach: '#ef7d57', butter: '#ffcd75', lime: '#a7f070',
     green: '#38b764', teal: '#257179', navy: '#29366f', blue: '#3b5dc9', sky: '#41a6f6', cyan: '#73eff7',
@@ -37,10 +39,14 @@
   };
   Painter.prototype.ball = function (cx, cy, rx, ry, T, opts) {
     opts = opts || {};
+    // Crescent shading: a round highlight toward the top-left light, the base colour, and a shadow crescent
+    // hugging the bottom-right edge. Big clean shapes instead of diagonal light/dark splits.
     this.ell(cx, cy, rx, ry, function (nx, ny) {
-      const l = -(nx * 0.55 + ny * 0.85);
-      if (opts.belly && ny > -0.1 && nx > -0.2) return l > 0.5 ? T.light : T.belly;
-      return l > 0.5 ? T.light : l < -0.45 ? T.dark : T.base;
+      const lit = (nx + 0.38) * (nx + 0.38) + (ny + 0.48) * (ny + 0.48);
+      const shade = (nx + 0.22) * (nx + 0.22) + (ny + 0.3) * (ny + 0.3);
+      if (shade > 1.12) return T.dark;
+      if (opts.belly && ny > -0.05 && nx > -0.25) return T.belly;
+      return lit < 0.09 ? T.light : T.base;
     });
     if (!opts.noSpec && rx > 2.5) { this.set(cx - rx * 0.45, cy - ry * 0.55, T.spec); }
   };
@@ -135,7 +141,7 @@
       if (this.get(x, y)) continue;
       let n = null;
       for (const d of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const c = this.get(x + d[0], y + d[1]); if (c) { n = c; break; } }
-      if (n) out[y * this.w + x] = mix(n, ink || '#140c26', 0.7);
+      if (n) out[y * this.w + x] = mix(n, ink || '#140c26', 0.84);
     }
     this.p = out;
   };
@@ -728,6 +734,209 @@
   };
 
   // Gear and form flourishes, drawn over the animal using the anchor it returned.
+  // Species added with the element heroes (v1.5). Same building blocks as above: biped, quad, bird.
+  Object.assign(HERO_ART, {
+    otter: function (k, T, c) {
+      return quad(k, T, { bx: 12, by: 20, brx: 7.5, bry: 4.2, hx: 21.5, hy: 15, hr: 4.6, legLen: 2.6, legW: 2,
+        tail: (x, y) => { k.line(x + 1, y + 1, x - 4, y + 3, T.dark, 1.6); k.line(x - 4, y + 3, x - 6, y + 2, T.dark, 1.2); },
+        ears: ears.tiny(k, T),
+        snout: (x, y, r) => { k.ell(x + r * 0.62, y + r * 0.4, r * 0.5, r * 0.4, T.belly); k.px(x + r * 1.05, y + r * 0.2, INK); k.px(x + r * 1.2, y + r * 0.55, WHITE); } });
+    },
+    capybara: function (k, T, c) {
+      const L = k.lean;
+      const r = quad(k, T, { bx: 12, by: 19, brx: 8.5, bry: 5.5, hx: 22, hy: 13.5, hr: 4.8, hry: 0.85, legLen: 2.5, legW: 2.2, noBlush: true,
+        ears: ears.tiny(k, T),
+        snout: (x, y, r) => { k.rect(x + r * 0.2, y - r * 0.2, r * 1.15, r * 0.95, T.base); k.rect(x + r * 1.1, y + r * 0.05, 1, 1, INK); } });
+      k.blush(21 + L, 15.5);
+      return r;
+    },
+    hippo: function (k, T, c) {
+      const L = k.lean;
+      const r = quad(k, T, { bx: 12, by: 19, brx: 9, bry: 6, hx: 22, hy: 14, hr: 5.4, legLen: 2.4, legW: 2.8, ears: ears.tiny(k, T),
+        snout: (x, y, r) => { k.ball(x + r * 0.7, y + r * 0.45, r * 0.75, r * 0.6, T, { noSpec: true }); k.px(x + r * 1.1, y + r * 0.2, T.deep); k.px(x + r * 1.3, y + r * 0.35, T.deep); if (k.atk) { k.rect(x + r * 0.5, y + r * 0.9, r * 0.9, 1, INK); k.px(x + r * 0.8, y + r * 0.7, WHITE); } } });
+      return r;
+    },
+    koala: function (k, T, c) {
+      return biped(k, T, { brx: 6, bry: 6.2, by: 19.5, hx: 16, hy: 11.5, hr: 6.4, legLen: 2,
+        earsBack: (x, y, r) => { for (const dx of [-0.95, 0.55]) { k.ball(x + r * dx, y - r * 0.55, r * 0.5, r * 0.5, T, { noSpec: true }); k.ell(x + r * dx, y - r * 0.55, r * 0.26, r * 0.26, T.belly); } },
+        snout: (x, y, r) => { k.ell(x + r * 0.62, y + r * 0.25, r * 0.28, r * 0.4, '#2a2030'); k.px(x + r * 0.5, y + r * 0.05, '#5a5068'); } });
+    },
+    duck: function (k, T, c) {
+      return bird(k, T, { brx: 6.5, bry: 5, by: 20, hx: 19, hy: 12.5, hr: 4.6, beakLen: 3.4, beak: '#ffa34d', legc: '#ffa34d',
+        tail: (x, y) => k.tri(x + 1, y - 1, x - 2.5, y - 4, x + 1, y + 1, T.dark) });
+    },
+    flamingo: function (k, T, c) {
+      const L = k.lean;
+      const r = bird(k, T, { brx: 6, bry: 4.5, by: 14.5, hx: 20, hy: 5, hr: 3.2, beakLen: 2.6, beak: '#2a2030', legc: mix(c.c, '#000000', 0.25), wing: T.dark });
+      k.line(17 + L * 0.5, 11.5, 19.5 + L, 7.5, T.base, 1.8);
+      k.ball(20 + L, 5, 3.2, 3, T); k.tri(22.6 + L, 4.4, 22.6 + L, 6.6, 25.5 + L, 7.4, '#2a2030'); k.eye(21 + L, 4.5); k.blush(20 + L, 6.6);
+      r.top = 2; r.hy = 5;
+      return r;
+    },
+    pig: function (k, T, c) {
+      return quad(k, T, { bx: 12.5, by: 19, brx: 7.8, bry: 5.6, hx: 21.5, hy: 14, hr: 5, legLen: 2.6, legW: 2.2,
+        tail: (x, y) => { k.px(x, y - 1, T.dark); k.px(x - 1, y - 2, T.dark); k.px(x, y - 3, T.dark); },
+        ears: (x, y, r) => k.tri(x - r * 0.7, y - r * 0.5, x - r * 0.05, y - r * 0.8, x - r * 0.2, y - r * 1.5, T.dark),
+        snout: (x, y, r) => { k.ell(x + r * 0.95, y + r * 0.3, r * 0.32, r * 0.42, mix(c.c, '#ff6b8a', 0.35)); k.px(x + r * 1, y + r * 0.15, T.deep); k.px(x + r * 1, y + r * 0.5, T.deep); } });
+    },
+    bull: function (k, T, c) {
+      const H = tones(c.a);
+      return quad(k, T, { bx: 12, by: 18.5, brx: 8.5, bry: 6, hx: 22, hy: 13, hr: 5, legLen: 3.2, legW: 2.4, tail: tails.long(k, T),
+        ears: (x, y, r) => { k.line(x - r * 0.5, y - r * 0.7, x - r * 1.3, y - r * 1.1, H.light, 1.2); k.line(x - r * 1.3, y - r * 1.1, x - r * 1.2, y - r * 1.8, H.light, 1); k.line(x + r * 0.3, y - r * 0.8, x + r * 0.7, y - r * 1.6, H.light, 1.1); },
+        snout: (x, y, r) => { k.ell(x + r * 0.7, y + r * 0.45, r * 0.55, r * 0.42, T.belly); k.px(x + r * 1.05, y + r * 0.3, INK); k.ell(x + r * 0.75, y + r * 0.95, r * 0.28, r * 0.2, '#ffcd4d'); } });
+    },
+    pony: function (k, T, c) {
+      const M = tones(c.a), L = k.lean;
+      const r = quad(k, T, { bx: 11.5, by: 17, brx: 7, bry: 4.6, hx: 21.5, hy: 9, hr: 4, hry: 1.1, legLen: 5.5, legW: 1.8,
+        tail: (x, y) => { k.ell(x - 1.5, y + 2.5, 1.6, 4, M.base); },
+        ears: (x, y, r) => { k.tri(x - r * 0.6, y - r * 0.6, x - r * 0.1, y - r * 0.8, x - r * 0.4, y - r * 1.6, T.base); for (let i = 0; i < 4; i++) k.ell(x - r * 0.9 - i * 0.9, y - r * 0.3 + i * 1.6, 1.4, 1.2, i % 2 ? M.dark : M.base); },
+        snout: (x, y, r) => { k.ell(x + r * 0.8, y + r * 0.55, r * 0.55, r * 0.45, T.belly); k.px(x + r * 1.2, y + r * 0.45, INK); } });
+      k.line(15 + L * 0.3, 15, 19.5 + L, 10, T.base, 2.2);
+      return r;
+    },
+    llama: function (k, T, c) {
+      const L = k.lean, F = tones(c.c);
+      const r = quad(k, T, { bx: 11.5, by: 18, brx: 7, bry: 5, hx: 21, hy: 6.5, hr: 3.6, hry: 1.1, legLen: 4.5, legW: 1.8, tail: tails.stub(k, T),
+        ears: (x, y, r) => { k.ell(x - r * 0.4, y - r * 1.2, r * 0.25, r * 0.6, T.base); k.ell(x + r * 0.2, y - r * 1.25, r * 0.25, r * 0.6, T.base); },
+        snout: (x, y, r) => { k.ell(x + r * 0.8, y + r * 0.45, r * 0.5, r * 0.45, T.belly); k.px(x + r * 1.15, y + r * 0.3, INK); if (k.atk) k.ell(x + r * 1.9, y + r * 0.4, 1, 0.8, '#dff6ff'); } });
+      k.line(15.5 + L * 0.3, 15, 20 + L, 8, F.base, 2.6);
+      for (const [dx, dy] of [[-3, -4], [0, -5], [3, -4]]) k.ball(11.5 + dx + L * 0.3, 18 + dy, 2.4, 2, F, { noSpec: true });
+      k.ball(21 + L, 6.5, 3.6, 3.9, T); k.ell(23.6 + L, 7.6, 1.6, 1.4, T.belly); k.eye(22 + L, 6); k.blush(21.4 + L, 8.2);
+      r.top = 1.5;
+      return r;
+    },
+    zebra: function (k, T, c) {
+      const S = tones(c.b), L = k.lean;
+      const r = HERO_ART.pony(k, T, { c: c.c, b: c.b, a: c.b });
+      for (const dx of [-4, -1.5, 1, 3.5]) k.line(11.5 + dx + L * 0.3, 13.5, 11.5 + dx - 1 + L * 0.3, 19.5, S.base, 0.9);
+      k.line(17.5 + L * 0.5, 12, 18.5 + L * 0.6, 15, S.base, 0.9);
+      return r;
+    },
+    gecko: function (k, T, c) {
+      const L = k.lean, A = tones(c.a);
+      k.line(6, 21, 0, 18 - k.step, T.dark, 1.4); k.line(0, 18 - k.step, -1, 15, T.dark, 1);
+      k.leg(8, 21.5, 3, 1.8, T.dark, -1); k.leg(16, 21.5, 3, 1.8, T.dark, -1);
+      k.ball(12 + L * 0.3, 20, 7.5, 3.4, T, { belly: true });
+      for (const x of [9, 12, 15]) k.ell(x + L * 0.3, 18.5, 1, 0.8, A.base);
+      k.ball(21 + L, 17.5, 4.4, 3.4, T);
+      k.ball(22.5 + L, 15.5, 2.2, 2.2, T, { noSpec: true }); k.eye(23 + L, 15.6, { big: true });
+      k.line(22 + L, 19.5, 25.5 + L, 18.8, INK, 0.7); k.blush(21.5 + L, 19.2);
+      k.leg(10, 22.5, 3, 1.8, T.base, 1); k.leg(18, 22.5, 3, 1.8, T.base, 1);
+      return { hx: 21 + L, hy: 17.5, hr: 4, top: 12, bx: 12, by: 19, handX: 25, handY: 20 };
+    },
+    armadillo: function (k, T, c) {
+      const S = tones(c.b), L = k.lean;
+      k.leg(8, 22, 2.6, 2.2, T.dark, -1); k.leg(17, 22, 2.6, 2.2, T.dark, -1);
+      k.ell(13 + L * 0.3, 18.5, 9, 6.5, function (nx, ny) { if (ny > 0.62) return S.dark; const band = Math.floor((nx + 1) * 3.2) % 2; return band ? (ny < -0.45 ? S.light : S.base) : S.dark; });
+      k.ball(22.5 + L, 19.5, 3.6, 3, T); k.tri(24.5 + L, 18.6, 24.5 + L, 21, 27.5 + L, 20.2, T.base); k.px(27.5 + L, 20, INK);
+      k.ell(21 + L, 16.4, 0.9, 1.3, T.dark);
+      k.eye(23.2 + L, 18.8); k.blush(22.3 + L, 20.8);
+      k.line(5, 21, 2, 23, S.dark, 1.2);
+      k.leg(10, 23, 2.6, 2.2, T.base, 1); k.leg(19, 23, 2.6, 2.2, T.base, 1);
+      return { hx: 22.5 + L, hy: 19.5, hr: 3.6, top: 12, bx: 13, by: 18, handX: 26, handY: 21 };
+    },
+    mouse: function (k, T, c) {
+      return biped(k, T, { brx: 5, bry: 5.5, by: 20.5, hx: 16, hy: 13.5, hr: 5, legLen: 2,
+        earsBack: (x, y, r) => { k.ball(x - r * 0.6, y - r * 0.9, r * 0.62, r * 0.62, T, { noSpec: true }); k.ell(x - r * 0.6, y - r * 0.9, r * 0.36, r * 0.36, PINK); },
+        tail: (x, y) => { k.line(x + 1, y, x - 4, y - 1, PINK, 0.7); k.line(x - 4, y - 1, x - 5, y - 4, PINK, 0.7); },
+        snout: (x, y, r) => { k.px(x + r * 1, y + r * 0.2, PINK); k.px(x + r * 1.15, y + r * 0.45, WHITE); } });
+    },
+    ferret: function (k, T, c) {
+      const M = tones(c.a);
+      return quad(k, T, { bx: 11.5, by: 20, brx: 8.5, bry: 3.6, hx: 21.5, hy: 16, hr: 4.2, legLen: 2.2, legW: 1.8, tail: tails.long(k, T),
+        ears: ears.round(k, T, 0.8),
+        snout: (x, y, r) => { k.ell(x + r * 0.15, y - r * 0.05, r * 0.75, r * 0.32, M.base); k.ell(x + r * 0.7, y + r * 0.45, r * 0.42, r * 0.32, T.belly); k.px(x + r * 1.05, y + r * 0.3, INK); } });
+    },
+    seal: function (k, T, c) {
+      const L = k.lean, hop = k.f === 1 ? -1 : 0;
+      k.tri(4, 22 + hop, 9, 20 + hop, 4, 25 + hop, T.dark);
+      k.ell(12 + L * 0.3, 20 + hop, 9, 4.8, function (nx, ny) { const sh = (nx + 0.22) * (nx + 0.22) + (ny + 0.3) * (ny + 0.3); return sh > 1.12 ? T.dark : (ny > 0.15 && nx > -0.4 ? T.belly : T.base); });
+      k.ball(20.5 + L, 14.5 + hop, 4.8, 4.4, T);
+      k.ell(23.5 + L, 16 + hop, 1.6, 1.2, T.belly); k.px(24.6 + L, 15.2 + hop, INK);
+      k.px(25.5 + L, 16 + hop, WHITE); k.px(25.5 + L, 17 + hop, WHITE);
+      k.eye(21.5 + L, 13.6 + hop, { big: true }); k.blush(20.5 + L, 16.4 + hop);
+      k.ell(15 + L * 0.3 + (k.atk ? 2 : 0), 22 + hop, 2.6, 1.2, T.dark);
+      return { hx: 20.5 + L, hy: 14.5 + hop, hr: 4.8, top: 9.5 + hop, bx: 12, by: 20, handX: 24, handY: 20 };
+    },
+    shark: function (k, T, c) {
+      const L = k.lean, r = biped(k, T, { brx: 6, bry: 6.5, by: 19.5, hx: 17, hy: 11.5, hr: 6, legLen: 2, mouth: false, noBlush: true,
+        tail: (x, y) => k.tri(x + 1, y, x - 4, y - 4, x - 3, y + 2, T.dark),
+        snout: (x, y, r) => { k.ell(x + r * 0.35, y + r * 0.55, r * 0.75, r * 0.35, T.belly); const o = k.atk ? 1 : 0; k.rect(x + r * 0.1, y + r * 0.45 - o, r * 0.85, 1 + o, INK); for (let i = 0; i < 3; i++) k.px(x + r * (0.2 + i * 0.28), y + r * 0.45 - o, WHITE); } });
+      k.tri(14 + L * 0.4, 13.5, 18 + L * 0.4, 13.5, 14.5 + L * 0.4, 9, T.dark);
+      return r;
+    },
+    toucan: function (k, T, c) {
+      const L = k.lean;
+      const r = bird(k, T, { brx: 6, bry: 6, by: 18.5, hx: 18.5, hy: 11.5, hr: 4.8, beakLen: 0.1, legc: '#3a3a4a' });
+      const open = k.atk ? 1.2 : 0;
+      k.ell(25.5 + L, 11 - open * 0.5, 4.8, 2, '#ffa34d'); k.ell(25 + L, 13 + open * 0.5, 4, 1.2, '#ffcd4d'); k.ell(29 + L, 10.8, 1.2, 1.2, '#e04848');
+      k.ell(19.5 + L, 12.5, 2.2, 2.4, '#fff1d6'); k.eye(19.8 + L, 10.8);
+      return r;
+    },
+    ostrich: function (k, T, c) {
+      const L = k.lean;
+      const r = bird(k, T, { brx: 7, bry: 5, by: 15, hx: 21, hy: 4.5, hr: 3, beakLen: 2.4, legc: mix(c.b, '#000000', 0.2), wing: c.a,
+        tail: (x, y) => { for (const [dx, dy] of [[0, -3], [-1.5, -1], [0.5, 1]]) k.ell(x + dx, y + dy, 2.2, 1.4, '#fff6dc'); } });
+      k.line(18.5 + L * 0.5, 12, 20.5 + L, 6.5, c.b, 1.6);
+      k.ball(21 + L, 4.5, 3, 2.8, tones(c.b)); k.tri(23.5 + L, 4, 23.5 + L, 6, 26 + L, 5.4, '#ffa34d'); k.eye(22 + L, 4); k.blush(21 + L, 5.8);
+      r.top = 1.5; r.hy = 4.5;
+      return r;
+    },
+    rooster: function (k, T, c) {
+      const L = k.lean;
+      return bird(k, T, { brx: 6.5, bry: 6, by: 18.5, hx: 19.5, hy: 11, hr: 4.6, beakLen: 2.4,
+        tail: (x, y) => { const F = tones(c.a); k.ell(x - 1, y - 4, 2.4, 4.6, F.base); k.ell(x + 1, y - 5, 1.8, 3.6, F.dark); },
+        head: (x, y, r) => { for (const dx of [-0.6, 0, 0.6]) k.ell(x + r * dx, y - r * 1.05 - (dx === 0 ? 0.6 : 0), 1.2, 1.4, '#e04848'); k.ell(x + r * 0.95, y + r * 0.8, 0.9, 1.3, '#e04848'); } });
+    },
+    bee: function (k, T, c) {
+      const L = k.lean, bob = k.f === 1 ? -1.2 : 0, S = tones(c.b);
+      const y0 = 15 + bob;
+      wings(k, 14, y0 - 3, 6, 7, '#dff6ff', k.f % 2 === 1);
+      k.ell(12 + L * 0.3, y0 + 2, 7, 5.4, function (nx, ny) { const band = Math.floor((nx + 1) * 3.3) % 2; const sh = (nx + 0.22) * (nx + 0.22) + (ny + 0.3) * (ny + 0.3); return band ? (sh > 1.1 ? S.dark : S.base) : (sh > 1.1 ? T.dark : T.base); });
+      k.tri(5, y0 + 1, 5, y0 + 3, 2, y0 + 2, INK);
+      k.ball(20 + L, y0, 4.4, 4.2, T);
+      k.line(20 + L, y0 - 4, 18.5 + L, y0 - 7, INK, 0.7); k.px(18.5 + L, y0 - 7.5, INK);
+      k.eye(21.5 + L, y0 - 0.5, { big: true }); k.blush(20.5 + L, y0 + 1.8);
+      return { hx: 20 + L, hy: y0, hr: 4.4, top: y0 - 6, bx: 12, by: y0 + 2, handX: 24, handY: y0 + 3 };
+    },
+    ladybug: function (k, T, c) {
+      const L = k.lean, S = tones(c.b);
+      for (const x of [9, 13, 17]) k.line(x + k.step * 0.5, 21, x - 1 + k.step * 0.5, 25.5, INK, 0.8);
+      k.ell(13 + L * 0.3, 18, 8.5, 6.4, function (nx, ny) { if (ny > 0.75) return S.dark; const sh = (nx + 0.22) * (nx + 0.22) + (ny + 0.3) * (ny + 0.3); return sh > 1.15 ? T.dark : (Math.abs(nx) < 0.05 ? T.deep : T.base); });
+      for (const [x, y, r] of [[9.5, 16, 1.4], [16, 15.5, 1.3], [11, 20, 1.2], [17, 19.5, 1.3]]) k.ell(x + L * 0.3, y, r, r, S.base);
+      k.ell(10.5 + L * 0.3, 14, 1.5, 0.9, T.light);
+      k.ball(21.5 + L, 19, 3.6, 3.2, S, { noSpec: true });
+      k.eye(22.8 + L, 18.6, { big: true }); k.blush(22 + L, 20.6);
+      k.line(22 + L, 16, 23.5 + L, 13.5, INK, 0.7);
+      return { hx: 21.5 + L, hy: 19, hr: 3.6, top: 11.5, bx: 13, by: 18, handX: 25, handY: 20 };
+    },
+    snail: function (k, T, c) {
+      const L = k.lean, S = tones(c.b);
+      k.ell(14 + L * 0.3, 23.5, 10, 2.4, T.base); k.ell(14 + L * 0.3, 24.6, 9.5, 1.2, T.dark);
+      k.ball(22 + L, 19.5, 3, 4.2, T, { noSpec: true });
+      k.line(21.5 + L, 16, 21 + L, 12, T.base, 0.8); k.line(23.5 + L, 16, 24.5 + L, 12.5, T.base, 0.8);
+      k.ell(21 + L, 12, 1.1, 1.1, T.base); k.ell(24.5 + L, 12.5, 1.1, 1.1, T.base); k.px(21.3 + L, 12, INK); k.px(24.8 + L, 12.5, INK);
+      k.blush(22.8 + L, 20.6); k.px(24.2 + L, 19.3, INK);
+      k.ball(13 + L * 0.3, 16.5, 7.2, 6.8, S);
+      k.ell(13 + L * 0.3, 16.5, 4.6, 4.3, S.dark); k.ell(13.3 + L * 0.3, 16.3, 3.4, 3.1, S.base); k.ell(13.6 + L * 0.3, 16.2, 1.8, 1.6, S.dark); k.ell(13.8 + L * 0.3, 16.1, 0.8, 0.8, S.light);
+      return { hx: 22 + L, hy: 18, hr: 3, top: 9.5, bx: 13, by: 17, handX: 25, handY: 21 };
+    },
+    badger: function (k, T, c) {
+      return quad(k, T, { bx: 12, by: 19.5, brx: 8, bry: 4.8, hx: 21.5, hy: 15, hr: 4.8, legLen: 2.4, legW: 2.2, tail: tails.stub(k, T),
+        ears: ears.tiny(k, T),
+        snout: (x, y, r) => { k.ell(x - r * 0.1, y - r * 0.55, r * 1.1, r * 0.28, WHITE); k.ell(x + r * 0.72, y + r * 0.4, r * 0.45, r * 0.35, T.belly); k.px(x + r * 1.1, y + r * 0.25, INK); } });
+    },
+    yak: function (k, T, c) {
+      const H = tones(c.a), L = k.lean;
+      const r = quad(k, T, { bx: 12, by: 18, brx: 8.5, bry: 6.2, hx: 22, hy: 14, hr: 4.8, legLen: 3, legW: 2.4, tail: tails.long(k, T),
+        ears: (x, y, r) => { k.line(x - r * 0.4, y - r * 0.7, x - r * 1.4, y - r * 0.9, H.light, 1.2); k.line(x - r * 1.4, y - r * 0.9, x - r * 1.5, y - r * 1.7, H.light, 1); },
+        snout: (x, y, r) => { k.ell(x + r * 0.7, y + r * 0.5, r * 0.5, r * 0.4, T.belly); k.px(x + r * 1.05, y + r * 0.35, INK); } });
+      for (let x = 5; x < 20; x += 2.2) k.tri(x + L * 0.3, 21, x + 2.2 + L * 0.3, 21, x + 1.1 + L * 0.3, 24, T.dark);
+      k.ell(20 + L, 9.8, 2.4, 1.4, T.dark);
+      return r;
+    }
+  });
+
   function gear(k, a, g, c) {
     if (!g) return;
     const x = a.hx, y = a.hy, r = a.hr, top = a.top;
@@ -803,7 +1012,7 @@
   // Third forms: a soft rarity aura of sparkles.
   function heroCanvas(def, form, frame) {
     const s = def.look.s;
-    const u = s / 24;
+    const u = s * ART / 24;
     const P = new Painter(Math.ceil(34 * u), Math.ceil(28 * u));
     const k = new Kit(P, u, frame);
     const look = def.look;
@@ -1153,9 +1362,102 @@
     }
   };
 
+  // Gloom added with chapters 2 and 3.
+  Object.assign(ENEMY_ART, {
+    spider: function (k, T, c) {
+      const L = k.lean, st = k.step;
+      for (let i = 0; i < 4; i++) { const x = 8 + i * 4, up = (i % 2 ? st : -st) * 0.8; k.line(x + L * 0.3, 18, x - 2 + L * 0.3, 22 + up, T.deep, 1); k.line(x - 2 + L * 0.3, 22 + up, x - 3 + L * 0.3, 26, T.deep, 1); }
+      k.ball(11 + L * 0.3, 16, 7, 5.5, T);
+      k.ell(9 + L * 0.3, 15, 2.2, 1.6, T.dark);
+      k.ball(19 + L, 17.5, 4.4, 3.8, T);
+      angryFace(k, 21.5 + L, 17, { two: true, gap: 2.6, mouthY: 2.6, glow: '#ff5a5a' });
+      k.line(22 + L, 20.5, 23.5 + L, 22.5, T.light, 0.7); k.line(20 + L, 20.5, 19.5 + L, 22.8, T.light, 0.7);
+      return { top: 10 };
+    },
+    gknight: function (k, T, c) {
+      const L = k.lean, M = tones('#8a94a8');
+      k.leg(12, 21, 4, 2.6, T.dark, -1);
+      k.ell(9 + L * 0.3, 18, 3, 6, tones('#5a2a3a').base);
+      k.ball(14 + L * 0.3, 17, 5.5, 5.5, T);
+      k.rect(10 + L * 0.3, 16, 8, 1.4, M.light);
+      k.leg(15, 21.5, 4, 2.6, T.base, 1);
+      k.ball(16 + L, 9.5, 4.8, 4.6, M);
+      k.rect(16 + L, 9, 4.6, 1.4, '#140c26'); k.px(19 + L, 9.4, '#ff5a5a'); k.px(17.5 + L, 9.4, '#ff5a5a');
+      k.tri(14 + L, 5.2, 17 + L, 5, 15 + L, 1.5, tones('#b13e53').base);
+      const sx = 21 + L + (k.atk ? 4 : 0), sy = k.wind ? 4 : k.atk ? 17 : 12;
+      k.line(19 + L, 17, sx, sy, M.light, 1.2); k.rect(18 + L, 16, 3, 1, '#ffcd4d');
+      return { top: 1 };
+    },
+    wraith: function (k, T, c) {
+      const L = k.lean, bob = k.f === 1 ? -1.5 : 0;
+      k.ell(14 + L * 0.4, 16 + bob, 7, 8, function (nx, ny) { return ny > 0.55 ? ((Math.floor(nx * 4 + 4) % 2) ? null : T.dark) : (nx > 0.5 ? T.dark : T.base); });
+      k.ball(17 + L, 9.5 + bob, 4.8, 4.6, T);
+      k.ell(18.5 + L, 10 + bob, 3, 2.8, '#140c26');
+      k.ell(19.5 + L, 9.5 + bob, 0.8, 0.8, '#73eff7'); k.ell(17.6 + L, 9.5 + bob, 0.8, 0.8, '#73eff7');
+      const hx = 22 + L + (k.atk ? 3 : 0), hy = k.wind ? 10 + bob : 15 + bob;
+      k.line(19 + L, 15 + bob, hx, hy, T.base, 1.2); k.ell(hx, hy, 1.4, 1.4, T.light);
+      if (k.atk) k.ell(hx + 2.5, hy, 1.4, 1.4, '#a884f3');
+      return { top: 4 };
+    },
+    totem: function (k, T, c) {
+      const L = k.lean, hop = k.f === 1 ? -1 : 0;
+      const faces = [['#ffcd4d', 21], ['#ef7d57', 15], ['#73eff7', 9]];
+      for (let i = 0; i < 3; i++) {
+        const y = faces[i][1] + hop, F = tones(mix(c.c, faces[i][0], 0.15));
+        k.rect(9 + L * 0.2 * i, y - 3, 11, 6, F.base); k.rect(9 + L * 0.2 * i, y - 3, 11, 1, F.light); k.rect(18 + L * 0.2 * i, y - 3, 2, 6, F.dark);
+        k.rect(11 + L * 0.2 * i, y - 1, 2, 1.4, faces[i][0]); k.rect(15.5 + L * 0.2 * i, y - 1, 2, 1.4, faces[i][0]);
+        k.rect(12.5 + L * 0.2 * i, y + 1.2, 4 , k.atk && i === 0 ? 1.6 : 0.8, '#140c26');
+      }
+      k.tri(7 + L * 0.4, 7 + hop, 9 + L * 0.4, 5 + hop, 8 + L * 0.4, 2 + hop, T.dark); k.tri(20 + L * 0.4, 5 + hop, 22 + L * 0.4, 7 + hop, 21 + L * 0.4, 2 + hop, T.dark);
+      return { top: 3 };
+    },
+    crystal: function (k, T, c) {
+      const L = k.lean;
+      k.leg(10, 20, 5, 3, T.dark, -1);
+      k.tri(6 + L * 0.3, 21, 22 + L * 0.3, 21, 14 + L * 0.3, 4, T.base);
+      k.tri(6 + L * 0.3, 21, 14 + L * 0.3, 21, 14 + L * 0.3, 4, T.light);
+      k.tri(14 + L * 0.3, 4, 16 + L * 0.3, 10, 12 + L * 0.3, 10, T.spec);
+      k.tri(18 + L * 0.3, 14, 25 + L, 9, 21 + L, 17, T.dark);
+      k.leg(16, 20.5, 5, 3, T.base, 1);
+      angryFace(k, 17 + L * 0.5, 13, { two: true, gap: 3, mouthY: 3, glow: '#ffffff' });
+      const ax = 23 + L + (k.atk ? 3 : 0), ay = k.wind ? 8 : 15;
+      k.tri(ax - 2, ay + 2, ax + 2, ay + 2, ax, ay - 3, T.light);
+      return { top: 3 };
+    },
+    rat: function (k, T, c) {
+      const L = k.lean;
+      k.line(5, 20, 1, 18 - k.step, mix(c.c, '#ff8fb1', 0.5), 0.8); k.line(1, 18 - k.step, 0, 15, mix(c.c, '#ff8fb1', 0.5), 0.8);
+      k.leg(9, 21, 3, 2, T.dark, -1); k.leg(16, 21, 3, 2, T.dark, -1);
+      k.ball(12 + L * 0.3, 18.5, 7, 4.8, T);
+      for (let x = 7; x < 16; x += 3) k.tri(x + L * 0.3, 14.5, x + 2 + L * 0.3, 14.5, x + 1 + L * 0.3, 12.5, T.dark);
+      k.ball(20 + L, 17, 4, 3.6, T); k.tri(22.5 + L, 16, 22.5 + L, 19, 26.5 + L, 18, T.base); k.px(26.5 + L, 17.8, '#ff8fb1');
+      k.ball(18.5 + L, 13.5, 1.8, 1.8, T, { noSpec: true }); k.ell(18.5 + L, 13.5, 0.9, 0.9, '#ff8fb1');
+      angryFace(k, 21.5 + L, 16.5, { mouthY: 2.5, glow: '#ff5a5a' });
+      k.leg(11, 22, 3, 2, T.base, 1); k.leg(18, 22, 3, 2, T.base, 1);
+      return { top: 10 };
+    },
+    jelly: function (k, T, c) {
+      const L = k.lean, bob = k.f === 1 ? -2 : 0;
+      for (let i = 0; i < 5; i++) { const x = 9 + i * 2.6, sway = Math.sin(i + k.f) * 1.2; k.line(x + L * 0.3, 16 + bob, x + sway + L * 0.3, 25 + bob, i % 2 ? T.dark : T.light, 0.8); }
+      k.ell(14.5 + L * 0.4, 12 + bob, 8, 6, function (nx, ny) { if (ny > 0.55) return null; return (nx + 0.38) * (nx + 0.38) + (ny + 0.48) * (ny + 0.48) < 0.12 ? T.spec : ny > 0.2 ? T.dark : T.base; });
+      angryFace(k, 18 + L * 0.5, 12 + bob, { two: true, gap: 3.5, mouthY: 2.5 });
+      return { top: 5 };
+    },
+    bomber: function (k, T, c) {
+      const L = k.lean, sq = k.atk ? 1 : 0;
+      k.leg(11, 22, 3, 2.4, T.dark, -1); k.leg(17, 22, 3, 2.4, T.dark, -1);
+      k.ball(14 + L * 0.3, 16, 8 + sq, 7.5 - sq * 0.5, T);
+      k.rect(11 + L * 0.3, 7.5, 4, 2.5, '#8a94a8'); k.line(13 + L * 0.3, 7.5, 15 + L * 0.3, 4, '#c9a26b', 0.7);
+      k.ell(15.5 + L * 0.3, 3.5, 1.2, 1.2, k.f % 2 ? '#ffe066' : '#ef7d57');
+      angryFace(k, 18 + L * 0.5, 15, { two: true, gap: 4, mouthY: 3.5, glow: '#ef7d57' });
+      k.leg(13, 22.5, 3, 2.4, T.base, 1); k.leg(19, 22.5, 3, 2.4, T.base, 1);
+      return { top: 2 };
+    }
+  });
+
   function enemyCanvas(def, frame) {
     const s = def.look.s;
-    const u = s / 24;
+    const u = s * ART / 24;
     const P = new Painter(Math.ceil(34 * u), Math.ceil(28 * u));
     const k = new Kit(P, u, frame);
     const T = tones(def.look.c);
@@ -1317,7 +1619,17 @@
   // Eggs, icons
   // ---------------------------------------------------------------------------
   const RARITY_HEX = ['#c3cfdb', '#41a6f6', '#a884f3', '#ffc23d', '#ff6fd0'];
-  function eggCanvas(rarity, crack) {
+  // Eggs: crack 0 (whole), 1 (first crack), 2 (split open with light leaking out). part 'top'/'bot' gives the two
+  // shell halves that fly apart when the egg bursts.
+  const EGG_ZIG = [[2, 13], [5, 15], [8, 11], [11, 15], [13, 12], [16, 15], [18, 13]];
+  function eggZig(x) {
+    for (let i = 1; i < EGG_ZIG.length; i++) {
+      const a = EGG_ZIG[i - 1], b = EGG_ZIG[i];
+      if (x <= b[0]) return a[1] + (b[1] - a[1]) * (x - a[0]) / Math.max(1, b[0] - a[0]);
+    }
+    return EGG_ZIG[EGG_ZIG.length - 1][1];
+  }
+  function eggCanvas(rarity, crack, part) {
     const P = new Painter(20, 24);
     const T = tones(['#f4efe0', '#9fd0ff', '#c9b3ff', '#ffd36b', '#ff9fd8'][rarity]);
     P.ell(10, 13.5, 8, 10, function (nx, ny) { const l = -(nx * 0.55 + ny * 0.7); return l > 0.5 ? T.light : l < -0.4 ? T.dark : T.base; });
@@ -1325,7 +1637,28 @@
     const spot = RARITY_HEX[rarity];
     for (const [x, y, r] of [[13, 9, 1.6], [7, 16, 1.4], [12, 18, 1.2], [9, 11, 0.9]]) P.ell(x, y, r, r, mix(spot, '#ffffff', 0.15));
     if (rarity >= 3) { P.rect(4, 13, 13, 1, GOLD); P.set(10, 12, '#ffffff'); }
-    if (crack) { P.line(3, 12, 6, 14); P.line(6, 14, 8, 11, INK); P.line(8, 11, 11, 15, INK); P.line(11, 15, 13, 12, INK); P.line(13, 12, 17, 14, INK); }
+    if (part) {
+      // Keep one side of the zigzag, with a jagged light edge where it broke.
+      for (let y = 0; y < 24; y++) for (let x = 0; x < 20; x++) {
+        const z = Math.round(eggZig(x));
+        if (part === 'top' ? y > z : y <= z) P.clear(x, y);
+        else if (P.get(x, y) && (part === 'top' ? y === z : y === z + 1)) P.set(x, y, '#fff6c8');
+      }
+    } else if (crack) {
+      // The zigzag, column by column, only on the shell (vertical runs fill the steep parts).
+      for (let x = 0; x < 20; x++) {
+        const z0 = Math.round(eggZig(Math.max(0, x - 1))), z1 = Math.round(eggZig(x));
+        for (let y = Math.min(z0, z1); y <= Math.max(z0, z1); y++) if (P.get(x, y)) P.set(x, y, INK);
+      }
+      if (crack >= 2) {
+        // Wider split: light pours out of the crack, with two side branches.
+        for (let x = 3; x < 18; x++) { const z = Math.round(eggZig(x)); if (P.get(x, z + 1)) P.set(x, z + 1, x % 3 ? '#fff6c8' : '#ffffff'); }
+        for (const [x0, y0, x1, y1] of [[8, 11, 7, 8], [7, 8, 9, 6], [13, 12, 15, 9], [11, 15, 10, 18]]) {
+          const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+          for (let k = 0; k <= n; k++) { const x = Math.round(x0 + (x1 - x0) * k / n), y = Math.round(y0 + (y1 - y0) * k / n); if (P.get(x, y)) P.set(x, y, INK); }
+        }
+      }
+    }
     P.outline();
     return P.canvas();
   }
@@ -1400,6 +1733,19 @@
   const SPIRE = ['.....gg.....', '....gGGg....', '.....GG.....', '....dDDd....', '...dDDDDd...', '..M.MM.MM.M.', '..MMMMMMMMM.', '..LSSSSSSD..', '..LSEEESSD..', '..LSEPESSD..', '..LSSSSSSD..', '.LLSSSSSSDD.', '.LSSSKKSSSD.', '.LSSKKKKSSD.', 'LLSSKKKKSSDD'];
   const EGG = ['...LLLL...', '..LHHLLS..', '.LHHLLLSS.', '.LHLLLLSS.', 'LLLLLLLSSD', 'LLLLLLSSSD', 'LLLLLLSSSD', 'LLLLLSSSDD', '.LLLSSSSD.', '.SSSSSSDD.', '..SSSDDD..', '...DDDD...'];
   const HAND = ['....WW.......', '...WWWW......', '...WWWW......', '...WWWW......', '...WWWWWWW...', '...WWWSWWSWW.', '.WWWWWSWWSWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWW', 'WWWWWWWWWWWWS', '.WWWWWWWWWWSS', '..WWWWWWWWSS.', '...WWWWWWWS..', '...SSSSSSS...'];
+  // Element glyphs (10×12 or smaller), drawn inside a 16×16 icon with an outline.
+  const ELG = {
+    ember: [['....Y.....', '...YY.....', '...YOY....', '..YOOY..Y.', '..YOOOY.Y.', '.YOORROYY.', '.YORRRROY.', 'YORRRRROOY', 'YORRWRRROY', 'YOROWWRROY', '.YORWWROY.', '..YOOOOY..'], { Y: '#ffcd4d', O: '#ff9a3a', R: '#e04a3a', W: '#fff6c8' }],
+    frost: [['....W.....', '..W.W.W...', '...WCW....', 'W..WCW..W.', '.WWCCCWW..', 'WCCCWCCCW.', '.WWCCCWW..', 'W..WCW..W.', '...WCW....', '..W.W.W...', '....W.....'], { W: '#ffffff', C: '#73d8ff' }],
+    thorn: [['......GG..', '....GGLG..', '...GLLLG..', '..GLLGLG..', '.GLLGLLG..', '.GLGLLG...', 'GLGLLG....', 'GGLLG.....', 'GLGG......', '.D........', 'D.........'], { G: '#38b764', L: '#a7f070', D: '#257179' }],
+    storm: [['....YYYY..', '...YWWY...', '..YWWY....', '.YWWYYYY..', 'YWWWWWWY..', '..YYYWY...', '....YY....', '...YY.....', '..YY......', '.Y........'], { Y: '#ffcd4d', W: '#fff6c8' }],
+    shadow: [['..PPPPPP..', '.PDDDDDDP.', 'PDDLLLLDDP', 'PDLLEELLDP', 'PDLEKKELDP', 'PDLEKKELDP', 'PDLLEELLDP', 'PDDLLLLDDP', '.PDDDDDDP.', '..PPPPPP..'], { P: '#5d275d', D: '#3a1a4a', L: '#9a6ae0', E: '#c9b3ff', K: '#1a0a2a' }],
+    tide: [['....B.....', '....B.....', '...BLB....', '...BLB....', '..BLLLB...', '.BLWLLLB..', '.BLWLLLB..', 'BLLWLLLLB.', 'BLLLLLLLB.', '.BLLLLLB..', '..BBBBB...'], { B: '#29366f', L: '#3b8ae0', W: '#9fd8ff' }],
+    stone: [['...SSSS...', '..SLLLSS..', '.SLLSSSSS.', 'SLLSSSSSDS', 'SLSSSSSDDS', 'SSSSSSDDDS', 'SSSSSDDDDS', '.SDDDDDDS.', '..SSSSSS..'], { S: '#a08a70', L: '#d8c8b0', D: '#6a5a48' }],
+    sun: [['....Y.....', '.Y..Y..Y..', '..Y...Y...', '...OOOO...', 'YY.OWOOO.YY', '...OOOO...', '..Y.OO.Y..', '.Y..Y..Y..', '....Y.....'], { Y: '#ffcd4d', O: '#ff9a3a', W: '#fff6c8' }],
+    moon: [['...LLLL...', '..LWW.....', '.LWL......', 'LWL.......', 'LWL.......', 'LWL.......', 'LWLL......', '.LWLL...L.', '..LLLLLLL.', '...LLLLL..'], { L: '#c9b3ff', W: '#ffffff' }],
+    bloom: [['...PP.....', '..PWWP....', 'PP.PP.PP..', 'PWPYYPWP..', '.PPYYPP...', 'PWPYYPWP..', 'PP.PP.PP..', '..PWWP....', '...PP.....', '...G......', '..GG......'], { P: '#ff8fd0', W: '#ffd6ee', Y: '#ffcd4d', G: '#38b764' }]
+  };
   const ICONS = {
     coin: (P) => pix(P, COIN, { O: '#c8862a', L: '#ffe58a', H: '#fffbe0', B: '#ffcd4d', D: '#e8962a', E: '#d8902a' }, 2, 2),
     gem: (P) => { P.tri(2, 6, 14, 6, 8, 15, '#41a6f6'); P.rect(4, 3, 8, 3, '#73eff7'); P.tri(2, 6, 4, 3, 4, 6, '#73eff7'); P.tri(12, 3, 14, 6, 12, 6, '#3b5dc9'); P.tri(5, 6, 11, 6, 8, 13, '#9ff6ff'); P.set(5, 4, '#ffffff'); },
@@ -1562,7 +1908,8 @@
     g.drawImage(wars, Math.round((W - wars.width) / 2), wy);
     return c;
   }
-  function iconCanvas(k) { const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
+  function iconCanvas(k) {
+    if (k.indexOf('el_') === 0) { const g = ELG[k.slice(3)]; const P = new Painter(16, 16); pix(P, g[0], g[1], Math.floor((16 - g[0][0].length) / 2), Math.floor((16 - g[0].length) / 2)); P.outline(); return P.canvas(); } const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
 
 
   // ---------------------------------------------------------------------------
@@ -1833,7 +2180,7 @@
   let HEROES = {}, ENEMIES = {};
   function setContent(ct) { ct.HEROES.forEach((h) => { HEROES[h.id] = h; }); ct.ENEMIES.forEach((e) => { ENEMIES[e.id] = e; }); }
 
-  // Names: 'hero_<id>_<form>_<frame>', 'enemy_<id>_<frame>', 'burrow_<d>', 'tower_<theme>_<d>', 'egg_<r>[_c]', 'icon_<k>'.
+  // Names: 'hero_<id>_<form>_<frame>', 'enemy_<id>_<frame>', 'burrow_<d>', 'tower_<theme>_<d>', 'egg_<r>[_c|_c2]', 'eggshell_<r>_<top|bot>', 'icon_<k>'.
   function get(name) {
     if (cache[name]) return cache[name];
     let c, m;
@@ -1841,7 +2188,8 @@
     else if ((m = /^enemy_(\w+)_(\d)$/.exec(name))) c = enemyCanvas(ENEMIES[m[1]], Number(m[2]));
     else if ((m = /^burrow_(\d)$/.exec(name))) c = burrowCanvas(Number(m[1]) / 3);
     else if ((m = /^tower_(\d)_(\d)$/.exec(name))) c = towerCanvas(Number(m[1]), Number(m[2]) / 3);
-    else if ((m = /^egg_(\d)(_c)?$/.exec(name))) c = eggCanvas(Number(m[1]), !!m[2]);
+    else if ((m = /^egg_(\d)(?:_c(\d?))?$/.exec(name))) c = eggCanvas(Number(m[1]), m[2] === undefined ? 0 : Number(m[2] || 1));
+    else if ((m = /^eggshell_(\d)_(top|bot)$/.exec(name))) c = eggCanvas(Number(m[1]), 0, m[2]);
     else if ((m = /^icon_(\w+)$/.exec(name))) c = iconCanvas(m[1]);
     else if (name === 'emblem') c = emblemCanvas();
     else if (name === 'logo') c = logoCanvas();

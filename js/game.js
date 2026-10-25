@@ -69,6 +69,15 @@
     return SPR.textImg(String(text).toUpperCase(), scale || 3, { size: size || 8, fill: P.fill, shadow: P.shadow, outline: '#1a0f12' }, cls);
   }
   function rarFrame(r) { return 'fx-rar' + r; }
+  // Elements: a small glyph, and a coloured chip with the name.
+  function elIcon(el, k, cls) { return el ? SPR.img('icon_el_' + el, k || 1, cls || 'eli') : ''; }
+  function elChip(el) { const E = CT.ELEMENTS[el]; return E ? '<span class="elchip" style="--ec:' + E.color + '">' + elIcon(el) + esc(E.name) + '</span>' : ''; }
+  function elWeak(el) { return Object.keys(CT.ELEMENTS).filter((k) => CT.ELEMENTS[k].strong.indexOf(el) >= 0); }
+  function synergyHtml(lineup) {
+    const sy = AW.synergy(lineup), ks = Object.keys(sy);
+    if (!ks.length) return '<span class="syn none">Synergy: put 3 heroes of one element together for +10% health and attack</span>';
+    return '<span class="syn">' + ks.map((k) => '<span class="elchip" style="--ec:' + CT.ELEMENTS[k].color + '">' + elIcon(k) + CT.ELEMENTS[k].name + ' ×' + sy[k].count + ' <b>+' + Math.round(sy[k].bonus * 100) + '%</b></span>').join('') + '</span>';
+  }
   // Portraits at the largest whole-number scale that fits a box, so every art pixel stays square and even.
   // cap keeps lists even: small heroes are not blown up past the scale the others get.
   function fitImg(name, maxW, maxH, cls, cap) {
@@ -208,7 +217,7 @@
     let h = '';
     if (n) {
       const Rg = CT.REGIONS[n.r], foes = foesOf(n).slice(0, 4);
-      h += '<button type="button" class="fcard fx-plaque" id="f-next"><span class="fart" data-art="160x40" style="background-image:url(' + R.themeArt(Rg.theme, 160, 40, false, 160) + ')"><b class="flabel">NEXT BATTLE</b><b class="fstage">' + stageLabel(n) + '</b></span>' +
+      h += '<button type="button" class="fcard fx-plaque" id="f-next"><span class="fart" data-art="160x40" style="background-image:url(' + R.themeArt(Rg.theme, 160, 40, false, 160, Rg.tint || 0) + ')"><b class="flabel">NEXT BATTLE</b><b class="fstage">' + stageLabel(n) + '</b></span>' +
         '<span class="fname">' + esc(n.name) + '</span><span class="ffoes">' + foes.map((o) => enemyFit(o.id, 36, 28, o.boss ? 'boss' : '')).join('') + '</span></button>';
     }
     if (sc >= 3) {
@@ -360,6 +369,7 @@
     PF.gameplayStart();
     tutorial.step = (def.kind === 'story' && def.d === 0 && def.r === 0 && def.i === 0 && !state.flags.tutDone) ? 'deploy' : null;
     if (!tutorial.step && AW.storyCleared(state) === 1 && !state.flags.tutRoar) tutorial.step = 'watchRoar';
+    if (tutorial.step === 'deploy') battle.pouch.acorns = Math.max(battle.pouch.acorns, battle.slots[0] ? battle.slots[0].st.cost : 50);
     markDirty();
   }
 
@@ -369,7 +379,7 @@
       if (!sl) return '<div class="card empty fx-cardDark"></div>';
       const h = state.heroes[sl.id];
       return '<button type="button" class="card r' + sl.st.rarity + ' ' + rarFrame(sl.st.rarity) + '" data-slot="' + i + '" title="' + esc(sl.st.name) + '"><i class="cbg"></i><span class="cart"></span>' +
-        '<span class="key">' + KEYS[i] + '</span><span class="cost num">' + SPR.img('icon_acorn', 1) + sl.st.cost + '</span><i class="cdv"></i><b class="cds"></b></button>';
+        '<span class="key">' + KEYS[i] + '</span>' + elIcon(sl.st.el, 1, 'cel') + '<span class="cost num">' + SPR.img('icon_acorn', 1) + sl.st.cost + '</span><i class="cdv"></i><b class="cds"></b></button>';
     }).join('');
     $('cards').querySelectorAll('.card[data-slot]').forEach((el) => { el._last = ''; el._ready = true; });
     fitCardArt();
@@ -526,7 +536,11 @@
   function updateTutorial() {
     const s = tutorial.step, b = battle;
     if (!s || !b || b.state !== 'play' || paused) { hideGuide(); return; }
-    if (s === 'deploy') pointAt($('cards').children[0], 'Tap Pip to send him into battle!');
+    if (s === 'deploy') {
+      // Only ask for a tap the player can afford; until then explain where acorns come from.
+      if (AW.canDeploy(b, 0)) pointAt($('cards').children[0], 'Tap Pip to send him into battle!');
+      else pointAt(document.querySelector('.acorns'), 'Acorns fill up by themselves. Pip costs ' + b.slots[0].st.cost + '. Get ready!');
+    }
     else if (s === 'more') {
       if (b.pouch.lvl === 1 && b.t > 8 && AW.canPouch(b)) { tutorial.step = 'pouch'; return; }
       const i = b.slots.findIndex((sl, k) => sl && AW.canDeploy(b, k));
@@ -534,9 +548,9 @@
       else hideGuide();
     }
     else if (s === 'pouchWait') { hideGuide(); if (b.t > 10 && AW.canPouch(b)) tutorial.step = 'pouch'; }
-    else if (s === 'pouch') pointAt($('btn-pouch'), 'Tap the pouch to earn acorns faster!');
+    else if (s === 'pouch') { if (AW.canPouch(b)) pointAt($('btn-pouch'), 'Tap the pouch to earn acorns faster!'); else hideGuide(); }
     else if (s === 'roarWait' || s === 'watchRoar') { hideGuide(); if (b.roar.charge >= 1 && b.ents.filter((e) => e.side === 0 && e.state !== 'dead').length >= 3 && b.ents.some((e) => e.side === 1 && e.state !== 'dead')) tutorial.step = 'roar'; }
-    else if (s === 'roar') pointAt($('btn-roar'), 'Battle Cry is ready! Tap it to power up every hero!');
+    else if (s === 'roar') { if (AW.canRoar(b)) pointAt($('btn-roar'), 'Battle Cry is ready! Tap it to power up every hero!'); else hideGuide(); }
   }
   // Home guide: points at the next useful thing for new players.
   function homeGuide() {
@@ -547,14 +561,26 @@
     else hideGuide();
   }
 
+  // Pause screen: live star goals, battle stats, the Gloom on this stage, then the settings.
+  function pauseHtml() {
+    const b = battle, def = b.def, t = Math.floor(b.t), mmss = (x) => Math.floor(x / 60) + ':' + String(x % 60).padStart(2, '0');
+    const hpf = b.ally.hp / b.ally.max;
+    const goals = def.kind === 'story' ? [['Win the battle', null], ['Burrow above 50%: now ' + Math.round(hpf * 100) + '%', hpf > 0.5], ['Win within ' + mmss(def.par) + ': ' + mmss(t), t <= def.par]] : [];
+    const stat = (ic, v, l) => '<div class="ps">' + icon(ic) + '<b class="num">' + v + '</b><span>' + l + '</span></div>';
+    let h = '<div class="pz"><div class="sw-card fx-card">' + head('battle', esc((def.kind === 'story' ? stageLabel(def) + ' ' : '') + def.name), def.kind === 'story' ? CT.DIFFICULTIES[def.d].name : '') +
+      '<div class="pstats">' + stat('clock', mmss(t), 'time') + stat('skull', b.stats.kills, 'defeated') + stat('army', b.stats.deploys, 'sent') + stat('tower', Math.round(b.enemy.hp / b.enemy.max * 100) + '%', 'Gloom tower') + '</div>' +
+      (goals.length ? '<div class="goals pgoals">' + goals.map((g) => '<div><img class="px" src="' + SPR.url(g[1] === false ? 'icon_starOff' : 'icon_star') + '" alt=""> <span class="' + (g[1] === false ? 'off' : '') + '">' + esc(g[0]) + '</span></div>').join('') + '</div>' : '') + '</div>';
+    h += '<div class="sw-card fx-card">' + head('skull', 'Gloom here') + '<div class="pfoes">' + foesOf(def).map((f) => { const e = AW.ENEMY[f.id], known = state.seen[f.id] || b.seen[f.id]; return '<span class="pf' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(e.name) : '???') + '">' + enemyFit(f.id, 40, 30, known ? '' : 'unk') + (known ? elIcon(e.el, 1, 'pfe') : '') + '</span>'; }).join('') + '</div>' + synergyHtml(state.lineup) + '</div></div>';
+    return h + '<div class="sw-card fx-card">' + head('gear', 'Settings') + '<div class="pset">' + settingsToggles() + '</div></div>';
+  }
   function pause(on) {
     if (!battle || ended) return;
     paused = on;
     if (on) {
       PF.gameplayStop();
-      openModal('Paused', settingsToggles(),
+      openModal('Paused', pauseHtml(),
         [['Quit', 'red', () => { closeModal(); quitBattle(); }], ['Retry', 'wood', () => { closeModal(); const o = battleOpts; startBattle(o.def, {}); }], ['Resume', 'green', () => { closeModal(); }]],
-        () => { paused = false; PF.gameplayStart(); });
+        () => { paused = false; PF.gameplayStart(); }, false, 'paused');
       bindToggles();
     }
   }
@@ -788,19 +814,27 @@
   function renderMap(el) {
     const d = ui.mapDiff;
     let r = ui.mapRegion;
-    if (!AW.regionOpen(state, d, r)) { r = 0; for (let i = 0; i < 8; i++) if (AW.regionOpen(state, d, i)) r = i; ui.mapRegion = r; }
-    const R0 = CT.REGIONS[r];
+    if (!AW.regionOpen(state, d, r)) { r = 0; for (let i = 0; i < CT.REGIONS.length; i++) if (AW.regionOpen(state, d, i)) r = i; ui.mapRegion = r; }
+    const R0 = CT.REGIONS[r], ch = AW.chapterOf(r), C0 = CT.CHAPTERS[ch];
+    const chEnd = (k) => k + 1 < CT.CHAPTERS.length ? CT.CHAPTERS[k + 1].from : CT.REGIONS.length;
     let h = '<div class="row"><div class="seg fx-insetDark">' + CT.DIFFICULTIES.map((D) => {
       const open = AW.regionOpen(state, D.id, 0);
       return '<button type="button" data-diff="' + D.id + '" class="bt2 sm fx-btn-' + (D.id === d ? ['green', 'gold', 'pink'][D.id] : 'dark') + '"' + (open ? '' : ' style="filter:grayscale(1) brightness(.7)"') + '>' + (open ? '' : SPR.img('icon_lock', 1)) + D.name + '</button>';
-    }).join('') + '</div><span class="grow"></span><span class="sub">' + icon('star') + ' <b>' + AW.totalStars(state) + '</b> stars</span></div>';
-    h += '<div class="regions">' + CT.REGIONS.map((Rg, i) => {
-      const open = AW.regionOpen(state, d, i);
-      return '<button type="button" data-region="' + i + '" class="rg fx-cardDark' + (i === r ? ' on' : '') + (open ? '' : ' locked') + '"><span class="rgi" data-art="160x60" style="background-image:url(' + R.themeArt(Rg.theme, 160, 60, false) + ')"></span>' +
+    }).join('') + '</div>';
+    // Chapters: three acts of eight lands each, the later ones deeper in the Gloom.
+    h += '<div class="chapters">' + CT.CHAPTERS.map((C, k) => {
+      const open = AW.regionOpen(state, d, C.from);
+      let st = 0; for (let i = C.from; i < chEnd(k); i++) st += AW.regionStars(state, d, i);
+      return '<button type="button" data-chapter="' + k + '" class="chp nopix fx-btn-' + (k === ch ? 'gold' : 'dark') + (open ? '' : ' locked') + '"><span class="chk">Chapter ' + C.id + '</span><span class="chn">' + (open ? '' : SPR.img('icon_lock', 1)) + esc(C.name) + '</span>' +
+        '<span class="chs">' + SPR.img('icon_star', 1) + st + ' / ' + (chEnd(k) - C.from) * 36 + '</span></button>';
+    }).join('') + '</div></div>';
+    h += '<div class="regions">' + CT.REGIONS.slice(C0.from, chEnd(ch)).map((Rg, j) => {
+      const i = C0.from + j, open = AW.regionOpen(state, d, i);
+      return '<button type="button" data-region="' + i + '" class="rg fx-cardDark' + (i === r ? ' on' : '') + (open ? '' : ' locked') + '"><span class="rgi" data-art="160x60" style="background-image:url(' + R.themeArt(Rg.theme, 160, 60, false, 0, Rg.tint || 0) + ')"></span>' +
         '<span class="rgk">' + (i + 1) + '</span>' + (open ? '<span class="rgs">' + SPR.img('icon_star', 1) + AW.regionStars(state, d, i) + '</span>' : '<span class="lk">' + icon('lock') + '</span>') + '<span class="rgn">' + esc(Rg.name) + '</span></button>';
     }).join('') + '</div>';
     const pts = ROAD.map((p) => p[0] + ',' + p[1]).join(' ');
-    h += '<div class="mapscroll"><div class="mapview" data-art="480x200" style="background-image:url(' + R.themeArt(R0.theme, 480, 200, true) + ')">' +
+    h += '<div class="mapscroll"><div class="mapview" data-art="480x200" style="background-image:url(' + R.themeArt(R0.theme, 480, 200, true, 0, R0.tint || 0) + ')">' +
       '<svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="#2a160c" vector-effect="non-scaling-stroke" stroke-linejoin="round" style="stroke-width:14px"/><polyline points="' + pts + '" fill="none" stroke="#f3e2bc" stroke-dasharray="10 8" vector-effect="non-scaling-stroke" style="stroke-width:6px"/></svg>' +
       '<div class="mv-title">' + title(R0.name, 3, 'cream') + '</div><div class="mv-stars fx-plaque">' + icon('star') + AW.regionStars(state, d, r) + ' / 36</div>';
     for (let i = 0; i < 12; i++) {
@@ -822,6 +856,12 @@
     }).join('') + '</div>';
     el.innerHTML = h;
     on(el, '[data-diff]', (b) => { const v = Number(b.getAttribute('data-diff')); if (!AW.regionOpen(state, v, 0)) { lockTip(b, 'Clear all of ' + CT.REGIONS[0].name + ' on ' + CT.DIFFICULTIES[v - 1].name + ' to unlock ' + CT.DIFFICULTIES[v].name); return; } ui.mapDiff = v; rerender(); });
+    on(el, '[data-chapter]', (b) => {
+      const k = Number(b.getAttribute('data-chapter')), C = CT.CHAPTERS[k];
+      if (!AW.regionOpen(state, d, C.from)) { const pr = CT.REGIONS[C.from - 1]; lockTip(b, 'Beat ' + AW.ENEMY[pr.boss].name + ' at ' + C.from + '-12' + (d ? ' on ' + CT.DIFFICULTIES[d].name : '') + ' to open Chapter ' + C.id); return; }
+      let v = C.from; for (let i = C.from; i < chEnd(k); i++) if (AW.regionOpen(state, d, i)) v = i;
+      ui.mapRegion = v; rerender();
+    });
     on(el, '[data-region]', (b) => { const v = Number(b.getAttribute('data-region')); if (!AW.regionOpen(state, d, v)) { const pr = CT.REGIONS[Math.max(0, v - 1)]; lockTip(b, 'Beat ' + AW.ENEMY[pr.boss].name + ' at ' + v + '-12' + (d ? ' on ' + CT.DIFFICULTIES[d].name : '') + ' to unlock'); return; } ui.mapRegion = v; rerender(); });
     on(el, '[data-stage]', (b) => { const i = Number(b.getAttribute('data-stage')); if (!AW.stageOpen(state, d, r, i)) { lockTip(b, 'Clear stage ' + (r + 1) + '-' + i + ' first'); return; } openStage(AW.stageDef(d, r, i)); });
     on(el, '[data-chest]', (b) => {
@@ -853,8 +893,28 @@
   function itemsHtml() {
     return '<div class="boosts">' + CT.ITEMS.map((it) => '<button type="button" class="bst fx-card' + (ui.items[it.id] ? ' on' : '') + (state.items[it.id] ? '' : ' none') + '" data-item="' + it.id + '" title="' + esc(it.name + ': ' + it.desc) + '"><span class="bi">' + icon(it.id) + '</span><b>' + esc(it.name) + '</b><span class="bc num">×' + state.items[it.id] + '</span></button>').join('') + '</div>';
   }
-  function lineupMini() {
-    return '<div class="lineup-mini">' + state.lineup.map((id) => id ? '<span class="lm ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, state.heroes[id].form, 40, 30) + '</span>' : '<span class="lm empty fx-cardDark"></span>').join('') + '</div>';
+  // Lineup strip with each hero's element matchup against this stage's Gloom (▲ has an edge, ▼ is at a disadvantage).
+  function lineupMini(def) {
+    const foes = def ? foesOf(def).map((f) => AW.ENEMY[f.id].el) : [];
+    return '<div class="lineup-mini">' + state.lineup.map((id) => {
+      if (!id) return '<span class="lm empty fx-cardDark"></span>';
+      const el = AW.HERO[id].el, up = foes.some((f) => AW.affinity(el, f) > 1), dn = foes.some((f) => AW.affinity(f, el) > 1);
+      return '<span class="lm ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, state.heroes[id].form, 40, 30) + elIcon(el, 1, 'lme') + (up ? '<i class="mu up">▲</i>' : dn ? '<i class="mu dn">▼</i>' : '') + '</span>';
+    }).join('') + '</div>';
+  }
+  // Scouting report: the Gloom of a stage with their elements and traits, and the elements that beat them.
+  function scoutHtml(def) {
+    const foes = foesOf(def), votes = {};
+    let h = '<div class="scout">';
+    for (const f of foes) {
+      const e = AW.ENEMY[f.id], known = state.seen[f.id];
+      if (known) for (const k of elWeak(e.el)) votes[k] = (votes[k] || 0) + (f.boss ? 2 : 1);
+      h += '<div class="sc-row' + (f.boss ? ' boss' : '') + '"><span class="sc-i">' + enemyFit(f.id, 40, 28, known ? '' : 'unk') + '</span><span class="sc-b"><span class="sc-n">' + (known ? esc(e.name) : '???') + (f.boss ? ' <em>BOSS</em>' : '') + '</span>' +
+        '<span class="sc-t">' + (known ? elChip(e.el) + traitChips(e.traits) : '<span class="muted">Not met yet</span>') + '</span></span></div>';
+    }
+    const best = Object.keys(votes).sort((a, b) => votes[b] - votes[a]).slice(0, 3);
+    h += '</div><div class="bring">' + (best.length ? '<b>Bring</b>' + best.map((k) => elChip(k)).join('') + '<span class="muted">×1.5 damage</span>' : '<span class="muted">Meet these foes once to learn their weaknesses</span>') + '</div>';
+    return h;
   }
 
   function openStage(def) {
@@ -868,13 +928,13 @@
     if (def.kind === 'event') Object.assign(rw, def.rewards);
     // Banner: the land's painting with the Gloom of this stage standing on its ground.
     const tags = (def.kind === 'story' ? '<span class="sw-tag d' + def.d + '">' + CT.DIFFICULTIES[def.d].name + '</span><span class="sw-tag reg">' + esc(def.region) + '</span>' : '<span class="sw-tag reg">' + esc(def.region || def.name) + '</span>') + (def.boss ? '<span class="sw-tag boss">Boss stage</span>' : '');
-    let h = '<div class="sw-banner" data-art="320x64" style="background-image:url(' + R.themeArt(def.theme, 320, 64, false, 166) + ')"><div class="sw-tags">' + tags + '</div><div class="sw-foes">' +
-      foesOf(def).map((f) => { const known = state.seen[f.id]; return '<span class="sw-foe' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '">' + enemyFit(f.id, 64, 48, known ? '' : 'unk', 2) + '<b>' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '</b></span>'; }).join('') + '</div></div>';
-    h += '<div class="sw-grid">';
-    if (def.kind === 'story') h += '<div class="sw-card fx-card">' + head('star', 'Star goals') + '<div class="goals">' + starGoals(def, mask) + '</div></div>';
-    h += '<div class="sw-card fx-card">' + head('chest', 'Rewards', first ? 'First clear bonus' : '') + '<div class="loot" style="justify-content:flex-start">' + rewardTiles(rw) + '</div></div></div>';
-    h += '<div class="sw-card fx-card">' + head('charge', 'Boosts', 'Tap to use') + itemsHtml() + '</div>';
-    h += '<div class="sw-card fx-card">' + head('army', 'Lineup') + lineupMini() + '</div>';
+    let h = '<div class="sw-banner" data-art="320x64" style="background-image:url(' + R.themeArt(def.theme, 320, 64, false, 166, def.tint || 0) + ')"><div class="sw-tags">' + tags + '</div><div class="sw-foes">' +
+      foesOf(def).map((f) => { const known = state.seen[f.id]; return '<span class="sw-foe' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '">' + enemyFit(f.id, 64, 48, known ? '' : 'unk', 2) + (known ? elIcon(AW.ENEMY[f.id].el, 1, 'fel') : '') + '<b>' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '</b></span>'; }).join('') + '</div></div>';
+    h += '<div class="sw-cols"><div class="sw-left"><div class="sw-card fx-card">' + head('skull', 'Scouting report', foesOf(def).length + ' kinds of Gloom') + scoutHtml(def) + '</div>';
+    h += '<div class="sw-card fx-card sw-line">' + head('army', 'Lineup', '<span class="mu up">▲</span> edge <span class="mu dn">▼</span> weak') + lineupMini(def) + synergyHtml(state.lineup) + '</div></div><div class="sw-right">';
+    h += '<div class="sw-card fx-card">' + (def.kind === 'story' ? head('star', 'Star goals') + '<div class="goals">' + starGoals(def, mask) + '</div>' : '') +
+      head('chest', 'Rewards', first ? 'First clear bonus' : '') + '<div class="loot" style="justify-content:flex-start">' + rewardTiles(rw) + '</div></div>';
+    h += '<div class="sw-card fx-card">' + head('charge', 'Boosts', 'Tap to use') + itemsHtml() + '</div></div></div>';
     const label = def.kind === 'story' ? stageLabel(def) + ' ' + def.name : def.name;
     openModal(label, h, [['Edit lineup', 'wood', () => { closeModal(); openPanel('army'); }], [title('Battle!', 3, 'cream'), 'green pulse', () => startBattle(def, { items: Object.assign({}, ui.items) })]], null, false, 'stage');
     fitBgs($('modal-body'));
@@ -886,160 +946,265 @@
   }
 
   // --- Hatchery -------------------------------------------------------------------
+  // Three nests behind tabs. Each has a showcase stage (its egg in a straw nest with heroes on pedestals), a side
+  // panel with odds, pity and the hatch buttons, and a strip of every hero it can hatch (owned ones in colour).
   function oddsBar(B) {
     const rs = [1, 2, 3, 4].filter((r) => B.rates[r]);
     return '<div class="odds"><div class="obar">' + rs.map((r) => '<i class="r' + r + '" style="flex:' + Math.max(B.rates[r], 2.5) + '"></i>').join('') + '</div><div class="olab">' + rs.map((r) => '<span class="rc' + r + '">' + rarityName(r) + ' <b>' + B.rates[r] + '%</b></span>').join('') + '</div></div>';
   }
+  const NEST_EGG = { royal: 3, element: 2, silver: 1 };
+  function nestShowcase(tab, day) {
+    const f = AW.featured(day);
+    if (tab === 'royal') return { ids: [f.mythic, f.legend || f.epic, f.legend ? f.epic : null].filter(Boolean), tag: 'RATE UP' };
+    if (tab === 'element') {
+      const el = AW.dayElement(day);
+      return { ids: CT.HEROES.filter((h) => h.el === el && h.rarity >= 1).sort((a, b) => b.rarity - a.rarity).slice(0, 3).map((h) => h.id), tag: CT.ELEMENTS[el].name.toUpperCase() };
+    }
+    const g = AW.featured(day + 1000);
+    return { ids: [g.mythic, g.epic], tag: 'CAN HATCH' };
+  }
   function renderHatch(el) {
-    const day = AW.dayNumber(now()), f = AW.featured(day), t = now();
-    const royal = AW.BANNER.royal, silver = AW.BANNER.silver;
+    const day = AW.dayNumber(now()), t = now();
+    const tab = ui.hatchTab || 'royal', B = AW.BANNER[tab], eggR = NEST_EGG[tab];
+    const dEl = AW.dayElement(day), E = CT.ELEMENTS[dEl];
     let h = '';
-    // Collection strip.
     const own = [0, 1, 2, 3, 4].map((r) => [CT.HEROES.filter((d) => d.rarity === r && state.heroes[d.id]).length, CT.HEROES.filter((d) => d.rarity === r).length]);
     h += '<div class="coll fx-plaque"><b>' + icon('book') + 'Collection ' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + '</b><span class="cl-r">' + own.map((o, r) => '<span class="rc' + r + '">' + rarityName(r) + ' <b class="num">' + o[0] + '/' + o[1] + '</b></span>').join('') + '</span></div>';
     if (AW.welcomeReady(state)) h += '<div class="tile fx-cardHot row"><span>' + SPR.img('egg_3', 2) + '</span><div class="grow"><h4>Welcome gift!</h4><span class="muted">A free ×10 Royal hatch with at least one Epic hero.</span></div><button type="button" class="bt2 fx-btn-gold pulse" id="welcome">Hatch ×10 free</button></div>';
-    // Royal Nest.
-    const fe = [f.legend, f.mythic, f.epic].filter(Boolean);
-    const stand = (id, cls) => '<span class="stand ' + cls + '"><span class="rate">RATE UP</span>' + heroFit(id, 0, 96, 80, '', 3) + '<i class="ped r' + AW.HERO[id].rarity + '"></i></span>';
-    const pityRow = (lab, n, max, cls) => '<div class="prow"><span>' + lab + '</span>' + bar(n / max, 'pbar ' + cls) + '<b class="num">' + (max - n) + ' left</b></div>';
-    h += '<div class="nest royal fx-windark"><div class="nest-art">' + (fe[1] ? stand(fe[1], 'l') : '') + '<span class="nest-egg">' + SPR.img('egg_3', 5, 'egg-big') + SPR.img('nest', 3, 'straw') + '</span>' + (fe[0] ? stand(fe[0], 'r') : '') + '</div>' +
-      '<div class="nest-info">' + title('Royal Nest', 3, 'gold') + '<p>' + esc(royal.desc) + '</p>' +
-      '<div class="feat">' + fe.map((id) => '<span class="fx-plaque">' + heroFit(id, 0, 32, 28) + '<b style="color:' + SPR.RARITY_HEX[AW.HERO[id].rarity] + '">' + esc(AW.HERO[id].names[0]) + '</b><small>' + rarityName(AW.HERO[id].rarity) + '</small></span>').join('') + '</div>' +
-      oddsBar(royal) +
-      '<div class="pity">' + pityRow('Mythic+', state.gacha.sinceMythic, royal.pity.mythic, 'my') + pityRow('Legend', state.gacha.sinceLegend, royal.pity.legend, 'lg') + '</div>' +
-      '<div class="bn-btns"><button type="button" class="bt2 fx-btn-pink" data-hatch="royal" data-n="1">×1 ' + (state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + royal.cost) + '</button>' +
-      '<button type="button" class="bt2 lg fx-btn-gold tagged" data-hatch="royal" data-n="10">×10 ' + (state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + royal.cost10) + '<span class="btag nopix">Epic+ inside · save 10%</span></button></div>' +
-      '<div class="have">You have ' + icon('gem') + '<b>' + fmt(state.gems) + '</b> ' + icon('gold') + '<b>' + state.tickets.gold + '</b></div></div></div>';
-    // Meadow Nest.
+    // Tabs.
     const silverFree = AW.freeEggReady(state, t);
-    h += '<div class="nest meadow fx-windark"><div class="nest-art"><span class="nest-egg">' + SPR.img('egg_1', 5, 'egg-big') + '<i class="straw"></i></span></div><div class="nest-info">' + title('Meadow Nest', 3, 'green') +
-      '<p>' + esc(silver.desc) + '</p>' + oddsBar(silver) +
-      '<div class="bn-btns"><button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
-      '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="1">×1 ' + icon('silver') + '1</button>' +
-      '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button></div>' +
-      '<div class="have">You have ' + icon('silver') + '<b>' + state.tickets.silver + '</b> Silver Eggs · one free egg every 4 hours</div></div></div>';
-    h += '<details class="rates fx-inset"><summary>All odds and rules</summary>' + CT.BANNERS.map((B) => esc(B.name) + ': ' + [1, 2, 3, 4].filter((r) => B.rates[r]).map((r) => '<b class="rc' + r + '">' + rarityName(r) + ' ' + B.rates[r] + '%</b>').join(' · ')).join('<br>') +
-      '<br>Rate up: a featured hero gets half of its rarity\'s chance. A ×10 Royal hatch always includes an Epic or better. Mythic or better is guaranteed within ' + royal.pity.mythic + ' Royal hatches and a Legend within ' + royal.pity.legend + '. Duplicates give +1 level (up to +20), then coins. Gems and eggs are only ever earned by playing. Featured heroes change every day.</details>';
+    const tabs = [
+      ['royal', SPR.img('egg_3', 2), 'Royal Nest', 'Rate up today', state.tickets.gold ? '<i class="tb">' + state.tickets.gold + '</i>' : ''],
+      ['element', elIcon(dEl, 2), 'Elemental Nest', E.name + ' day', ''],
+      ['silver', SPR.img('egg_1', 2), 'Meadow Nest', silverFree ? 'Free egg ready!' : 'Silver Eggs', silverFree ? '<i class="tb free">FREE</i>' : '']
+    ];
+    h += '<div class="hm-main"><div class="hm-tabs">' + tabs.map((x) => '<button type="button" class="hm-tab nopix ' + x[0] + (x[0] === tab ? ' on' : '') + '" data-tab="' + x[0] + '"><span class="ti">' + x[1] + '</span><span class="tt"><b>' + x[2] + '</b><small>' + x[3] + '</small></span>' + x[4] + '</button>').join('') + '</div>';
+    // Showcase.
+    const sc = nestShowcase(tab, day);
+    const stand = (id, pos) => '<span class="hm-stand ' + pos + '" data-hero="' + id + '"><span class="tag">' + sc.tag + '</span>' + heroFit(id, 0, pos === 'c2' ? 72 : 96, pos === 'c2' ? 60 : 84, '', 3) + '<i class="ped r' + AW.HERO[id].rarity + '"></i><b class="nm rc' + AW.HERO[id].rarity + '">' + esc(AW.HERO[id].names[0]) + '</b></span>';
+    const ends = tab === 'silver' ? '' : '<span class="hm-ends fx-plaque">' + icon('timer') + (tab === 'element' ? E.name + ' day' : 'Rate up') + ' ends in <b>' + timeLeft(nextMidnight() - t) + '</b></span>';
+    h += '<div class="hm-show ' + tab + '"' + (tab === 'element' ? ' style="--ec:' + E.color + '"' : '') + '><i class="hm-rays"></i><i class="hm-motes"></i>' + ends +
+      (sc.ids[2] ? stand(sc.ids[2], 'c2') : '') + (sc.ids[0] ? stand(sc.ids[0], 'l') : '') +
+      '<span class="hm-nest">' + SPR.img('egg_' + eggR, 6, 'hm-egg') + SPR.img('nest', 3, 'hm-straw') + '</span>' + (sc.ids[1] ? stand(sc.ids[1], 'r') : '') + '</div>';
+    // Side panel.
+    const pityRow = (lab, n, max, cls) => '<div class="prow"><span>' + lab + '</span>' + bar(n / max, 'pbar ' + cls) + '<b class="num">' + (max - n) + ' left</b></div>';
+    h += '<div class="hm-side fx-windark">' + title(B.name, innerHeight <= 520 ? 2 : 3, tab === 'royal' ? 'gold' : tab === 'silver' ? 'green' : 'cream') + '<p>' + esc(B.desc) + '</p>';
+    if (tab === 'element') h += '<div class="hm-el">' + elChip(dEl) + '<span>Strong vs</span>' + E.strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted2">· tomorrow: ' + CT.ELEMENTS[AW.dayElement(day + 1)].name + '</span></div>';
+    h += oddsBar(B);
+    if (B.pity) h += '<div class="pity">' + pityRow('Mythic+', state.gacha.sinceMythic, B.pity.mythic, 'my') + pityRow('Legend', state.gacha.sinceLegend, B.pity.legend, 'lg') + '</div>';
+    h += '<div class="bn-btns">';
+    if (tab === 'silver') {
+      h += '<button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
+        '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="1">×1 ' + icon('silver') + '1</button><button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button>';
+    } else {
+      const pay1 = state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + B.cost, pay10 = state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + B.cost10;
+      h += '<button type="button" class="bt2 fx-btn-' + (tab === 'royal' ? 'pink' : 'blue') + '" data-hatch="' + tab + '" data-n="1">×1 ' + pay1 + '</button>' +
+        '<button type="button" class="bt2 lg fx-btn-gold tagged" data-hatch="' + tab + '" data-n="10">×10 ' + pay10 + '<span class="btag nopix">Epic+ inside · save 10%</span></button>';
+    }
+    h += '</div><div class="have">You have ' + (tab === 'silver' ? icon('silver') + '<b>' + state.tickets.silver + '</b> Silver Eggs · a free one every 4 hours' : icon('gem') + '<b>' + fmt(state.gems) + '</b> ' + icon('gold') + '<b>' + state.tickets.gold + '</b>') + '</div></div></div>';
+    // Pool strip.
+    const pool = AW.bannerPool(tab, day), got = pool.filter((id) => state.heroes[id]).length;
+    h += '<div class="hm-pool fx-inset"><div class="hp-h">' + icon('nest') + '<b>In this nest</b><span>' + got + ' / ' + pool.length + ' owned</span></div><div class="hp-strip">' +
+      pool.map((id) => { const d = AW.HERO[id], o = !!state.heroes[id]; return '<button type="button" class="pt ' + rarFrame(d.rarity) + (o ? '' : ' unk') + '" data-hero="' + id + '" title="' + esc(o ? d.names[0] : rarityName(d.rarity) + ' hero') + '">' + heroFit(id, 0, 40, 32, o ? '' : 'sil') + elIcon(d.el, 1, 'pte') + '</button>'; }).join('') + '</div></div>';
+    h += '<details class="rates fx-inset"><summary>All odds and rules</summary>' + CT.BANNERS.map((X) => esc(X.name) + ': ' + [1, 2, 3, 4].filter((r) => X.rates[r]).map((r) => '<b class="rc' + r + '">' + rarityName(r) + ' ' + X.rates[r] + '%</b>').join(' · ')).join('<br>') +
+      '<br>Rate up: a featured Royal hero gets half of its rarity\'s chance. The Elemental Nest only hatches heroes of the day\'s element (any hero of a rarity that element has none of). A ×10 hatch always includes an Epic or better. Mythic or better is guaranteed within ' + AW.BANNER.royal.pity.mythic + ' Royal hatches and a Legend within ' + AW.BANNER.royal.pity.legend + '. Duplicates give +1 level (up to +20), then coins. Gems and eggs are only ever earned by playing.</details>';
     el.innerHTML = h;
+    on(el, '[data-tab]', (b) => { ui.hatchTab = b.getAttribute('data-tab'); rerender(); });
     on(el, '[data-hatch]', (b) => doHatch(b.getAttribute('data-hatch'), Number(b.getAttribute('data-n'))));
-    const w = el.querySelector('#welcome'); if (w) w.addEventListener('click', () => { const res = AW.claimWelcome(state, Math.random, AW.dayNumber(now())); if (res) { save(); showHatch(res); } });
-    const fr = el.querySelector('#free-egg'); if (fr) fr.addEventListener('click', () => { const res = AW.claimFreeEgg(state, now(), Math.random); if (res) { save(); showHatch(res); } });
+    on(el, '[data-hero]', (b) => openHero(b.getAttribute('data-hero')));
+    const w = el.querySelector('#welcome'); if (w) w.addEventListener('click', () => { const res = AW.claimWelcome(state, Math.random, AW.dayNumber(now())); if (res) { save(); showHatch(res, null, 'royal'); } });
+    const fr = el.querySelector('#free-egg'); if (fr) fr.addEventListener('click', () => { const res = AW.claimFreeEgg(state, now(), Math.random); if (res) { save(); showHatch(res, null, 'silver'); } });
   }
   function timeLeft(ms) { ms = Math.max(0, ms); const h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000); return h ? h + 'h ' + m + 'm' : m + 'm'; }
 
   function doHatch(banner, n) {
     if (!AW.canHatch(state, banner, n)) {
       AU.deny();
-      toast(banner === 'royal' ? 'Not enough gems: earn them from stages, quests and medals' : 'Not enough Silver Eggs', 'pink');
+      toast(banner === 'silver' ? 'Not enough Silver Eggs' : 'Not enough gems: earn them from stages, quests and medals', 'pink');
       return;
     }
     const res = AW.hatch(state, banner, n, Math.random, AW.dayNumber(now()));
     if (!res) return;
     save();
-    showHatch(res, { banner: banner, n: n });
+    showHatch(res, { banner: banner, n: n }, banner);
   }
 
-  // Hatch show: egg pips across the top; each egg wobbles (glowing gold or rainbow when something great is
-  // inside), shakes and cracks on a tap, bursts in a flash of its rarity colour and reveals the hero on a ribbon.
+  // Hatch show. Each egg drops into the nest, then takes three taps: it cracks, splits with light pouring out, and
+  // bursts into two shell halves with a shock ring and confetti. The glow climbs a rarity with every tap until it
+  // reaches what is inside, so a Legend egg goes blue, purple, gold, then rainbow. The hero appears as a silhouette
+  // and fills with colour. Particles are drawn on a canvas over the scene.
   let hatchQ = null;
-  function showHatch(results, again) {
-    hatchQ = { list: results, i: 0, phase: 'egg', again: again || null, busy: false };
-    $('hatchery').hidden = false;
-    AU.play('home');
-    $('h-pips').innerHTML = results.length > 1 ? results.map((r, i) => '<span class="pip" data-i="' + i + '">' + SPR.img('egg_' + Math.max(1, r.rarity), 1) + '</span>').join('') : '';
-    hatchStep();
+  const FX = { parts: [], raf: 0, cv: null };
+  function fxStart() {
+    const cv = $('h-fx'), k = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(innerWidth * k); cv.height = Math.round(innerHeight * k);
+    FX.cv = cv; FX.k = k;
+    if (!FX.raf) { let last = performance.now(); const tick = (t) => { const dt = Math.min(0.05, (t - last) / 1000); last = t; fxTick(dt); FX.raf = $('hatchery').hidden ? 0 : requestAnimationFrame(tick); if (!FX.raf) FX.parts = []; }; FX.raf = requestAnimationFrame(tick); }
   }
-  function sparkles(col, n) {
-    const st = $('h-stage');
-    for (let i = 0; i < (n || 18); i++) {
-      const s = document.createElement('i');
-      s.className = 'sparkle';
-      const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 140;
-      s.style.cssText = 'left:50%;top:45%;--dx:' + Math.round(Math.cos(a) * d) + 'px;--dy:' + Math.round(Math.sin(a) * d) + 'px;--rc:' + col;
-      st.appendChild(s);
-      setTimeout(() => s.remove(), 950);
+  function fxTick(dt) {
+    const cv = FX.cv; if (!cv) return;
+    const g = cv.getContext('2d'), k = FX.k;
+    g.clearRect(0, 0, cv.width, cv.height);
+    FX.parts = FX.parts.filter((p) => (p.t += dt) < p.life);
+    for (const p of FX.parts) {
+      const a = 1 - p.t / p.life;
+      if (p.kind === 'ring') {
+        const r = p.r0 + (p.r1 - p.r0) * (1 - a * a);
+        g.globalAlpha = a; g.strokeStyle = p.col; g.lineWidth = Math.max(2, 10 * a) * k;
+        g.beginPath(); g.arc(p.x * k, p.y * k, r * k, 0, Math.PI * 2); g.stroke();
+        continue;
+      }
+      p.vy += (p.g || 0) * dt; p.vx *= (1 - (p.drag || 0) * dt); p.vy *= (1 - (p.drag || 0) * dt);
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      g.globalAlpha = p.fade === false ? 1 : Math.min(1, a * 1.6);
+      g.fillStyle = p.col;
+      const s = Math.round(p.size * (p.shrink ? a : 1) * k);
+      if (p.kind === 'spark' && (Math.floor(p.t * 12) % 2)) { g.fillRect(Math.round(p.x * k - s), Math.round(p.y * k), s * 2 + 1, Math.max(1, s / 2)); g.fillRect(Math.round(p.x * k), Math.round(p.y * k - s), Math.max(1, s / 2), s * 2 + 1); }
+      else g.fillRect(Math.round(p.x * k - s / 2), Math.round(p.y * k - s / 2), s, s);
     }
+    g.globalAlpha = 1;
+  }
+  // A spray of square particles from (x, y) in screen pixels.
+  function fxBurst(x, y, n, o) {
+    for (let i = 0; i < n; i++) {
+      const a = (o.angle !== undefined ? o.angle : -Math.PI / 2) + (Math.random() - 0.5) * (o.spread || Math.PI * 2), v = (o.speed || 300) * (0.45 + Math.random() * 0.75);
+      const cols = o.cols || [o.col || '#ffffff'];
+      FX.parts.push({ x: x + (Math.random() - 0.5) * (o.jitter || 0), y: y + (Math.random() - 0.5) * (o.jitter || 0), vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: o.g === undefined ? 700 : o.g, drag: o.drag || 0, t: 0, life: (o.life || 0.9) * (0.6 + Math.random() * 0.6), size: (o.size || 6) * (0.6 + Math.random() * 0.7), col: cols[i % cols.length], kind: o.kind || 'sq', shrink: o.shrink, fade: o.fade });
+    }
+  }
+  function fxRing(x, y, col, r1) { FX.parts.push({ kind: 'ring', x: x, y: y, r0: 10, r1: r1 || 260, col: col, t: 0, life: 0.55 }); }
+  const CONFETTI = ['#ff6fd0', '#ffc23d', '#73eff7', '#a7f070', '#a884f3', '#ffffff'];
+  function eggCenter() { const e = $('h-stage').querySelector('.egg'); if (!e) return [innerWidth / 2, innerHeight * 0.45]; const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r]; }
+
+  function showHatch(results, again, banner) {
+    hatchQ = { list: results, i: 0, phase: 'drop', again: again || null, busy: false, taps: 0, egg: NEST_EGG[banner] || 3 };
+    $('hatchery').hidden = false;
+    $('hatchery').className = 'hatchery nest-' + (banner || 'royal');
+    fxStart();
+    AU.play('home');
+    $('h-pips').innerHTML = results.length > 1 ? results.map((r, i) => '<span class="pip" data-i="' + i + '">' + SPR.img('egg_' + hatchQ.egg, 1) + '</span>').join('') : '';
+    $('h-callout').innerHTML = '';
+    hatchStep();
   }
   function flash(col) { const f = $('h-flash'); f.style.setProperty('--fc', col); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
   function stars(n) { return '<span class="rstars-s">' + Array.from({ length: n }, () => SPR.img('icon_star', 2)).join('') + '</span>'; }
+  function auraOf(q) { const r = q.list[q.i].rarity; return Math.min(r, 1 + q.taps); }
+  function setAura(egg, lvl) { egg.className = egg.className.replace(/\baura\d\b/g, '') + ' aura' + lvl; egg.style.setProperty('--ac', SPR.RARITY_HEX[lvl]); }
   function hatchStep() {
     const q = hatchQ;
     if (!q || q.busy) return;
     const st = $('h-stage'), info = $('h-info'), rays = $('h-rays');
     if (q.i >= q.list.length) { hatchSummary(); return; }
-    const r = q.list[q.i], eggR = Math.max(1, r.rarity);
+    const r = q.list[q.i];
     const pips = $('h-pips').children;
     for (let k = 0; k < pips.length; k++) pips[k].classList.toggle('now', k === q.i);
-    if (q.phase === 'egg') {
-      rays.classList.remove('on');
-      st.innerHTML = '<div class="egg idle' + (r.rarity >= 4 ? ' tier4' : r.rarity >= 3 ? ' tier3' : '') + '">' + SPR.img('egg_' + eggR, 7) + '</div>';
-      info.innerHTML = title(q.list.length > 1 ? 'Egg ' + (q.i + 1) + ' / ' + q.list.length : 'Your egg', 3, 'cream') + '<div class="hx hint">Tap the egg to crack it!</div>';
+    if (q.phase === 'drop') {
+      rays.classList.remove('on'); $('h-callout').innerHTML = '';
+      q.taps = 0; q.busy = true;
+      st.innerHTML = '<div class="hnest"><div class="egg drop">' + SPR.img('egg_' + q.egg, 7) + '</div>' + SPR.img('nest', 4, 'hn-straw') + '</div>';
+      info.innerHTML = title(q.list.length > 1 ? 'Egg ' + (q.i + 1) + ' / ' + q.list.length : 'Your egg', 3, 'cream') + '<div class="hx hint">&nbsp;</div>';
       setBtnText($('h-next'), 'Crack!');
       $('h-skip').hidden = q.list.length < 2;
-      setBtnText($('h-skip'), 'Skip');
-      q.phase = 'crack';
+      setBtnText($('h-skip'), 'Skip all');
+      setTimeout(() => {
+        if (hatchQ !== q || q.phase !== 'drop') return;
+        const egg = st.querySelector('.egg'), c = eggCenter();
+        AU.shake();
+        fxBurst(c[0], c[2] ? c[2].bottom - 8 : c[1], 16, { angle: -Math.PI / 2, spread: Math.PI * 0.9, speed: 220, g: 600, cols: ['#d8c8a0', '#b8a070', '#f4ecd0'], size: 7, life: 0.6, shrink: true });
+        egg.classList.remove('drop'); egg.classList.add('idle'); setAura(egg, auraOf(q));
+        info.querySelector('.hint').textContent = 'Tap the egg to crack it!';
+        q.busy = false; q.phase = 'tap';
+      }, 560);
       return;
     }
-    if (q.phase === 'crack') {
-      q.busy = true;
-      const egg = st.querySelector('.egg');
-      egg.classList.remove('idle'); egg.classList.add('shake');
-      AU.shake(); setTimeout(() => AU.shake(), 220); setTimeout(() => { AU.crack(); egg.innerHTML = SPR.img('egg_' + eggR + '_c', 7); }, 440);
+    if (q.phase === 'tap') {
+      const egg = st.querySelector('.egg'), c = eggCenter();
+      q.taps++; q.busy = true;
+      egg.classList.remove('idle', 'shake'); void egg.offsetWidth; egg.classList.add('shake');
+      AU.shake();
+      const before = auraOf(Object.assign({}, q, { taps: q.taps - 1 })), now2 = auraOf(q);
+      if (q.taps < 3) {
+        AU.crack();
+        egg.innerHTML = SPR.img('egg_' + q.egg + '_c' + (q.taps === 2 ? '2' : ''), 7) + (q.taps === 2 ? '<i class="leak"></i>' : '');
+        fxBurst(c[0], c[1], 10 + q.taps * 6, { cols: ['#ffffff', SPR.RARITY_HEX[q.egg], '#1a1c2c'], speed: 260, size: 6, life: 0.7 });
+        if (now2 > before) { fxRing(c[0], c[1], SPR.RARITY_HEX[now2], 140); AU.reveal(Math.min(2, now2)); info.querySelector('.hint').textContent = 'It is glowing ' + ['', 'blue', 'purple', 'gold', 'with every colour'][now2] + '...'; }
+        else info.querySelector('.hint').textContent = q.taps === 1 ? 'Again!' : 'One more tap!';
+        setAura(egg, now2);
+        setTimeout(() => { if (hatchQ !== q) return; egg.classList.remove('shake'); egg.classList.add('idle'); q.busy = false; }, 300);
+        return;
+      }
+      // Third tap: burst.
+      q.phase = 'burst';
       setTimeout(() => {
-        if (hatchQ !== q || q.phase !== 'crack') return;  // skipped meanwhile
-        flash(SPR.RARITY_HEX[r.rarity]);
-        q.busy = false; q.phase = 'reveal'; hatchStep();
-      }, 760);
+        if (hatchQ !== q || q.phase !== 'burst') return;
+        const col = SPR.RARITY_HEX[r.rarity];
+        AU.crack();
+        egg.outerHTML = '<div class="shells">' + SPR.img('eggshell_' + q.egg + '_top', 7, 'shell top') + SPR.img('eggshell_' + q.egg + '_bot', 7, 'shell bot') + '</div>';
+        flash(col); fxRing(c[0], c[1], col, 320); fxRing(c[0], c[1], '#ffffff', 200);
+        fxBurst(c[0], c[1], 24, { cols: ['#ffffff', SPR.RARITY_HEX[q.egg]], speed: 420, size: 7, life: 0.9 });
+        fxBurst(c[0], c[1], r.rarity >= 3 ? 90 : r.rarity >= 2 ? 50 : 26, { cols: r.rarity >= 3 ? CONFETTI : [col, '#ffffff'], speed: r.rarity >= 3 ? 620 : 460, g: 380, drag: 0.8, size: 6, life: 1.6, kind: r.rarity >= 2 ? 'spark' : 'sq' });
+        if (r.rarity >= 3) $('hatchery').classList.add('quake');
+        setTimeout(() => { $('hatchery').classList.remove('quake'); if (hatchQ !== q || q.phase !== 'burst') return; q.busy = false; q.phase = 'reveal'; hatchStep(); }, 420);
+      }, 220);
       return;
     }
     if (q.phase === 'reveal') {
-      const def = AW.HERO[r.id];
-      rays.style.setProperty('--rc', SPR.RARITY_HEX[r.rarity]);
+      const def = AW.HERO[r.id], col = SPR.RARITY_HEX[r.rarity];
+      rays.style.setProperty('--rc', col);
       rays.classList.toggle('on', r.rarity >= 1);
-      st.innerHTML = '<div class="got r' + r.rarity + '">' + heroFit(r.id, 0, 300, Math.min(220, innerHeight * 0.32), '', 8) + '<div class="pedestal"></div>' + (r.isNew ? '<span class="stamp">NEW!</span>' : '') + '</div>';
-      sparkles(SPR.RARITY_HEX[r.rarity], r.rarity >= 3 ? 30 : r.rarity >= 2 ? 18 : 8);
+      rays.classList.toggle('rainbow', r.rarity >= 4);
+      st.innerHTML = '<div class="got sil r' + r.rarity + '">' + heroFit(r.id, 0, 300, Math.min(220, innerHeight * 0.32), '', 8) + '<div class="pedestal"></div>' + (r.isNew ? '<span class="stamp">NEW!</span>' : '') + '</div>';
+      setTimeout(() => { const g2 = st.querySelector('.got'); if (g2) g2.classList.remove('sil'); }, 380);
       info.innerHTML = stars(r.rarity + 1) + '<div class="hname fx-ribbon' + (r.rarity >= 3 ? 'Gold' : r.rarity >= 1 ? 'Blue' : '') + '">' + title(def.names[0], 3, 'cream') + '</div>' +
-        '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + '<b class="rc' + r.rarity + '">' + rarityName(r.rarity) + '</b> · ' + (r.isNew ? 'joins your army!' : r.plus ? 'duplicate: +1 level' : 'duplicate: +' + fmt(r.coins) + ' coins') + '</div><div class="hdesc">' + esc(def.desc) + '</div>';
-      if (pips[q.i]) pips[q.i].innerHTML = heroFit(r.id, 0, 24, 24, 'r' + r.rarity, 1);
-      if (pips[q.i]) pips[q.i].classList.add('done', 'r' + r.rarity);
+        '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + elChip(def.el) + ' <b class="rc' + r.rarity + '">' + rarityName(r.rarity) + '</b> · ' + (r.isNew ? 'joins your army!' : r.plus ? 'duplicate: +1 level' : 'duplicate: +' + fmt(r.coins) + ' coins') + '</div><div class="hdesc">' + esc(def.desc) + '</div>';
+      if (r.rarity >= 3) {
+        $('h-callout').innerHTML = '<div class="hc">' + title(r.rarity >= 4 ? 'LEGEND!' : 'MYTHIC!', 6, RAR_PAL[r.rarity]) + '</div>';
+        const c = [innerWidth / 2, innerHeight * 0.35];
+        for (let k = 0; k < (r.rarity >= 4 ? 8 : 4); k++) setTimeout(() => { if (hatchQ === q && q.phase === 'next') fxBurst(Math.random() * innerWidth, -10, 18, { angle: Math.PI / 2, spread: 0.9, speed: 160, g: 260, drag: 0.4, cols: CONFETTI, size: 7, life: 2.4, kind: 'sq', fade: false }); }, 150 + k * 180);
+        fxBurst(c[0], c[1], 30, { cols: [col, '#ffffff'], speed: 380, size: 5, life: 1.2, kind: 'spark', g: 0, drag: 1.5 });
+      } else fxBurst(innerWidth / 2, innerHeight * 0.4, r.rarity >= 2 ? 26 : 12, { cols: [col, '#ffffff'], speed: 300, size: 5, life: 1, kind: 'spark', g: 0, drag: 1.6 });
+      if (pips[q.i]) { pips[q.i].innerHTML = heroFit(r.id, 0, 24, 24, '', 1); pips[q.i].classList.add('done', 'r' + r.rarity); }
       AU.reveal(r.rarity);
       if (r.rarity >= 3) PF.happytime();
-      setBtnText($('h-next'), q.i + 1 < q.list.length ? 'Next egg' : 'See all');
-      if (q.list.length === 1) setBtnText($('h-next'), 'OK');
+      setBtnText($('h-next'), q.list.length === 1 ? 'OK' : q.i + 1 < q.list.length ? 'Next egg' : 'See all');
       q.phase = 'next';
       return;
     }
-    if (q.phase === 'next') { q.i++; q.phase = 'egg'; hatchStep(); }
+    if (q.phase === 'next') { q.i++; q.phase = 'drop'; hatchStep(); }
   }
   function hatchSummary() {
     const q = hatchQ;
     if (q.list.length === 1) { endHatch(); return; }
     q.busy = false;
-    $('h-rays').classList.remove('on');
+    $('h-rays').classList.remove('on', 'rainbow'); $('h-callout').innerHTML = '';
     const best = Math.max.apply(null, q.list.map((r) => r.rarity));
     let bestDone = false;
     $('h-pips').innerHTML = '';
-    $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r, i) => {
+    $('h-stage').innerHTML = '<div class="hsum">' + q.list.map((r, i) => {
       const isBest = r.rarity === best && !bestDone; if (isBest) bestDone = true;
-      return '<div class="hero ' + rarFrame(r.rarity) + (isBest ? ' best' : '') + '" style="animation-delay:' + i * 60 + 'ms"><div class="hi">' + heroFit(r.id, 0, 96, 64) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '<span class="dup-tag">' + (r.plus ? '+1 LV' : 'COINS') + '</span>') + '</div>';
+      return '<div class="hs-card r' + r.rarity + (isBest ? ' best' : '') + '" style="animation-delay:' + i * 70 + 'ms"><div class="hs-in ' + rarFrame(r.rarity) + '"><div class="hi">' + heroFit(r.id, 0, 88, 56) + '</div>' + elIcon(AW.HERO[r.id].el, 1, 'hse') + '<div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '<span class="dup-tag">' + (r.plus ? '+1 LV' : 'COINS') + '</span>') + '</div></div>';
     }).join('') + '</div>';
+    const c = [innerWidth / 2, innerHeight * 0.45];
+    fxBurst(c[0], c[1], 40, { cols: best >= 3 ? CONFETTI : [SPR.RARITY_HEX[best], '#ffffff'], speed: 520, g: 300, drag: 0.8, size: 6, life: 1.4, kind: 'spark' });
     const nNew = q.list.filter((r) => r.isNew).length;
-    $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]) + '<div class="hx">' + nNew + ' new hero' + (nNew === 1 ? '' : 'es') + ' · ' + (q.list.length - nNew) + ' duplicate' + (q.list.length - nNew === 1 ? '' : 's') + '</div>';
+    const counts = [4, 3, 2, 1].filter((k) => q.list.some((r) => r.rarity === k)).map((k) => '<b class="rc' + k + '">' + q.list.filter((r) => r.rarity === k).length + ' ' + rarityName(k) + '</b>').join(' · ');
+    $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]) + '<div class="hx">' + counts + '</div><div class="hx dupe">' + nNew + ' new hero' + (nNew === 1 ? '' : 'es') + ' · ' + (q.list.length - nNew) + ' duplicate' + (q.list.length - nNew === 1 ? '' : 's') + '</div>';
     setBtnText($('h-next'), 'Done');
     const a = q.again;
     if (a && AW.canHatch(state, a.banner, a.n)) { $('h-skip').hidden = false; setBtnText($('h-skip'), 'Again ×' + a.n); $('h-skip').dataset.again = '1'; }
     else $('h-skip').hidden = true;
     q.phase = 'done';
   }
-  function endHatch() { hatchQ = null; $('h-skip').dataset.again = ''; $('hatchery').hidden = true; if (panelName) rerender(); else refreshHome(); }
+  function endHatch() { hatchQ = null; $('h-skip').dataset.again = ''; $('h-callout').innerHTML = ''; $('hatchery').hidden = true; if (panelName) rerender(); else refreshHome(); }
 
   // --- Army ---------------------------------------------------------------------
   function heroLvl(id) { const h = state.heroes[id]; return h.lvl + h.plus; }
   function renderArmy(el) {
     let h = head('army', 'Lineup', swapPick ? 'Tap a slot for <b>' + esc(heroName(swapPick)) + '</b>' : 'Tap a hero to remove it');
-    h += '<div class="shelf fx-inset"><div class="lineup">' + state.lineup.map((id, i) => id ? '<button type="button" class="slot ' + rarFrame(AW.HERO[id].rarity) + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">' + heroFit(id, state.heroes[id].form, 88, 72) + '<span class="lv">' + heroLvl(id) + '</span></button>' : '<button type="button" class="slot empty fx-cardDark' + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">+</button>').join('') + '</div></div>';
+    h += '<div class="shelf fx-inset"><div class="lineup">' + state.lineup.map((id, i) => id ? '<button type="button" class="slot ' + rarFrame(AW.HERO[id].rarity) + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">' + heroFit(id, state.heroes[id].form, 88, 72) + elIcon(AW.HERO[id].el, 1, 'sel') + '<span class="lv">' + heroLvl(id) + '</span></button>' : '<button type="button" class="slot empty fx-cardDark' + (swapPick ? ' pick' : '') + '" data-slot="' + i + '">+</button>').join('') + '</div>' + synergyHtml(state.lineup) + '</div>';
     h += '<div class="row"><div class="seg fx-insetDark">' + [-1, 0, 1, 2, 3, 4].map((r) => '<button type="button" data-filter="' + r + '" class="bt2 sm fx-btn-' + (ui.armyFilter === r ? 'gold' : 'dark') + '">' + (r < 0 ? 'All' : rarityName(r)) + '</button>').join('') + '</div><span class="grow"></span><span class="sub">' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + ' heroes</span><button type="button" class="bt2 sm fx-btn-blue" id="autofill">Auto-fill</button></div>';
-    const list = CT.HEROES.filter((d) => ui.armyFilter < 0 || d.rarity === ui.armyFilter).slice().sort((a, b) => {
+    h += '<div class="elfilter">' + ['all'].concat(Object.keys(CT.ELEMENTS)).map((k) => '<button type="button" data-elf="' + k + '" class="elf fx-btn-' + ((ui.armyEl || 'all') === k ? 'gold' : 'dark') + '" title="' + (k === 'all' ? 'Every element' : CT.ELEMENTS[k].name) + '">' + (k === 'all' ? 'All' : elIcon(k, 2)) + '</button>').join('') + '</div>';
+    const list = CT.HEROES.filter((d) => (ui.armyFilter < 0 || d.rarity === ui.armyFilter) && (!ui.armyEl || ui.armyEl === 'all' || d.el === ui.armyEl)).slice().sort((a, b) => {
       const oa = state.heroes[a.id] ? 1 : 0, ob = state.heroes[b.id] ? 1 : 0;
       return ob - oa || b.rarity - a.rarity;
     });
@@ -1059,16 +1224,17 @@
       markDirty(); rerender();
     });
     on(el, '[data-filter]', (b) => { ui.armyFilter = Number(b.getAttribute('data-filter')); rerender(); });
+    on(el, '[data-elf]', (b) => { ui.armyEl = b.getAttribute('data-elf'); rerender(); });
     on(el, '[data-hero]', (b) => openHero(b.getAttribute('data-hero')));
     el.querySelector('#autofill').addEventListener('click', () => { autoFill(); markDirty(); rerender(); });
   }
   function heroTile(d) {
     const h = state.heroes[d.id];
-    if (!h) return '<button type="button" class="hero locked fx-cardDark" data-hero="' + d.id + '"><div class="hi">' + heroFit(d.id, 0, 96, 64) + '</div><div class="hn" style="color:' + SPR.RARITY_HEX[d.rarity] + '">' + rarityName(d.rarity) + '</div></button>';
+    if (!h) return '<button type="button" class="hero locked fx-cardDark" data-hero="' + d.id + '"><div class="hi">' + heroFit(d.id, 0, 96, 64) + '</div>' + elIcon(d.el, 1, 'tel') + '<div class="hn" style="color:' + SPR.RARITY_HEX[d.rarity] + '">' + rarityName(d.rarity) + '</div></button>';
     const inl = state.lineup.indexOf(d.id) >= 0;
     const up = AW.canLevel(state, d.id) || AW.canEvolve(state, d.id);
     return '<button type="button" class="hero ' + rarFrame(d.rarity) + '" data-hero="' + d.id + '">' + (inl ? '<span class="inl">IN</span>' : '') + (up ? '<span class="up"></span>' : '') +
-      '<div class="hi">' + heroFit(d.id, h.form, 96, 64) + '</div><div class="hn">' + esc(d.names[h.form]) + '</div><span class="hst">' + [0, 1, 2].map((f) => '<img class="px" src="' + SPR.url(f <= h.form ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span><span class="lv">Lv ' + h.lvl + (h.plus ? '+' + h.plus : '') + '</span></button>';
+      '<div class="hi">' + heroFit(d.id, h.form, 96, 64) + '</div>' + elIcon(d.el, 1, 'tel') + '<div class="hn">' + esc(d.names[h.form]) + '</div><span class="hst">' + [0, 1, 2].map((f) => '<img class="px" src="' + SPR.url(f <= h.form ? 'icon_star' : 'icon_starOff') + '" alt="">').join('') + '</span><span class="lv">Lv ' + h.lvl + (h.plus ? '+' + h.plus : '') + '</span></button>';
   }
   function autoFill() {
     const ids = Object.keys(state.heroes);
@@ -1083,20 +1249,20 @@
   function abilityLines(st) {
     const ab = st.ab, T = (l) => l.map((t) => t === 'all' ? 'every trait' : CT.TRAITS[t].name).join(', ');
     const out = [[st.area ? 'Area attack' : 'Single target', false]];
-    if (ab.strong) out.push(['Strong vs ' + T(ab.strong), true]);
-    if (ab.massive) out.push(['3× vs ' + T(ab.massive), true]);
-    if (ab.resist) out.push(['Resists ' + T(ab.resist), true]);
+    if (ab.strong) out.push(['Hunter of ' + T(ab.strong), true]);
+    if (ab.massive) out.push(['Bane of ' + T(ab.massive) + ' (×3)', true]);
+    if (ab.resist) out.push(['Hardy vs ' + T(ab.resist), true]);
     if (ab.crit) out.push([Math.round(ab.crit * 100) + '% critical', true]);
     if (ab.kb) out.push([Math.round(ab.kb * 100) + '% knockback', true]);
     if (ab.freeze) out.push([Math.round(ab.freeze[0] * 100) + '% freeze ' + ab.freeze[1] + 's', true]);
     if (ab.slow) out.push([Math.round(ab.slow[0] * 100) + '% slow ' + ab.slow[1] + 's', true]);
     if (ab.weaken) out.push([Math.round(ab.weaken[0] * 100) + '% weaken ' + ab.weaken[1] + 's', true]);
-    if (ab.wave) out.push([Math.round(ab.wave[0] * 100) + '% wave Lv ' + ab.wave[1], true]);
+    if (ab.wave) out.push([Math.round(ab.wave[0] * 100) + '% shockwave Lv ' + ab.wave[1], true]);
     if (ab.multi) out.push([ab.multi + ' hits per attack', true]);
-    if (ab.base) out.push([ab.base + '× vs towers', true]);
-    if (ab.survive) out.push(['Survives a fatal hit', true]);
+    if (ab.base) out.push(['Tower Smasher ×' + ab.base, true]);
+    if (ab.survive) out.push(['Last Stand', true]);
     if (ab.burrow) out.push(['Burrows past the front', true]);
-    if (ab.zkill) out.push(['Zombie Slayer', true]);
+    if (ab.zkill) out.push(['Spirit Breaker', true]);
     if (ab.immune) out.push(['Immune: ' + ab.immune.map((x) => ({ kb: 'knockback', freeze: 'freeze', slow: 'slow', weaken: 'weaken' })[x]).join(', '), true]);
     return out;
   }
@@ -1108,6 +1274,7 @@
     const st = AW.heroStats(state, id);
     let h = '<div class="hd"><div class="hd-art ' + rarFrame(def.rarity) + '"><span class="hd-r fx-ribbon' + (def.rarity >= 3 ? 'Gold' : def.rarity >= 1 ? 'Blue' : '') + '">' + rarityName(def.rarity).toUpperCase() + '</span>' + heroFit(id, form, 196, innerHeight <= 520 ? 104 : 156, own ? '' : 'unk', 6) + '<div class="pedestal"></div></div><div class="hd-info">';
     h += '<div class="hd-name">' + esc(def.names[form]) + '</div>';
+    if (def.el) h += '<div class="hd-el">' + elChip(def.el) + '<span class="muted">Strong vs</span>' + CT.ELEMENTS[def.el].strong.map((k) => elIcon(k, 1)).join('') + '<span class="muted">Weak vs</span>' + elWeak(def.el).map((k) => elIcon(k, 1)).join('') + '</div>';
     if (own) {
       h += '<div class="lvbar">Lv ' + own.lvl + (own.plus ? ' <span class="good">+' + own.plus + '</span>' : '') + bar(own.lvl / AW.CONFIG.maxLevel, 'bar') + AW.CONFIG.maxLevel + '</div>';
       h += '<div class="forms">' + [0, 1, 2].map((f) => '<span class="fx-card' + (f > form ? ' lock' : '') + '" title="' + esc(def.names[f]) + '">' + heroFit(id, f, 44, 36) + (f === form ? '▲' : '') + '</span>').join('') + '</div>';
@@ -1329,6 +1496,7 @@
     $('h-skip').addEventListener('click', () => {
       if (!hatchQ) return;
       if (hatchQ.phase === 'done') { const a = hatchQ.again; endHatch(); if (a) doHatch(a.banner, a.n); return; }
+      hatchQ.phase = 'skip'; $('hatchery').classList.remove('quake');
       hatchQ.list.forEach((r) => { if (r.rarity >= 3) PF.happytime(); }); AU.reveal(Math.max.apply(null, hatchQ.list.map((r) => r.rarity))); hatchSummary();
     });
     $('hatchery').addEventListener('click', (e) => { if (e.target.closest('button')) return; if (hatchQ && hatchQ.phase !== 'done') hatchStep(); });
@@ -1510,7 +1678,7 @@
     get state() { return state; }, set state(s) { state = s; },
     get battle() { return battle; },
     get mode() { return mode; },
-    startBattle: startBattle, openPanel: openPanel, enterHome: enterHome, save: save, openStage: openStage, openHero: openHero,
+    startBattle: startBattle, openPanel: openPanel, enterHome: enterHome, save: save, openStage: openStage, openHero: openHero, showHatch: showHatch,
     get paused() { return paused; }, pause: pause
   };
 

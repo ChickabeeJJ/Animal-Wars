@@ -23,7 +23,31 @@
   const buf = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   const b = buf ? buf.getContext('2d') : null;
   let W = 1, H = 1, DPR = 1, PXS = 3, BW = 1, BH = 1, KK = 3, GY = 100;
-  let mode = 'home', battle = null, homeState = null, theme = THEMES[0], themeIdx = 0;
+  let mode = 'home', battle = null, homeState = null, theme = THEMES[0], themeIdx = 0, tint = 0;
+  // Chapter colour grades: 1 = dusk (chapter 2), 2 = deep gloom (chapter 3). Applied to the painting and the lane.
+  const GRADES = [null, { mul: [1.04, 0.8, 0.86], add: [22, 4, 26], sat: 0.95 }, { mul: [0.6, 0.55, 0.82], add: [16, 6, 34], sat: 0.55 }];
+  function gradeRgb(r, g, b2, k) {
+    const G = GRADES[k];
+    if (!G) return [r, g, b2];
+    const l = r * 0.3 + g * 0.59 + b2 * 0.11;
+    r = l + (r - l) * G.sat; g = l + (g - l) * G.sat; b2 = l + (b2 - l) * G.sat;
+    return [Math.min(255, r * G.mul[0] + G.add[0]), Math.min(255, g * G.mul[1] + G.add[1]), Math.min(255, b2 * G.mul[2] + G.add[2])];
+  }
+  function gradeHex(h, k) { if (!k) return h; const n = parseInt(h.slice(1), 16); return '#' + gradeRgb(n >> 16, (n >> 8) & 255, n & 255, k).map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''); }
+  const gradeCache = {};
+  function bgArt(name, k) {
+    const art = SPR.asset && SPR.asset('bg_' + name);
+    if (!art || !k) return art;
+    const key = name + k;
+    if (gradeCache[key]) return gradeCache[key];
+    const c = mk(art.width, art.height), g = c.getContext('2d');
+    g.drawImage(art, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) { const o = gradeRgb(p[i], p[i + 1], p[i + 2], k); p[i] = o[0]; p[i + 1] = o[1]; p[i + 2] = o[2]; }
+    g.putImageData(d, 0, 0);
+    gradeCache[key] = c;
+    return c;
+  }
   let layers = null;
   const cam = { x: -60, target: -60, manual: 0, shake: 0 };
   const parts = [], floats = [], rings = [];
@@ -89,10 +113,12 @@
     const th = theme, L = laneLen();
     const span = L + 200;
     const r = rng(1234 + themeIdx * 77);
-    const art = SPR.asset && SPR.asset('bg_' + th.name);
+    const art = bgArt(th.name, tint);
     if (art) {
       const pl = paintedLayers(art, th, span, r);
-      layers = { sky: pl.sky, far: pl.far, mid: pl.mid, ground: groundStrip(th, r, root.AW_ASSETS && root.AW_ASSETS['bg_' + th.name]) };
+      const meta = root.AW_ASSETS && root.AW_ASSETS['bg_' + th.name];
+      const gm = meta && meta.ground ? { ground: { top: gradeHex(meta.ground.top, tint), band: gradeHex(meta.ground.band, tint) } } : null;
+      layers = { sky: pl.sky, far: pl.far, mid: pl.mid, ground: groundStrip(th, r, gm) };
       return;
     }
     // Sky.
@@ -166,10 +192,10 @@
   // A still picture of a region (sky, hills, props, ground) for menus. Cached per theme and size.
   const artCache = {};
   // anchor: the painting row that lands on the bottom edge (default: just below the ground line).
-  function themeArt(t, w, h, withBases, anchor) {
-    const key = t + ':' + w + 'x' + h + ':' + (withBases ? 1 : 0) + ':' + (anchor || 0);
+  function themeArt(t, w, h, withBases, anchor, tn) {
+    const key = t + ':' + w + 'x' + h + ':' + (withBases ? 1 : 0) + ':' + (anchor || 0) + ':' + (tn || 0);
     if (artCache[key]) return artCache[key];
-    const art = SPR.asset && SPR.asset('bg_' + THEMES[t % THEMES.length].name);
+    const art = bgArt(THEMES[t % THEMES.length].name, tn || 0);
     if (art) {
       // The painting itself, shrunk by a whole factor when the slot is small, anchored on the ground line.
       const k = Math.max(1, Math.min(2, Math.floor(art.height / h), Math.floor(art.width / w)));
@@ -243,14 +269,14 @@
   // ---------------------------------------------------------------------------
   function setBattle(bt) {
     mode = 'battle'; battle = bt;
-    themeIdx = bt.def.theme % THEMES.length; theme = THEMES[themeIdx];
+    themeIdx = bt.def.theme % THEMES.length; theme = THEMES[themeIdx]; tint = bt.def.tint || 0;
     parts.length = 0; floats.length = 0; rings.length = 0;
     cam.x = cam.target = minCam(); cam.manual = 0;
     buildLayers();
   }
   function setHome(state, t) {
     mode = 'home'; battle = null; homeState = state;
-    themeIdx = t || 0; theme = THEMES[themeIdx];
+    themeIdx = t || 0; theme = THEMES[themeIdx]; tint = 0;
     parts.length = 0; floats.length = 0; rings.length = 0;
     strollers.length = 0;
     resize();
