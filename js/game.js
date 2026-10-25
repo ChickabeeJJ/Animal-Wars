@@ -199,11 +199,8 @@
     return icon('skull') + 'Defeat ' + esc(AW.ENEMY[CT.REGIONS[n.r].boss].name) + ' at ' + (n.r + 1) + '-12';
   }
 
-  // Logo lockup: the shield emblem beside ANIMAL / WARS. f scales it down on short screens.
-  function logoHtml(f) {
-    const k = (n) => Math.max(1, Math.round(n * f));
-    return '<span class="lg-emb">' + SPR.img('emblem', k(4)) + '</span><span class="lg-words">' + title('Animal', k(5), 'cream', 8, 'lg-a') + title('Wars', k(9), 'gold', 8, 'lg-b') + '</span>';
-  }
+  // The logo is one composed pixel image (emblem, ribbon, title), so nothing in it can drift out of line.
+  function logoHtml() { return SPR.img('logo', innerHeight >= 860 ? 3 : innerHeight >= 560 ? 2 : 1, 'logo-img'); }
   // Left column cards on the home screen: the next battle, and today's featured heroes once the Hatchery is open.
   function renderFeature() {
     const f = $('feature'), n = nextStory(), sc = AW.storyCleared(state);
@@ -233,7 +230,7 @@
     const lead = leadHero();
     $('avatar').className = 'avatar ' + rarFrame(AW.HERO[lead].rarity);
     $('avatar').innerHTML = heroFit(lead, state.heroes[lead] ? state.heroes[lead].form : 0, 40, 36);
-    if (!$('logo').firstChild) $('logo').innerHTML = logoHtml(innerHeight <= 520 ? 0.5 : 1);
+    if (!$('logo').firstChild) $('logo').innerHTML = logoHtml();
     $('goal').innerHTML = nextGoal();
     const n = nextStory();
     $('battle-t').innerHTML = title('Battle!', 4, 'cream');
@@ -353,6 +350,7 @@
     R.resize();
     R.setBattle(battle);
     R.setAuto();
+    $('cards').classList.remove('p2'); $('card-page').classList.remove('p2');
     buildCards();
     $('bh-name').innerHTML = esc((def.kind === 'story' ? stageLabel(def) + '  ' : '') + def.name) + '<small>' + esc(def.kind === 'story' ? CT.DIFFICULTIES[def.d].name + ' · ' + def.region : def.region) + '</small>';
     setToggles();
@@ -383,6 +381,9 @@
       const sl = battle.slots[Number(el.getAttribute('data-slot'))], art = el.querySelector('.cart');
       if (!sl || !art || !el.clientHeight) return;
       art.innerHTML = heroFit(sl.id, state.heroes[sl.id].form, el.clientWidth - 6, el.clientHeight - 16);
+      const bg = el.querySelector('.cbg'), k = Math.max(1, Math.ceil(Math.max(el.clientWidth / 64, el.clientHeight / 32)));
+      bg.style.backgroundImage = 'url(' + SPR.url('cardbg_' + sl.st.rarity) + ')';
+      bg.style.backgroundSize = 64 * k + 'px ' + 32 * k + 'px';
     });
   }
 
@@ -477,6 +478,11 @@
     rb.classList.toggle('active', active);
     $('roar-t').textContent = active ? Math.ceil(b.roar.left) + 's' : ready ? 'READY!' : Math.floor(b.roar.charge * 100) + '%';
     const cards = $('cards').children;
+    // Phones show five cards at a time: the page button counts heroes ready on the hidden page.
+    const p2 = $('cards').classList.contains('p2');
+    let other = 0;
+    for (let i = 0; i < cards.length; i++) if ((i >= 5) !== p2 && b.slots[i] && AW.canDeploy(b, i)) other++;
+    const cpn = $('cp-n'); cpn.hidden = !other; if (other) cpn.textContent = other;
     for (let i = 0; i < cards.length; i++) {
       const sl = b.slots[i], el = cards[i];
       if (!sl) continue;
@@ -843,8 +849,9 @@
       return '<div class="foe fx-cardDark' + (f.boss ? ' boss' : '') + '"><span class="fi">' + enemyFit(f.id, 74, 44, known ? '' : 'unk') + '</span><span>' + (known ? esc(e.name) : '???') + '</span>' + (known ? '<span>' + traitChips(e.traits) + '</span>' : '') + '</div>';
     }).join('') + '</div>';
   }
+  // Boosts as square chips: icon, name and how many you own; the description is the tooltip.
   function itemsHtml() {
-    return '<div class="items">' + CT.ITEMS.map((it) => '<button type="button" class="item fx-card' + (ui.items[it.id] ? ' on' : '') + (state.items[it.id] ? '' : ' none') + '" data-item="' + it.id + '" title="' + esc(it.desc) + '">' + icon(it.id) + '<span><b>' + esc(it.name) + '</b><span class="muted">' + esc(it.desc) + '</span></span><span class="ic">×' + state.items[it.id] + '</span></button>').join('') + '</div>';
+    return '<div class="boosts">' + CT.ITEMS.map((it) => '<button type="button" class="bst fx-card' + (ui.items[it.id] ? ' on' : '') + (state.items[it.id] ? '' : ' none') + '" data-item="' + it.id + '" title="' + esc(it.name + ': ' + it.desc) + '"><span class="bi">' + icon(it.id) + '</span><b>' + esc(it.name) + '</b><span class="bc num">×' + state.items[it.id] + '</span></button>').join('') + '</div>';
   }
   function lineupMini() {
     return '<div class="lineup-mini">' + state.lineup.map((id) => id ? '<span class="lm ' + rarFrame(AW.HERO[id].rarity) + '">' + heroFit(id, state.heroes[id].form, 40, 30) + '</span>' : '<span class="lm empty fx-cardDark"></span>').join('') + '</div>';
@@ -855,19 +862,22 @@
     const mask = def.kind === 'story' ? (state.stars[def.key] || 0) : 0;
     const first = def.kind === 'story' && state.clear[def.d][def.r] === def.i;
     for (const k in ui.items) if (!state.items[k]) ui.items[k] = false;
-    let h = '';
-    if (def.kind === 'story') h += '<p class="tip-line">' + esc(def.region) + ' · <b style="color:' + ['#2e8a3a', '#c08010', '#c03a9a'][def.d] + '">' + CT.DIFFICULTIES[def.d].name + '</b>' + (def.boss ? ' · <b class="bad">BOSS STAGE</b>' : '') + '</p>';
-    h += head('skull', 'The Gloom') + foesHtml(def);
-    if (def.kind === 'story') h += head('star', 'Star goals') + '<div class="goals">' + starGoals(def, mask) + '</div>';
     const rw = { coins: def.coins };
     if (first) rw.gems = def.gems;
     if (def.kind === 'tower' && state.tower === def.floor - 1) { rw.gems = def.gems; rw.gold = def.gold; }
     if (def.kind === 'event') Object.assign(rw, def.rewards);
-    h += head('chest', 'Rewards', first ? 'First clear bonus included' : '') + '<div class="loot" style="justify-content:flex-start">' + rewardTiles(rw) + '</div>';
-    h += head('charge', 'Boosts', 'Tap to use one') + itemsHtml();
-    h += head('army', 'Lineup') + lineupMini();
+    // Banner: the land's painting with the Gloom of this stage standing on its ground.
+    const tags = (def.kind === 'story' ? '<span class="sw-tag d' + def.d + '">' + CT.DIFFICULTIES[def.d].name + '</span><span class="sw-tag reg">' + esc(def.region) + '</span>' : '<span class="sw-tag reg">' + esc(def.region || def.name) + '</span>') + (def.boss ? '<span class="sw-tag boss">Boss stage</span>' : '');
+    let h = '<div class="sw-banner" data-art="320x64" style="background-image:url(' + R.themeArt(def.theme, 320, 64, false, 166) + ')"><div class="sw-tags">' + tags + '</div><div class="sw-foes">' +
+      foesOf(def).map((f) => { const known = state.seen[f.id]; return '<span class="sw-foe' + (f.boss ? ' boss' : '') + '" title="' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '">' + enemyFit(f.id, 64, 48, known ? '' : 'unk', 2) + '<b>' + (known ? esc(AW.ENEMY[f.id].name) : '???') + '</b></span>'; }).join('') + '</div></div>';
+    h += '<div class="sw-grid">';
+    if (def.kind === 'story') h += '<div class="sw-card fx-card">' + head('star', 'Star goals') + '<div class="goals">' + starGoals(def, mask) + '</div></div>';
+    h += '<div class="sw-card fx-card">' + head('chest', 'Rewards', first ? 'First clear bonus' : '') + '<div class="loot" style="justify-content:flex-start">' + rewardTiles(rw) + '</div></div></div>';
+    h += '<div class="sw-card fx-card">' + head('charge', 'Boosts', 'Tap to use') + itemsHtml() + '</div>';
+    h += '<div class="sw-card fx-card">' + head('army', 'Lineup') + lineupMini() + '</div>';
     const label = def.kind === 'story' ? stageLabel(def) + ' ' + def.name : def.name;
-    openModal(label, h, [['Edit lineup', 'wood', () => { closeModal(); openPanel('army'); }], [title('Battle!', 3, 'cream'), 'green pulse', () => startBattle(def, { items: Object.assign({}, ui.items) })]]);
+    openModal(label, h, [['Edit lineup', 'wood', () => { closeModal(); openPanel('army'); }], [title('Battle!', 3, 'cream'), 'green pulse', () => startBattle(def, { items: Object.assign({}, ui.items) })]], null, false, 'stage');
+    fitBgs($('modal-body'));
     on($('modal-body'), '[data-item]', (b) => {
       const k = b.getAttribute('data-item');
       if (!state.items[k]) { lockTip(b, 'You have none yet. Buy boosts in Rewards'); return; }
@@ -1271,6 +1281,7 @@
     $('cards').addEventListener('pointerdown', (e) => { const c = e.target.closest('[data-slot]'); if (c) { e.preventDefault(); AU.unlock(); tryDeploy(Number(c.getAttribute('data-slot'))); } });
     $('btn-pouch').addEventListener('pointerdown', (e) => { e.preventDefault(); tryPouch(); });
     $('btn-roar').addEventListener('pointerdown', (e) => { e.preventDefault(); tryRoar(); });
+    $('card-page').addEventListener('click', () => { AU.click(); const p2 = $('cards').classList.toggle('p2'); $('card-page').classList.toggle('p2', p2); fitCardArt(); });
     $('btn-pause').addEventListener('click', () => { AU.click(); pause(true); });
     $('btn-speed').addEventListener('click', toggleSpeed);
     $('btn-cam').addEventListener('click', () => { AU.click(); state.settings.autoCam = !state.settings.autoCam; setToggles(); if (state.settings.autoCam) R.setAuto(); markDirty(); });
@@ -1387,6 +1398,8 @@
   function boot() {
     PF.loadingStart();
     SPR.installFrames();
+    // The emblem doubles as the page icon.
+    try { const ln = document.createElement('link'); ln.rel = 'icon'; ln.href = SPR.url('emblem'); document.head.appendChild(ln); } catch (e) { /* no icon */ }
     const L = load();
     state = L.state;
     AW.ensureDaily(state, now());
@@ -1439,8 +1452,8 @@
     $('dock').hidden = true; $('bhud').hidden = true;
     const logo = document.createElement('div');
     logo.className = 'logo';
-    const ls = Math.max(3, Math.round(innerHeight > innerWidth ? innerWidth / 150 : innerWidth / 240));
-    logo.innerHTML = title('Animal', ls, 'cream') + '<div class="paws">' + icon('paw') + icon('paw') + icon('paw') + '</div>' + title('Wars', Math.round(ls * 1.8), 'gold');
+    const ls = Math.max(2, Math.round(Math.min(innerHeight / 260, innerWidth / 200)));
+    logo.innerHTML = SPR.img('logo', ls);
     logo.style.cssText = 'position:absolute;left:50%;top:' + (innerHeight > innerWidth * 1.2 ? 16 : 6) + '%;transform:translateX(-50%);z-index:5;animation:none';
     $('view').appendChild(logo);
     R.resize();

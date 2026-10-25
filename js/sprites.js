@@ -1483,19 +1483,75 @@
     pouchLv: (P) => { ICONS.pouch(P); },
     skull: (P) => { P.ball(8, 7, 5.5, 5, tones('#f4f4f4')); P.rect(5, 11, 6, 3, '#f4f4f4'); P.rect(5, 6, 2, 2, INK); P.rect(9, 6, 2, 2, INK); P.set(6, 12, INK); P.set(9, 12, INK); }
   };
-  // Logo emblem: a gold-rimmed shield with a paw over crossed swords.
-  function emblemCanvas() {
-    const P = new Painter(30, 32);
-    const steel = '#dfe6f2', steelD = '#8a96b0', hilt = '#b07a4a';
-    for (const [a, b2] of [[[2, 2], [27, 28]], [[27, 2], [2, 28]]]) { P.line(a[0], a[1], b2[0], b2[1], steel); P.line(a[0] + 1, a[1], b2[0] + 1, b2[1], steelD); }
-    P.rect(0, 26, 4, 4, hilt); P.rect(26, 26, 4, 4, hilt); P.rect(1, 1, 3, 3, '#ffcd4d'); P.rect(26, 1, 3, 3, '#ffcd4d');
-    const shield = (inset, c) => { P.rect(5 + inset, 4 + inset, 20 - inset * 2, 13 - inset, c); P.tri(5 + inset, 16, 25 - inset, 16, 15, 30 - inset * 1.4, c); };
-    shield(0, '#e8962a'); shield(1, '#ffcd4d'); shield(3, '#3b5dc9');
-    P.rect(8, 7, 14, 2, '#5a7ae0');
-    P.ell(15, 19.5, 4.4, 3.6, '#ffffff'); for (const [x, y] of [[9.5, 14], [12.8, 11.6], [17.2, 11.6], [20.5, 14]]) P.ell(x, y, 1.5, 1.8, '#ffffff');
-    P.ell(15, 20.2, 2.2, 1.5, '#ffa8c5');
-    P.outline('#1a0f12');
+  // Deploy-card backdrops, one per rarity (64×32, shown at whole-number zoom behind the hero portrait).
+  function cardBgCanvas(r) {
+    const W = 64, H = 32, P = new Painter(W, H);
+    const bands = [['#2c3346', '#353d54', '#3f4862'], ['#14285e', '#1c3478', '#254294'], ['#26124a', '#33195e', '#412274'], ['#5a3608', '#74460c', '#8e5a12'], ['#3a0e46', '#52125a', '#6c1a6e']][r];
+    for (let y = 0; y < H; y++) { const c = bands[Math.min(2, Math.floor(y / H * 3))]; for (let x = 0; x < W; x++) P.set(x, y, c); }
+    const hi = mix(bands[2], '#ffffff', 0.22);
+    if (r === 0) {        // stone blocks
+      for (let y = 0; y < H; y += 8) for (let x = (y / 8) % 2 ? 8 : 0; x < W; x += 16) { P.rect(x, y, 1, 8, mix(bands[0], '#000000', 0.25)); P.rect(x + 1, y, 15, 1, mix(bands[1], '#ffffff', 0.1)); }
+    } else if (r === 1) { // diagonal light beams
+      for (let k = -H; k < W; k += 16) for (let y = 0; y < H; y++) { P.set(k + y, y, hi); P.set(k + y + 1, y, mix(bands[2], '#ffffff', 0.1)); }
+    } else if (r === 2) { // starry night
+      for (const [x, y] of [[6, 4], [20, 9], [37, 3], [50, 11], [58, 5], [29, 14], [12, 15], [44, 18]]) P.set(x, y, '#d8c8ff');
+      for (const [x, y] of [[26, 5], [54, 15]]) { P.set(x, y, '#ffffff'); P.set(x - 1, y, '#a884f3'); P.set(x + 1, y, '#a884f3'); P.set(x, y - 1, '#a884f3'); P.set(x, y + 1, '#a884f3'); }
+    } else if (r === 3) { // sunburst
+      for (let a = 0; a < 12; a++) { if (a % 2) continue; const t0 = Math.PI * (1 + a / 12), t1 = Math.PI * (1 + (a + 1) / 12); P.tri(32, H + 4, 32 + Math.cos(t0) * 90, H + 4 + Math.sin(t0) * 90, 32 + Math.cos(t1) * 90, H + 4 + Math.sin(t1) * 90, mix(bands[1], '#ffcd4d', 0.35)); }
+    } else {              // aurora bands
+      const au = ['#ff6fd0', '#a884f3', '#73eff7'];
+      for (let x = 0; x < W; x++) { const y = Math.round(9 + Math.sin(x / 9) * 3); for (let i = 0; i < 3; i++) P.set(x, y + i, mix(bands[1], au[i], 0.55)); }
+      for (const [x, y] of [[10, 4], [44, 3], [58, 18], [22, 20]]) P.set(x, y, '#ffffff');
+    }
+    // A lit floor for the hero to stand on.
+    P.ell(32, H - 2, 20, 4, mix(bands[2], '#ffffff', 0.18)); P.ell(32, H - 2, 13, 2.5, mix(bands[2], '#ffffff', 0.3));
     return P.canvas();
+  }
+  // Game emblem: Captain Pip on a royal-blue shield with a gold rim, over crossed swords, a star on top.
+  function emblemCanvas() {
+    const W = 62, H = 66, P = new Painter(W, H), cx = 31;
+    const steel = '#e8eef8', steelD = '#94a2bc', hilt = '#8a5a30', gold = '#ffcd4d';
+    for (const [x0, y0, x1, y1] of [[4, 8, 56, 60], [57, 8, 5, 60]]) for (let t = 0; t < 3; t++) P.line(x0 + t, y0, x1 + t, y1, t === 2 ? steelD : steel);
+    P.rect(1, 55, 8, 8, hilt); P.rect(53, 55, 8, 8, hilt); P.rect(2, 56, 3, 3, '#c08a52'); P.rect(54, 56, 3, 3, '#c08a52');
+    P.rect(1, 3, 7, 7, gold); P.rect(54, 3, 7, 7, gold); P.rect(2, 4, 3, 3, '#fff6c8'); P.rect(55, 4, 3, 3, '#fff6c8');
+    const shield = (i, c) => { P.rect(10 + i, 9 + i, 42 - i * 2, 26 - i, c); P.tri(10 + i, 34, 52 - i, 34, cx, 64 - i * 1.6, c); };
+    shield(0, '#c8862a'); shield(1, gold); shield(4, '#e8962a'); shield(5, '#2f52c0');
+    P.rect(15, 14, 32, 4, '#4a72e0'); P.rect(15, 14, 32, 1, '#73a0ff');
+    P.tri(18, 40, 44, 40, cx, 56, '#2a48a8');
+    P.tri(24, 9, 38, 9, cx, 0, gold); P.tri(23, 4, 39, 4, cx, 12, gold); P.rect(cx - 1, 3, 2, 2, '#fff6c8');
+    P.outline('#1a0f12');
+    const c = P.canvas(), g = c.getContext('2d');
+    // Pip at 2×, clipped to the inside of the shield so the gold rim stays on top.
+    const M = new Painter(W, H);
+    M.rect(15, 14, 32, 21, '#000000'); M.tri(15, 34, 47, 34, cx, 58, '#000000');
+    const layer = makeCanvas(W, H), lg = layer.getContext('2d'), pip = trimmed('hero_pip_2_0');
+    lg.imageSmoothingEnabled = false;
+    lg.drawImage(pip, Math.round(cx - pip.width * 1.1), 17, pip.width * 2, pip.height * 2);
+    lg.globalCompositeOperation = 'destination-in';
+    lg.drawImage(M.canvas(), 0, 0);
+    g.drawImage(layer, 0, 0);
+    return c;
+  }
+  // The full logo: emblem, a red ribbon reading ANIMAL, and a big gold WARS, composed on one canvas.
+  function logoCanvas() {
+    const emb = get('emblem');
+    const animal = pixelText('ANIMAL', { size: 8, fill: ['#ffffff', '#fff2d8', '#e8c89a'], shadow: '#4a1a1a', outline: '#1a0f12' });
+    const wars = pixelText('WARS', { size: 16, fill: ['#fff6c8', '#ffcd4d', '#ef9a2a'], shadow: '#7a2a20', outline: '#1a0f12' });
+    const rw = animal.width + 22, W = Math.max(wars.width, rw + 10, emb.width) + 4;
+    const ry = emb.height - 12, wy = ry + animal.height + 1;
+    const H = wy + wars.height;
+    const c = makeCanvas(W, H), g = c.getContext('2d');
+    g.drawImage(emb, Math.round((W - emb.width) / 2), 0);
+    // Ribbon with folded tails.
+    const R = new Painter(W, animal.height + 6), rx = Math.round((W - rw) / 2), rh = animal.height + 2;
+    R.rect(rx - 6, 3, 8, rh, '#8a1a2a'); R.rect(rx + rw - 2, 3, 8, rh, '#8a1a2a');
+    R.tri(rx - 6, 3, rx - 6, 3 + rh, rx - 1, 3 + rh / 2, null);
+    R.rect(rx, 0, rw, rh, '#c83e4e'); R.rect(rx, 0, rw, 1, '#ff6b7a'); R.rect(rx, rh - 1, rw, 1, '#8a1a2a');
+    R.outline('#1a0f12');
+    g.drawImage(R.canvas(), 0, ry - 2);
+    g.drawImage(animal, Math.round((W - animal.width) / 2), ry - 1);
+    g.drawImage(wars, Math.round((W - wars.width) / 2), wy);
+    return c;
   }
   function iconCanvas(k) { const P = new Painter(16, 16); ICONS[k](P); P.outline(); return P.canvas(); }
 
@@ -1779,6 +1835,8 @@
     else if ((m = /^egg_(\d)(_c)?$/.exec(name))) c = eggCanvas(Number(m[1]), !!m[2]);
     else if ((m = /^icon_(\w+)$/.exec(name))) c = iconCanvas(m[1]);
     else if (name === 'emblem') c = emblemCanvas();
+    else if (name === 'logo') c = logoCanvas();
+    else if ((m = /^cardbg_(\d)$/.exec(name))) c = cardBgCanvas(Number(m[1]));
     else throw new Error('unknown sprite ' + name);
     cache[name] = c;
     return c;

@@ -98,3 +98,12 @@ The owner asked for landscape-only play on mobile, a AAA-standard UI pass, bette
 - **Battle HUD:** the Gloom tower health is a plate as tall as the speed and camera buttons, with the numbers inside the bar (base health numbers moved into the HUD bars). Speed and camera buttons turn gold and read ×2 / AUTO when on, dark with ×1 / FREE when off, and FREE now really stops the camera following.
 - **Pause:** the keyboard hint line is gone.
 - **Tutorial:** a spotlight dims everything except the target, rings it in gold, and a pixel hand taps on it under the hint bubble. Battle 1-1 now guides: deploy Pip, keep deploying (it points at whichever card is ready), upgrade the pouch, then the Battle Cry. At home it points at BATTLE until 1-3 and at the Lab the first time an upgrade is affordable.
+
+## Version 1.3.2: music, harbour city, stage window, logo, cards
+
+- **Music:** the owner's tracks play on the home screen (menu) and in battle (also for bosses), as looping <audio> elements that follow the music switch, mute, tab hiding and ads. The build ships them in `audio/` next to `index.html`; if they cannot load, the synthesized themes play instead.
+- **Rustbolt City** uses the owner's harbour-city painting. **The lane adapts to each background:** `tools/assets.py` samples the lit terrain colour just above the painting's bottom band and the band itself, and the lane strip is drawn in those colours with a texture for the land (grass, sand, snow or paving).
+- **Stage window:** a banner of the land's painting with the stage's Gloom standing on it (unknown ones as silhouettes) and difficulty / region / boss tags, star goals and rewards side by side, boosts as square chips (tooltip has the description), then the lineup.
+- **Logo and game icon:** one composed pixel image (a gold-rimmed shield with Captain Pip inside, crossed swords and a star crest, a red ANIMAL ribbon and a big gold WARS), so nothing in it can drift out of line; the currency bar is centred over it. The emblem is also the page icon.
+- **Deploy cards:** a pixel backdrop per rarity (stone, light beams, starry night, golden sunburst, aurora) with a lit floor under the hero; dimmed while unaffordable or cooling down.
+- **Phones:** one row of five cards; a small page button beside them flips to the other five and shows how many heroes on the hidden page are ready.
