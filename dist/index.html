@@ -3151,14 +3151,28 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     }
     this.p = next;
   };
-  Painter.prototype.outline = function (ink) {
+  // Selective outline (sel-out): every edge pixel takes a darker shade of the colour it borders, tinted toward a deep
+  // hue instead of black, and lit from the top left: top edges are lightest, then left, right and bottom (darkest).
+  // pad grows the canvas by a pixel on every side so silhouettes that touch the edge still get a closed outline.
+  Painter.prototype.outline = function (ink, pad) {
     this.clean();
+    if (pad) {
+      const w = this.w + 2, h = this.h + 2, p = new Array(w * h).fill(null);
+      for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) p[(y + 1) * w + x + 1] = this.p[y * this.w + x];
+      this.w = w; this.h = h; this.p = p;
+    }
+    const deep = ink || '#2a1638';
     const out = this.p.slice();
+    // [dx, dy] of the filled neighbour, and how far toward the deep tone that side goes.
+    const SIDES = [[0, 1, 0.6], [1, 0, 0.68], [-1, 0, 0.78], [0, -1, 0.85]];
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) {
       if (this.get(x, y)) continue;
-      let n = null;
-      for (const d of [[0, 1], [0, -1], [1, 0], [-1, 0]]) { const c = this.get(x + d[0], y + d[1]); if (c) { n = c; break; } }
-      if (n) out[y * this.w + x] = mix(n, ink || '#140c26', 0.84);
+      let n = null, k = 0;
+      for (const d of SIDES) { const c = this.get(x + d[0], y + d[1]); if (c) { if (!n) n = c; k = Math.max(k, d[2]); } }
+      if (!n) continue;
+      const r = hexRgb(n), lum = (r[0] * 0.3 + r[1] * 0.59 + r[2] * 0.11) / 255;
+      // Light fills need a firmer edge to read against bright skies, dark fills a softer one.
+      out[y * this.w + x] = mix(n, deep, Math.min(0.92, k + (lum - 0.5) * 0.2));
     }
     this.p = out;
   };
@@ -4040,7 +4054,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     gear(k, anchor, look.g[form], look);
     if (form >= 1) gear(k, anchor, extraGear(look.g[form]), look);
     // Third forms get an outline tinted with their rarity colour instead of floating sparkles.
-    P.outline(form === 2 ? ['#1e2a40', '#0e1e58', '#2e0e52', '#4a2400', '#500a3a'][def.rarity] : undefined);
+    P.outline(form === 2 ? ['#1e2a40', '#0e1e58', '#2e0e52', '#4a2400', '#500a3a'][def.rarity] : undefined, true);
     return P.canvas();
   }
   function extraGear(g) { return { knight: 'sword', ninja: null, shogun: null, master: 'staff' }[g] || null; }
@@ -4479,7 +4493,7 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
     const k = new Kit(P, u, frame);
     const T = tones(def.look.c);
     (ENEMY_ART[def.look.sp] || ENEMY_ART.blob)(k, T, def.look);
-    P.outline('#0a0614');
+    P.outline('#2a0e2e', true);
     return mirror(P.canvas());
   }
 
