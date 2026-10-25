@@ -78,7 +78,7 @@ Add `?debug` to the URL to show every menu from the start.
 
 ## Balance
 
-Stages are generated from each region's Gloom pools (`stageDef` in `js/core.js`) and then tuned by `tools/tune.js`: for each stage it finds the strongest Gloom that the scripted player still beats every time within a target time at a target hero level, and sizes the tower to match. Targets rise smoothly: Normal from level 1 to about 36 across the 8 regions, Hard from 34 to 46, Nightmare from 42 to 50. With the tuning, the simulator clears the Normal campaign in about 5 to 6 hours of battles. If you change hero or Gloom stats, re-run `node tools/tune.js` and `npm test`.
+Stages are generated from each region's Gloom pools (`stageDef` in `js/core.js`) and then tuned by `tools/tune.js`: for each stage it finds the strongest Gloom that the scripted player still beats every time within a target time at a target hero level, and sizes the tower to match. Targets rise smoothly: Normal from level 1 to about 36 across the 8 regions, Hard from 34 to 46, Nightmare from 42 to 50. On top of the tuning, `CONFIG.challenge` in `js/core.js` makes every stage tougher (+22% Gloom strength, +20% tower health, +8% wave pace, eased in over the first six stages). The simulator now clears the Normal campaign in about 6.5 to 8 hours of battles, with roughly twice as many lost battles as before. If you change hero or Gloom stats, re-run `node tools/tune.js` and `npm test`.
 
 ## Deploying to CrazyGames
 

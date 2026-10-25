@@ -31,6 +31,9 @@
     pouch: { rate: 12, ratePer: 6, max: 450, maxPer: 330, levels: 8, cost: 40 },
     baseHp: 1500,
     // Battle Cry: every hero on the field glows and fights harder for a few seconds.
+    // Extra challenge on top of the tuned stages: stronger Gloom, sturdier towers and faster waves.
+    // Eased in over the first stages so 1-1 and 1-2 stay a gentle welcome.
+    challenge: { mag: 1.22, hp: 1.2, tempo: 1.08, ramp: 6, region: { 6: 0.92 } },
     roar: { charge: 30, minCharge: 12, time: 8, atk: 0.5, speed: 0.3, guard: 0.3 },
     kbDist: 28, kbTime: 0.35, bossKbDist: 10,
     allyCap: 30, enemyCap: 40,
@@ -306,12 +309,15 @@
   function stageOpen(s, d, r, i) { return regionOpen(s, d, r) && s.clear[d][r] >= i; }
 
   // Builds a stage from its region's enemy pools. Deterministic: the same stage always plays the same way.
+  // region: per-land trims where the extra challenge stacked into a wall (Skyreach Isles was already the steepest).
+  function challenge(key, n, r) { const C = CONFIG.challenge; return (1 + (C[key] - 1) * Math.min(1, n / C.ramp)) * (key === 'mag' && C.region[r] ? C.region[r] : 1); }
   function stageDef(d, r, i) {
     const R = CT.REGIONS[r], D = CT.DIFFICULTIES[d];
-    const k = i / 11;
-    const mag = Math.round(lerp(R.mag[0], R.mag[1], k) * D.mag * tuned('mag', d, r, i));
+    const k = i / 11, n = d * 96 + r * 12 + i;
+    const cm = challenge('mag', n, r);
+    const mag = Math.round(lerp(R.mag[0], R.mag[1], k) * D.mag * tuned('mag', d, r, i) * cm);
     const A = R.pool.a, B = R.pool.b, C = R.pool.c;
-    const tempo = 1 / D.rate;
+    const tempo = 1 / D.rate / challenge('tempo', n);
     const lines = [];
     const add = (o) => lines.push(Object.assign({ mag: mag, start: 0, every: [10, 10], max: 0, n: 1 }, o));
     const ev = (lo, hi) => [lo * tempo, hi * tempo];
@@ -329,12 +335,12 @@
     if (i === 7) add({ e: A[0], start: 0, every: ev(1.2, 1.6), max: 12, trig: 0.5 });
     if (i === 9) add({ e: B[B.length - 1], start: 5, every: ev(8, 11), max: 10 });
     if (i === 11) {
-      add({ e: R.boss, mag: Math.round(100 * D.mag * tuned('mag', d, r, i)), boss: true, trig: 0.995, fallback: 40, max: 1 });
+      add({ e: R.boss, mag: Math.round(100 * D.mag * tuned('mag', d, r, i) * cm), boss: true, trig: 0.995, fallback: 40, max: 1 });
       add({ e: C[0], mag: Math.round(mag * 0.8), start: 6, every: ev(30, 40), max: 3, trig: 0.995 });
     }
     // Every stage after the first few rallies once the tower is in trouble.
     if (i >= 3 && i !== 7) add({ e: B[i % B.length], start: 0, every: ev(2.5, 3.5), max: 3 + Math.floor(i / 4), trig: 0.4 });
-    const baseHp = Math.round(lerp(R.baseHp[0], R.baseHp[1], k) * (d === 0 ? 1 : D.mag * 0.7) * tuned('hp', d, r, i) / 10) * 10;
+    const baseHp = Math.round(lerp(R.baseHp[0], R.baseHp[1], k) * (d === 0 ? 1 : D.mag * 0.7) * tuned('hp', d, r, i) * challenge('hp', n) / 10) * 10;
     return {
       kind: 'story', d: d, r: r, i: i, key: stageKey(d, r, i),
       name: R.names[i], region: R.name, theme: R.theme,
@@ -352,7 +358,7 @@
     const R = CT.REGIONS[r];
     const k = ((f - 1) % 6) / 5;
     const over = Math.max(0, f - 48);
-    const mag = Math.round(lerp(R.mag[0], R.mag[1], k) * 1.6 * Math.pow(1.07, over));
+    const mag = Math.round(lerp(R.mag[0], R.mag[1], k) * 1.6 * Math.pow(1.07, over) * CONFIG.challenge.mag);
     const rng = mulberry32(hashString('tower' + f));
     const pick = (arr) => arr[Math.floor(rng() * arr.length)];
     const lines = [
@@ -377,7 +383,7 @@
   function eventDef(id, lvl) {
     const E = EVENT[id], L = EVENT_LEVELS[lvl];
     const R = CT.REGIONS[L.region];
-    const mag = Math.round(lerp(R.mag[0], R.mag[1], L.k) * 1.3);
+    const mag = Math.round(lerp(R.mag[0], R.mag[1], L.k) * 1.3 * CONFIG.challenge.mag);
     const lines = [
       { e: E.foes[0], mag: mag, start: 2, every: [4, 6], max: 0, n: 1 },
       { e: E.foes[1], mag: mag, start: 10, every: [10, 14], max: 0, n: 1 },

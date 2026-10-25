@@ -1483,6 +1483,15 @@
     pouchLv: (P) => { ICONS.pouch(P); },
     skull: (P) => { P.ball(8, 7, 5.5, 5, tones('#f4f4f4')); P.rect(5, 11, 6, 3, '#f4f4f4'); P.rect(5, 6, 2, 2, INK); P.rect(9, 6, 2, 2, INK); P.set(6, 12, INK); P.set(9, 12, INK); }
   };
+  // A woven straw nest for the Hatchery banners (eggs sit in it).
+  function nestCanvas() {
+    const P = new Painter(46, 14);
+    P.ell(23, 8, 22, 6, function (nx, ny, x) { return ny < -0.35 ? '#c08a52' : ((x + Math.floor(ny * 4)) % 4 < 2 ? '#9a6438' : '#7a4a28'); });
+    P.ell(23, 5.5, 15, 2.6, '#4a2a16');
+    for (let x = 4; x < 42; x += 5) { P.set(x, 7, '#e8b07a'); P.set(x + 1, 8, '#e8b07a'); }
+    P.outline('#1a0f12');
+    return P.canvas();
+  }
   // Deploy-card backdrops, one per rarity (64×32, shown at whole-number zoom behind the hero portrait).
   function cardBgCanvas(r) {
     const W = 64, H = 32, P = new Painter(W, H);
@@ -1836,6 +1845,7 @@
     else if ((m = /^icon_(\w+)$/.exec(name))) c = iconCanvas(m[1]);
     else if (name === 'emblem') c = emblemCanvas();
     else if (name === 'logo') c = logoCanvas();
+    else if (name === 'nest') c = nestCanvas();
     else if ((m = /^cardbg_(\d)$/.exec(name))) c = cardBgCanvas(Number(m[1]));
     else throw new Error('unknown sprite ' + name);
     cache[name] = c;
