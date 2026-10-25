@@ -10,7 +10,7 @@
 | Landscape preview video | `preview-landscape-1920x1080.mp4` | 1920×1080, about 20 s, H.264, no audio |
 | Portrait preview video | `preview-portrait-1080x1920.mp4` | 1080×1920, about 20 s, H.264, no audio |
 
-Check these against the current requirements in the Developer Portal before uploading. Covers come from `npm run covers`, videos from `node tools/preview.js` (real gameplay, scaled up 2× with sharp pixels).
+Check these against the current requirements in the Developer Portal before uploading. Covers are key art composed from the game's own sprites and paintings on one pixel grid (`tools/keyart.html`, rendered by `npm run covers`). The videos come from `node tools/preview.js`: a key-art opening, a real boss battle scaled 2× with sharp pixels, and a key-art close; the portrait video frames the same battle inside the portrait key art (the game itself is landscape only on phones).
 
 ## Category
 
@@ -26,7 +26,7 @@ Animal Wars
 
 ## Short description
 
-Send an army of cute pixel animals to smash the Gloom! Deploy heroes, rally them with a Battle Cry, hatch rare animals and free 8 lands.
+Lead 150 pixel animals against the Gloom! Deploy heroes, master 10 elements, rally your army with a Battle Cry, hatch rare heroes and free 24 lands.
 
 ## Description
 
@@ -34,10 +34,12 @@ The Gloom has taken over the world, and only your animals can stop it!
 
 Deploy heroes down the battlefield, keep your acorn pouch growing, and rally your army with a mighty Battle Cry. Smash their tower before they reach your burrow!
 
-- **50 animal heroes** in five rarities, from brave Pip the hamster to Legendary dragons and griffins, each with 3 forms to evolve into
-- **288 stages** across 8 lands (meadows, deserts, snowy peaks, swamps, volcanoes, robot cities, sky islands and the moon) on Normal, Hard and Nightmare
-- **33 kinds of Gloom** with tricky traits: Winged, Armored, Spooky, Toxic, Undead and Cosmic, plus huge bosses
-- **Hatch eggs** in the Royal Nest and Meadow Nest, with daily featured heroes and shown odds
+- **150 animal heroes** in five rarities, from brave Pip the hamster to Legendary dragons and griffins, each with 3 forms to evolve into and an attack all of its own
+- **10 elements** (Ember, Frost, Thorn, Storm, Shadow, Tide, Stone, Sun, Moon, Bloom): bring the right ones for ×1.5 damage, and team up three or five of a kind for a synergy bonus
+- **864 stages** in 3 chapters across 24 lands (meadows, deserts, snowy peaks, swamps, volcanoes, harbour cities, sky islands, the moon, and their Gloom-twisted twins) on Normal, Hard and Nightmare
+- **73 kinds of Gloom** with tricky traits (Airborne, Ironclad, Phantom, Venomous, Restless, Starborn) and 24 huge bosses
+- **Scouting reports** before each battle show the Gloom's elements and the heroes that counter them
+- **Hatch eggs** in the Royal Nest, the daily Elemental Nest and the Meadow Nest, with a three-tap hatch, featured heroes and shown odds
 - **Level up and evolve** your heroes, upgrade the Lab, and build your perfect lineup of 10
 - **The Gloom Tower**: how high can you climb? Compete on the leaderboard
 - **Daily rewards**: login gifts, quests, events, a free egg every few hours, and an Acorn Farm that earns while you are away
@@ -50,7 +52,7 @@ Every gem and egg is earned by playing.
 - **Tap a hero card** (or **1-0**): deploy a hero
 - **Tap the pouch** (or **E**): upgrade your acorn pouch
 - **Tap Battle Cry** (or **R** / **Space**): every hero on the field glows gold and fights harder for 8 seconds
-- **Drag or scroll**: look around the battlefield · **F**: speed ×2 · **P**: pause · **M**: mute
+- **Drag or scroll**: look around the battlefield (and any sideways list in the menus) · **F**: speed ×2 · **P**: pause · **M**: mute
 - Works with touch on phones and tablets (landscape)
 
 ## Before you submit

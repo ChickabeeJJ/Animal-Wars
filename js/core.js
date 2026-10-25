@@ -28,7 +28,7 @@
       [[25000, 0, 0], [250000, 0, 8]]
     ],
     dupeCoins: [0, 2000, 6000, 20000, 60000],
-    pouch: { rate: 12, ratePer: 6, max: 450, maxPer: 330, levels: 8, cost: 40 },
+    pouch: { rate: 7.8, ratePer: 3.9, max: 450, maxPer: 330, levels: 8, cost: 40 },
     baseHp: 1500,
     // Battle Cry: every hero on the field glows and fights harder for a few seconds.
     // Extra challenge on top of the tuned stages: stronger Gloom, sturdier towers and faster waves.

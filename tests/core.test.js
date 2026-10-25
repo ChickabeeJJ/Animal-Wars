@@ -360,3 +360,20 @@ test('the Elemental Nest hatches the day\'s element and rotates daily', () => {
   const pool = AW.bannerPool('element', day);
   assert.ok(pool.every((id) => AW.HERO[id].rarity >= 1));
 });
+
+test('every hero and Gloom has its own attack style (motion + effect), ranged ones a projectile', () => {
+  const FX = require('../js/fx.js');
+  const S = FX.build(AW.CT);
+  const all = Object.keys(S.hero).map((k) => S.hero[k]).concat(Object.keys(S.enemy).map((k) => S.enemy[k]));
+  assert.equal(all.length, AW.CT.HEROES.length + AW.CT.ENEMIES.length);
+  assert.equal(new Set(all.map((s) => s.motion + '+' + s.fx)).size, all.length, 'no two units share an attack');
+  for (const h of AW.CT.HEROES) if (h.rng >= 50) assert.ok(S.hero[h.id].proj, h.id + ' fires something');
+});
+
+test('hero value per acorn is even within a rarity (no outliers), with a small premium for rarer heroes', () => {
+  const V = (h) => h.hp * h.atk / h.rate / (h.cost * h.cost) * (h.area ? 1.4 : 1) * (1 + h.rng / 120);
+  for (let r = 1; r <= 4; r++) {
+    const vs = AW.CT.HEROES.filter((h) => h.rarity === r).map(V);
+    assert.ok(Math.max.apply(null, vs) / Math.min.apply(null, vs) < 1.35, 'rarity ' + r + ' spread');
+  }
+});

@@ -139,6 +139,24 @@ function assert(c, msg) { if (!c) throw new Error(msg || 'assertion failed'); }
     await shot(p, 'book');
   });
 
+  await check('sideways strips scroll with the mouse wheel and by dragging', async () => {
+    await S(p, () => __aw.openPanel('hatch'));
+    await p.waitForTimeout(150);
+    await p.locator('.hp-strip').scrollIntoViewIfNeeded();
+    await p.waitForTimeout(100);
+    const box = await p.locator('.hp-strip').boundingBox();
+    assert(await p.evaluate(() => { const e = document.querySelector('.hp-strip'); return e.scrollWidth > e.clientWidth; }), 'the strip overflows');
+    await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await p.mouse.wheel(0, 300);
+    await p.waitForTimeout(100);
+    const afterWheel = await p.evaluate(() => document.querySelector('.hp-strip').scrollLeft);
+    assert(afterWheel > 0, 'wheel scrolled ' + afterWheel);
+    await p.mouse.down(); await p.mouse.move(box.x + box.width / 2 - 200, box.y + box.height / 2, { steps: 6 }); await p.mouse.up();
+    const afterDrag = await p.evaluate(() => document.querySelector('.hp-strip').scrollLeft);
+    assert(afterDrag > afterWheel, 'drag scrolled ' + afterWheel + ' -> ' + afterDrag);
+    assert(await p.isHidden('#modal'), 'a drag does not open the hero it ends on');
+  });
+
   await check('hatching ×10 spends 900 gems, shows the eggs and adds heroes', async () => {
     await S(p, () => __aw.openPanel('hatch'));
     const before = await S(p, () => ({ g: __aw.state.gems, n: Object.keys(__aw.state.heroes).length, pulls: __aw.state.gacha.pulls }));

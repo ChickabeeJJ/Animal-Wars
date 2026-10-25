@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Campaign simulator: plays the real rules with a scripted player and reports pacing.
  *   node tools/sim.js [regions=8] [seed=1] [--verbose]
- * The scripted player deploys like a decent human (walls first, damage when the pouch fills), upgrades the
+ * The scripted player deploys like a good human (a steady stream of cheap walls whenever Gloom is on the field, big
+ * heroes as soon as they are ready, saving up for one that is nearly ready), upgrades the
  * pouch early, uses the Battle Cry when the army is engaged, grinds the best cleared stage after a loss, spends coins on the lineup and the
  * Lab, hatches whenever it can afford 10 eggs, and plays one "day" of dailies per 30 minutes of play.
  */
@@ -29,10 +30,10 @@ function playBattle(state, def, rng, opts) {
       }
       if ((heroes >= 4 && foe - front < 60) || close || (boss && heroes >= 2 && foe - front < 80)) AW.roar(b, null);
     }
-    let front = 0, foe = b.L, allies = 0;
+    let front = 0, foe = b.L, allies = 0, foes = 0;
     for (const e of b.ents) {
       if (e.state === 'dead') continue;
-      if (e.side === 0) { allies++; front = Math.max(front, e.x); } else foe = Math.min(foe, e.x);
+      if (e.side === 0) { allies++; front = Math.max(front, e.x); } else { foes++; foe = Math.min(foe, e.x); }
     }
     const danger = foe - front < 110 || allies < 2;
     // Big heroes first (most expensive that is ready and affordable).
@@ -52,7 +53,8 @@ function playBattle(state, def, rng, opts) {
     for (const i of order) {
       const sl = b.slots[i];
       if (sl.st.cost > 160) continue;
-      if (danger || (!saving && b.pouch.acorns > b.pouch.max * 0.6)) AW.deploy(b, i, null);
+      // A steady stream of cheap heroes holds the front while the big ones work (what good players do).
+      if (danger || (foes && !saving) || (!saving && b.pouch.acorns > b.pouch.max * 0.6)) AW.deploy(b, i, null);
     }
     // Pouch early, or when nothing better to buy.
     if (!deployed && AW.canPouch(b) && (b.pouch.lvl < 3 || b.pouch.acorns >= b.pouch.max * 0.9 || !danger)) AW.upgradePouch(b, null);

@@ -373,6 +373,18 @@
     }
   });
 
+  // Balance pass: every hero gets the same value for its acorns within a rarity, with only a small premium for
+  // higher rarities (they are bigger and dearer, not a better deal). Value is health × damage per second per
+  // acorn², worth more for area attacks and reach. Health and attack are scaled together so each hero keeps its
+  // shape (tank, glass cannon...), and abilities are untouched.
+  const VALUE = (h) => h.hp * h.atk / h.rate / (h.cost * h.cost) * (h.area ? 1.4 : 1) * (1 + h.rng / 120);
+  const PREMIUM = [1, 1, 1.05, 1.1, 1.15], BASE_VALUE = 0.072;
+  HEROES.forEach((h) => {
+    const k = Math.sqrt(BASE_VALUE * PREMIUM[h.rarity] / VALUE(h));
+    h.hp = Math.max(40, Math.round(h.hp * k / 10) * 10);
+    h.atk = Math.max(1, Math.round(h.atk * k));
+  });
+
   // New Gloom: eight new kinds (two each), eight returning kinds in new colours, and sixteen bosses for chapters 2 and 3.
   const ENEMY_EL = { gloop: 'shadow', grubby: 'thorn', bonkle: 'shadow', flapper: 'storm', grumbo: 'stone', gloomking: 'shadow', clank: 'stone', scorpo: 'ember', sandmaw: 'stone',
     boo: 'moon', wisp: 'frost', snowgrump: 'frost', yeti: 'frost', shroomy: 'thorn', sludge: 'tide', toadlord: 'tide', baghag: 'thorn', cinder: 'ember', ghoulie: 'shadow',

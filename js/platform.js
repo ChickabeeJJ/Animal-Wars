@@ -39,6 +39,9 @@
             }
           } catch (e) { /* settings are optional */ }
           self.loadUser();
+          // Calls made before the SDK was ready are replayed as the current state: still loading, or in a battle.
+          if (self.loading) { self.loadingSent = true; self.call('game.loadingStart'); }
+          if (self.playing && !self.adActive) self.call('game.gameplayStart');
           self.emit('ready');
         })
         .catch(function () { self.sdk = null; self.ready = false; });
@@ -55,8 +58,12 @@
       } catch (e) { /* never let the platform crash the game */ }
     },
 
-    loadingStart: function () { this.call('game.loadingStart'); },
-    loadingStop: function () { this.call('game.loadingStop'); },
+    // Loading and gameplay are tracked as state, so a call made before the SDK finished init() is not lost and a
+    // stop is never sent without its start.
+    loading: false,
+    loadingSent: false,
+    loadingStart: function () { this.loading = true; if (this.ready) { this.loadingSent = true; this.call('game.loadingStart'); } },
+    loadingStop: function () { this.loading = false; if (this.loadingSent) { this.loadingSent = false; this.call('game.loadingStop'); } },
     gameplayStart: function () { if (!this.playing && !this.adActive) { this.playing = true; this.call('game.gameplayStart'); } },
     gameplayStop: function () { if (this.playing) { this.playing = false; this.call('game.gameplayStop'); } },
     happytime: function () { this.call('game.happytime'); },

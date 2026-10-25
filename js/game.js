@@ -1481,7 +1481,46 @@
   // ---------------------------------------------------------------------------
   // Input
   // ---------------------------------------------------------------------------
+  // Every strip that scrolls sideways can also be dragged with the mouse or scrolled with the wheel (touch
+  // already pans natively). A drag of more than a few pixels swallows the click that ends it.
+  function bindHScroll() {
+    const scroller = (el) => {
+      for (; el && el !== document.body; el = el.parentElement) {
+        if (el.scrollWidth > el.clientWidth + 2) { const ox = getComputedStyle(el).overflowX; if (ox === 'auto' || ox === 'scroll') return el; }
+      }
+      return null;
+    };
+    document.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const el = scroller(e.target);
+      if (!el) return;
+      const max = el.scrollWidth - el.clientWidth;
+      if ((e.deltaY < 0 && el.scrollLeft <= 0) || (e.deltaY > 0 && el.scrollLeft >= max - 1)) return;  // let the page scroll on
+      el.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 32 : 1);
+      e.preventDefault();
+    }, { passive: false });
+    let drag = null;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      const el = scroller(e.target);
+      if (el) drag = { el: el, x: e.clientX, left: el.scrollLeft, moved: false };
+    });
+    document.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) > 5) { drag.moved = true; drag.el.classList.add('hscroll-drag'); }
+      if (drag.moved) drag.el.scrollLeft = drag.left - dx;
+    });
+    const end = () => {
+      if (!drag) return;
+      if (drag.moved) { const el = drag.el; el.classList.remove('hscroll-drag'); const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; document.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', stop, true), 0); }
+      drag = null;
+    };
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
+  }
   function bindInput() {
+    bindHScroll();
     $('btn-battle').addEventListener('click', () => { AU.unlock(); AU.click(); const n = nextStory(); if (n) openStage(n); else openPanel('map'); });
     $('quests').addEventListener('click', () => { AU.click(); openPanel('rewards'); });
     $('profile').addEventListener('click', () => { AU.click(); openPanel('medals'); });
@@ -1637,7 +1676,7 @@
     R.resize();
     PF.on('mute', (m) => AU.setExternalMute(m));
     PF.on('pause', (p) => { if (p) AU.suspend(); else AU.resume(); });
-    PF.on('ready', () => { adoptCloud(); PF.loadingStop(); if (state.tower) PF.submitScore(state.tower); if (mode === 'home') refreshHome(); });
+    PF.on('ready', () => { adoptCloud(); if (state.tower) PF.submitScore(state.tower); if (mode === 'home') refreshHome(); });
     PF.on('user', () => { if (mode === 'home') refreshHome(); });
     const away = now() - state.lastSeen;
     if (COVER) coverMode();

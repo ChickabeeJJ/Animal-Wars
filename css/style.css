@@ -1149,3 +1149,30 @@ details.rates summary { cursor: pointer; font-weight: 700; color: var(--brown); 
   .hs-free { padding: 4px 6px; } .hs-free small { display: none; }
 }
 @media (max-height: 520px) { .hs-btns { gap: 6px; } .hs-buy { min-width: 0; overflow: visible; } .hs-buy .tag { font-size: 8px; padding: 0 4px; } .hs-buy .price { font-size: 12px; padding: 0 6px 0 2px; } .hs-buy .price img.px { width: 16px; height: 16px; } }
+
+/* v1.6: interface scale on small screens, and menu windows that keep clear of the screen edges */
+:root { --ui-z: 1; }
+@media (max-height: 560px), (max-width: 760px) { :root { --ui-z: .82; } }
+@media (max-height: 420px) { :root { --ui-z: .74; } }
+#home, #panel > .window, .modal-box, #bhud, #dock, .h-pips, .h-stage, .h-info, .h-btns, .h-callout, #tut, #locktip { zoom: var(--ui-z); }
+.wrap { padding: max(34px, 6vh) max(14px, 4vw) max(16px, 4vh); }
+.window { width: min(1120px, 100%); }
+.w-head { min-height: 46px; padding-bottom: 6px; }
+.w-head .sq { width: 46px; height: 44px; }
+.w-body { padding: 6px 8px 12px; gap: 12px; }
+@media (max-height: 560px) { .wrap { padding: 30px 12px 10px; } }
+/* Horizontal strips can be dragged with the mouse. */
+.hscroll-drag { cursor: grabbing !important; }
+.hscroll-drag * { pointer-events: none; }
+/* Compact Lab and Medal cards */
+.labg { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; }
+.lr { grid-template-columns: 48px minmax(0, 1fr); gap: 10px; padding: 6px 8px 7px 6px; }
+.lr .li { width: 48px; height: 48px; }
+.lr .li img.px { width: 28px; height: 28px; }
+.lmain { gap: 4px; }
+.lr .lx { min-height: 0; }
+.lbar { height: 8px; }
+.lfx { margin-top: 0; }
+.lfx .bt2 { min-height: 38px; min-width: 92px; padding: 0 12px; }
+.lhead .tiers img.px { width: 14px; height: 14px; }
+.labg { align-items: start; } .lfx { min-height: 36px; } .lfx .bt2 { min-height: 34px; }

@@ -270,7 +270,7 @@
   function setBattle(bt) {
     mode = 'battle'; battle = bt;
     themeIdx = bt.def.theme % THEMES.length; theme = THEMES[themeIdx]; tint = bt.def.tint || 0;
-    parts.length = 0; floats.length = 0; rings.length = 0;
+    parts.length = 0; floats.length = 0; rings.length = 0; FXS.length = 0; PROJS.length = 0;
     cam.x = cam.target = minCam(); cam.manual = 0;
     buildLayers();
   }
@@ -322,6 +322,7 @@
         if (ev.crit) { float({ x: ev.x, y: y - 8, text: 'CRIT!', c: '#ffcd4d', big: true }); cam.shake = Math.max(cam.shake, 2); }
         break;
       }
+      case 'swing': attackFx(ev); break;
       case 'miss': float({ x: ev.x, y: GY - 26, text: 'miss', c: '#c9b3ff' }); break;
       case 'kb': for (let i = 0; i < 5; i++) particle({ x: ev.x, y: GY - 2, vx: (Math.random() - 0.5) * 30, vy: -Math.random() * 18, life: 0.45, c: theme.dirt, s: 2 }); break;
       case 'die': {
@@ -390,6 +391,171 @@
     return c;
   }
 
+  // ---------------------------------------------------------------------------
+  // Attack styles (js/fx.js): every unit's own body motion while it attacks, its projectile and its hit effect.
+  // ---------------------------------------------------------------------------
+  const FXS = [], PROJS = [];
+  let STYLES = null;
+  function styleOf(e) {
+    if (!STYLES && root.AW_FX && root.AW_CONTENT) STYLES = root.AW_FX.build(root.AW_CONTENT);
+    return STYLES ? STYLES[e.side === 0 ? 'hero' : 'enemy'][e.st.id] : null;
+  }
+  // Sprite offset, squash and flip for the attack motion. p: wind-up progress, q: strike progress (both 0..1).
+  function motionPose(e, sty) {
+    const o = { dx: 0, dy: 0, sx: 1, sy: 1, flip: false, ghost: 0 };
+    if (!sty || e.state !== 'atk') return o;
+    const fore = Math.max(0.05, e.st.fore), p = Math.min(1, e.at / fore), q = e.at < fore ? -1 : Math.min(1, (e.at - fore) / 0.25);
+    const S = Math.sin, PI = Math.PI;
+    switch (sty.motion) {
+      case 'lunge': if (q < 0) o.dx = -2 * p; else o.dx = 7 * S(q * PI); break;
+      case 'hop': if (q < 0) o.dy = -9 * S(p * PI / 2); else o.dy = -9 * (1 - q) * (1 - q); break;
+      case 'spin': if (q >= 0) o.flip = Math.floor(q * 6) % 2 === 1; else o.dx = -1 * p; break;
+      case 'rear': if (q < 0) { o.dy = -4 * p; o.dx = -2 * p; } else { o.dx = 5 * (1 - q); o.dy = -4 * (1 - q) * 0.5; } break;
+      case 'stomp': if (q < 0) { o.sy = 1 - 0.18 * p; o.sx = 1 + 0.12 * p; } else { o.sy = 1 + 0.14 * (1 - q); o.sx = 1 - 0.06 * (1 - q); } break;
+      case 'dash': if (q >= 0) { o.dx = 13 * (1 - q); o.ghost = 1 - q; } else o.dx = -3 * p; break;
+      case 'recoil': if (q >= 0) o.dx = -5 * (1 - q); else o.sy = 1 - 0.06 * p; break;
+      case 'charge': if (q < 0) o.dx = (Math.random() < 0.5 ? -1 : 1) * Math.round(p * 1.5); else o.dx = 4 * (1 - q); break;
+      case 'float': if (q < 0) o.dy = -7 * p; else o.dy = -7 * (1 - q); break;
+      case 'bounce': if (q < 0) o.dy = -Math.abs(S(p * PI * 2)) * 4; else o.dx = 3 * S(q * PI); break;
+      case 'crouch': if (q < 0) { o.sy = 0.8 + 0.2 * (1 - p); o.sx = 1 + 0.1 * p; } else { o.sy = 1 + 0.18 * (1 - q); o.dy = -3 * (1 - q); } break;
+      case 'backstep': if (q < 0) o.dx = -6 * p; else o.dx = -6 * (1 - q) + 5 * S(q * PI); break;
+      case 'pulse': if (q >= 0) { const k = 1 + 0.2 * S(q * PI); o.sx = k; o.sy = k; } else { const k = 1 - 0.06 * p; o.sx = k; o.sy = k; } break;
+      case 'shove': if (q >= 0) { o.dx = 6 * (1 - q); o.sx = 1 + 0.1 * (1 - q); } else o.dx = -2 * p; break;
+      case 'sway': if (q < 0) o.dx = -2.5 * S(p * PI * 2); else o.dx = 4 * S(q * PI); break;
+      case 'flip': if (q >= 0) { o.dy = -8 * S(q * PI); o.flip = q > 0.3 && q < 0.7; } else o.sy = 1 - 0.1 * p; break;
+      default: break;
+    }
+    return o;
+  }
+
+  function nearestFoe(e) {
+    let best = null, bd = 1e9;
+    const dir = e.side === 0 ? 1 : -1;
+    for (const f of battle.ents) {
+      if (f.side === e.side || f.state === 'dead' || f.state === 'burrow') continue;
+      const d = (f.x - e.x) * dir;
+      if (d > -10 && d < e.st.rng + 60 && d < bd) { bd = d; best = f; }
+    }
+    return best;
+  }
+  // A swing: the projectile (if any) flies to the target, then the hit effect plays there.
+  function attackFx(ev) {
+    if (!battle) return;
+    let e = null; for (const x of battle.ents) if (x.id === ev.id) { e = x; break; }
+    if (!e) return;
+    const sty = styleOf(e); if (!sty) return;
+    const dir = e.side === 0 ? 1 : -1, size = e.st.size || 20;
+    const foe = nearestFoe(e);
+    const tx = foe ? foe.x : e.x + dir * Math.min(e.st.rng, 60), ty = foe ? feet(foe) - (foe.st.size || 20) * 0.45 : feet(e) - size * 0.45;
+    if (sty.motion === 'stomp' || sty.motion === 'hop' || sty.motion === 'flip') for (let i = 0; i < 6; i++) particle({ x: e.x + (Math.random() - 0.5) * size * 0.8, y: GY + 1, vx: (Math.random() - 0.5) * 50, vy: -Math.random() * 30, g: 120, life: 0.4, c: theme.dirt, s: 2 });
+    if (sty.proj) {
+      const sx = e.x + dir * size * 0.35, sy = feet(e) - size * 0.55;
+      const dist = Math.abs(tx - sx);
+      PROJS.push({ kind: sty.proj, x0: sx, y0: sy, x1: tx, y1: ty, t: 0, dur: Math.max(0.12, Math.min(0.45, dist / 240)), sty: sty, dir: dir, landed: ev.landed });
+    } else spawnFx(sty, foe ? tx - dir * (foe.st.size || 20) * 0.15 : tx, ty, dir, ev.landed);
+    sty.scale = Math.max(1.3, Math.min(2.2, size / 14));
+  }
+  function spawnFx(sty, x, y, dir, landed) {
+    const c = sty.col || '#ffffff', c2 = sty.col2 || '#ffffff', R = Math.random;
+    const big = (landed ? 1 : 0.65) * (sty.scale || 1);
+    const fx = { kind: sty.fx, x: x, y: y, dir: dir, t: 0, life: 0.38, c: c, c2: c2, seed: sty.seed % 997, big: big };
+    switch (sty.fx) {
+      // Particle-led effects.
+      case 'sparks': for (let i = 0; i < 10; i++) { const a = R() * Math.PI * 2, v = 60 + R() * 70; particle({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.22, c: i % 2 ? '#ffffff' : c, s: 1 }); } fx.life = 0.12; break;
+      case 'petals': for (let i = 0; i < 8; i++) particle({ x: x + (R() - 0.5) * 10, y: y - 4, vx: dir * (10 + R() * 30), vy: -10 - R() * 20, g: 40, life: 0.8, c: i % 2 ? '#ffb3d9' : '#ff8fd0', s: 2 }); fx.life = 0.1; break;
+      case 'leaves': for (let i = 0; i < 7; i++) particle({ x: x, y: y, vx: (R() - 0.3) * 70 * dir, vy: -20 - R() * 30, g: 70, life: 0.7, c: i % 2 ? '#5ac54f' : '#a7f070', s: 2 }); fx.life = 0.1; break;
+      case 'embers': for (let i = 0; i < 9; i++) particle({ x: x + (R() - 0.5) * 12, y: y + 4, vx: (R() - 0.5) * 20, vy: -30 - R() * 40, life: 0.6, c: i % 3 ? '#ff9a3a' : '#ffe066', s: 1 }); fx.life = 0.2; break;
+      case 'drops': for (let i = 0; i < 9; i++) particle({ x: x, y: y, vx: (R() - 0.5) * 80, vy: -40 - R() * 40, g: 260, life: 0.55, c: i % 2 ? '#73d8ff' : '#3b8ae0', s: 1 }); fx.life = 0.15; break;
+      case 'sand': for (let i = 0; i < 10; i++) particle({ x: x + (R() - 0.5) * 8, y: y + 6, vx: (R() - 0.5) * 60, vy: -R() * 30, g: 60, life: 0.6, c: i % 2 ? '#d8c08a' : '#b89a62', s: 2 }); fx.life = 0.12; break;
+      case 'feathers': for (let i = 0; i < 6; i++) particle({ x: x, y: y - 6, vx: (R() - 0.5) * 50, vy: -10 - R() * 25, g: 30, life: 1, c: i % 2 ? '#ffffff' : c, s: 2 }); fx.life = 0.1; break;
+      case 'snow': fx.life = 0.7; break;
+      case 'quake': cam.shake = Math.max(cam.shake, 2); for (let i = 0; i < 8; i++) particle({ x: x + (R() - 0.5) * 24, y: GY + 1, vx: (R() - 0.5) * 30, vy: -20 - R() * 40, g: 160, life: 0.5, c: theme.dirt, s: 2 }); fx.life = 0.45; break;
+      case 'bolt': flash('#fff6c8', 0.06); fx.life = 0.24; break;
+      case 'beam': fx.life = 0.32; break;
+      case 'smoke': case 'ink': case 'vortex': case 'runes': fx.life = 0.5; break;
+      case 'hearts': case 'notes': fx.life = 0.7; break;
+      default: break;
+    }
+    if (FXS.length < 160) FXS.push(fx);
+  }
+
+  // Drawing helpers in world coordinates (x minus the camera, y plus the shake).
+  let SHY = 0;
+  function px(x, y, c, w, h) { b.fillStyle = c; b.fillRect(Math.round(x - cam.x), Math.round(y + SHY), w || 1, h || 1); }
+  function line(x0, y0, x1, y1, c, w) { const n = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)))); for (let i = 0; i <= n; i++) px(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, c, w || 1, w || 1); }
+  function circle(x, y, r, c, step) { for (let a = 0; a < Math.PI * 2; a += (step || 0.35) / Math.max(1, r / 6)) px(x + Math.cos(a) * r, y + Math.sin(a) * r, c); }
+  const SHAPES = {
+    heart: ['.X.X.', 'XXXXX', 'XXXXX', '.XXX.', '..X..'], note: ['..XX', '..X.', '..X.', 'XXX.', 'XX..'], skull: ['.XXX.', 'X.X.X', 'XXXXX', '.X.X.'],
+    rune: ['XXX', 'X.X', 'XX.'], flake: ['.X.', 'XXX', '.X.'], star4: ['..X..', '..X..', 'XXXXX', '..X..', '..X..']
+  };
+  function shape(name, x, y, c) { const s = SHAPES[name]; for (let j = 0; j < s.length; j++) for (let i = 0; i < s[j].length; i++) if (s[j][i] === 'X') px(x - (s[j].length >> 1) + i, y - (s.length >> 1) + j, c); }
+
+  function drawFx(dt) {
+    // Projectiles.
+    for (let i = PROJS.length - 1; i >= 0; i--) {
+      const p = PROJS[i]; p.t += dt;
+      const k = Math.min(1, p.t / p.dur), c = p.sty.col, d = p.dir;
+      const arc = p.kind === 'rock' || p.kind === 'seed' || p.kind === 'spore' ? -18 * Math.sin(k * Math.PI) : p.kind === 'boomerang' ? -10 * Math.sin(k * Math.PI) : 0;
+      const x = p.x0 + (p.x1 - p.x0) * k, y = p.y0 + (p.y1 - p.y0) * k + arc;
+      const sp = Math.floor(p.t * 24) % 4;
+      switch (p.kind) {
+        case 'orb': circle(x, y, 2.5, c, 0.6); px(x - 1, y - 1, '#ffffff', 2, 2); break;
+        case 'arrow': line(x - d * 7, y, x, y, '#c8a070'); px(x, y - 1, '#e8e8f0', 1, 3); px(x - d * 7, y - 1, c, 1, 3); break;
+        case 'shuriken': if (sp % 2) { px(x - 3, y, '#d8e0f0', 7, 1); px(x, y - 3, '#d8e0f0', 1, 7); } else { line(x - 2, y - 2, x + 2, y + 2, '#d8e0f0'); line(x - 2, y + 2, x + 2, y - 2, '#d8e0f0'); } break;
+        case 'bolt': line(x - d * 8, y - 2, x - d * 4, y + 1, '#fff6c8'); line(x - d * 4, y + 1, x, y - 1, '#ffe066'); break;
+        case 'rock': px(x - 1, y - 1, '#8a7a62', 3, 3); px(x - 1, y - 1, '#b8a888', 1, 1); break;
+        case 'bubble': circle(x, y, 3, '#9fd8ff', 0.5); px(x - 1, y - 2, '#ffffff'); break;
+        case 'leaf': px(x - 1, y, '#5ac54f', 3, 1); px(x, y - (sp % 2), '#a7f070'); break;
+        case 'fireball': px(x - 2, y - 2, '#ff9a3a', 4, 4); px(x - 1, y - 1, '#ffe066', 2, 2); for (let t = 1; t < 4; t++) px(x - d * (3 + t * 2), y + (t % 2), t % 2 ? '#e04a3a' : '#ff9a3a'); break;
+        case 'icicle': line(x - d * 6, y, x, y, '#bfefff'); px(x, y, '#ffffff'); break;
+        case 'beam': line(p.x0, p.y0, p.x0 + (p.x1 - p.x0) * Math.min(1, k * 1.6), p.y0 + (p.y1 - p.y0) * Math.min(1, k * 1.6), c, 2); break;
+        case 'boomerang': if (sp % 2) { line(x - 3, y, x, y - 3, '#c8a070'); line(x, y - 3, x + 3, y, '#c8a070'); } else { line(x, y - 3, x + 3, y, '#c8a070'); line(x + 3, y, x, y + 3, '#c8a070'); } break;
+        case 'feather': px(x - 3, y, '#ffffff', 5, 1); px(x - 2, y - 1, c, 3, 1); break;
+        case 'note': shape('note', x, y, c); break;
+        case 'comet': px(x - 1, y - 1, '#ffffff', 3, 3); for (let t = 1; t < 7; t++) px(x - d * t * 2, y, t < 3 ? c : '#fff6c8'); break;
+        case 'spore': circle(x, y, 2, '#c8e8a0', 0.8); px(x, y, c); break;
+        case 'dart': line(x - d * 5, y, x, y, '#566c86'); px(x, y, '#ffffff'); break;
+        case 'ring': circle(x, y, 2 + 3 * k, c, 0.5); break;
+        case 'skull': shape('skull', x, y, '#e8e0f0'); break;
+        case 'crescent': for (let a = -1.2; a <= 1.2; a += 0.3) px(x + d * Math.cos(a) * 4, y + Math.sin(a) * 4, '#e0d8ff'); break;
+        case 'seed': px(x, y, '#8a6a3a', 2, 2); break;
+        default: px(x, y, c, 2, 2);
+      }
+      if (k >= 1) { PROJS.splice(i, 1); spawnFx(p.sty, p.x1, p.y1, p.dir, p.landed); }
+    }
+    // Hit effects.
+    for (let i = FXS.length - 1; i >= 0; i--) {
+      const f = FXS[i]; f.t += dt;
+      if (f.t > f.life) { FXS.splice(i, 1); continue; }
+      const k = f.t / f.life, x = f.x, y = f.y, d = f.dir, c = f.c, W = '#ffffff', s = f.big;
+      b.globalAlpha = k > 0.6 ? (1 - k) / 0.4 : 1;
+      switch (f.kind) {
+        case 'slash': { const r = 9 * s; for (let a = -1.3; a <= -1.3 + 2.6 * Math.min(1, k * 2); a += 0.08) { px(x + d * Math.cos(a) * r, y + Math.sin(a) * r, W, 2, 2); px(x + d * Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2), c, 2, 2); } break; }
+        case 'cross': { const r = 7 * s * Math.min(1, k * 2.5); line(x - r, y - r, x + r, y + r, W, 2); line(x - r, y + r, x + r, y - r, c, 2); break; }
+        case 'claw': for (let j = -1; j <= 1; j++) { const r = 8 * s * Math.min(1, k * 2.5); line(x - d * 3 + j * 4, y - r, x + d * 3 + j * 4, y + r * 0.6, j ? c : W, 2); } break;
+        case 'star': { const r = 2 + 7 * s * Math.sin(k * Math.PI); px(x - r, y - 1, W, r * 2 + 1, 2); px(x - 1, y - r, W, 2, r * 2 + 1); px(x - r / 2, y - r / 2, c, 1, 1); px(x + r / 2, y + r / 2, c, 1, 1); px(x + r / 2, y - r / 2, c, 1, 1); px(x - r / 2, y + r / 2, c, 1, 1); break; }
+        case 'ring': circle(x, y, 2 + 12 * s * k, k < 0.5 ? W : c, 0.25); circle(x, y, 1 + 12 * s * k, c, 0.25); break;
+        case 'spikes': for (let j = 0; j < 3; j++) { const hh = Math.round(10 * s * Math.sin(Math.min(1, k * 1.6) * Math.PI) * (j === 1 ? 1 : 0.65)); for (let t = 0; t < hh; t++) px(x - 5 + j * 5 - Math.round((hh - t) / 4) + Math.round((hh - t) / 4), GY + 2 - t, t > hh - 2 ? W : c, Math.max(1, Math.round((hh - t) / 3)), 1); } break;
+        case 'snow': for (let j = 0; j < 5; j++) shape('flake', x + Math.sin(f.seed + j * 2.3) * 9, y - 8 + k * 16 + j * 2, j % 2 ? W : '#bfefff'); break;
+        case 'flames': for (let j = 0; j < 5; j++) { const hh = 3 + ((f.seed + j * 7 + Math.floor(f.t * 20)) % 5); px(x - 6 + j * 3, y + 6 - hh, j % 2 ? '#ff9a3a' : '#e04a3a', 2, hh); px(x - 6 + j * 3, y + 6 - hh - 1, '#ffe066', 1, 1); } break;
+        case 'bolt': { let bx = x, by = y - 40; for (let j = 0; j < 6; j++) { const nx = x + ((f.seed + j * 13) % 7 - 3), ny = y - 40 + (j + 1) * 7; line(bx, by, nx, ny, j % 2 ? '#fff6c8' : '#ffe066', 1); bx = nx; by = ny; } circle(x, y, 3 + 4 * k, '#fff6c8', 0.6); break; }
+        case 'twinkle': for (let j = 0; j < 5; j++) { const a = j * 1.25 + f.seed; if ((Math.floor(f.t * 14) + j) % 3) shape('star4', x + Math.cos(a) * 9 * s, y + Math.sin(a) * 7 * s, j % 2 ? W : c); } break;
+        case 'shards': for (let j = 0; j < 7; j++) { const a = j * 0.9 + f.seed, r = 4 + 14 * k; px(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.8, j % 2 ? '#d8d0c0' : c, 2, 1); } break;
+        case 'ink': { const r = 3 + 6 * s * Math.min(1, k * 2); for (let a = 0; a < 6.28; a += 0.5) px(x + Math.cos(a) * r * (0.7 + ((f.seed + a * 10) % 3) / 6), y + Math.sin(a) * r * 0.7, '#2a1a3a', 2, 2); px(x - 1, y - 1, '#5d275d', 3, 3); for (let j = 0; j < 3; j++) px(x - 4 + j * 4, y + r * 0.7 + k * 6, '#2a1a3a', 1, 2); break; }
+        case 'hearts': for (let j = 0; j < 3; j++) shape('heart', x - 6 + j * 6, y - k * 16 - j * 3, j % 2 ? '#ff8fd0' : '#e04a7a'); break;
+        case 'notes': for (let j = 0; j < 3; j++) shape('note', x - 6 + j * 6 + Math.sin(f.t * 10 + j) * 2, y - k * 18 - j * 4, j % 2 ? c : W); break;
+        case 'smoke': b.globalAlpha *= 0.7; for (let j = 0; j < 3; j++) circle(x - 4 + j * 4, y - k * 8 - j, 2 + 3 * k, j % 2 ? '#6a6a7a' : '#4a4a5a', 0.6); break;
+        case 'beam': { const w = Math.round(6 * s * Math.sin(k * Math.PI)) + 1; px(x - w / 2, 0, '#fff6c8', w, GY + 2); px(x - w / 4, 0, W, Math.max(1, w / 2), GY + 2); break; }
+        case 'runes': for (let j = 0; j < 4; j++) { const a = f.t * 8 + j * 1.57; shape('rune', x + Math.cos(a) * 10, y + Math.sin(a) * 5, j % 2 ? c : '#c9b3ff'); } break;
+        case 'quake': for (let j = 0; j < 4; j++) line(x, GY + 2, x + (j - 1.5) * 8 * Math.min(1, k * 3), GY + 2 + (j % 2), '#2a1a12'); break;
+        case 'shatter': for (let j = 0; j < 8; j++) { const a = j * 0.785, r = 3 + 16 * k; const xx = x + Math.cos(a) * r, yy = y + Math.sin(a) * r; line(xx, yy, xx + Math.cos(a + 1) * 2, yy + Math.sin(a + 1) * 2, j % 2 ? '#bfefff' : W); } break;
+        case 'vortex': for (let j = 0; j < 10; j++) { const a = j * 0.63 + f.t * 14, r = 14 * (1 - k) * (0.4 + j / 16); px(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.7, j % 2 ? c : W); } break;
+        default: break;
+      }
+      b.globalAlpha = 1;
+    }
+  }
+
   function frameFor(e) {
     const st = e.state;
     if (st === 'atk') return e.at < e.st.fore * 0.7 ? 2 : (e.at < e.st.fore + 0.2 ? 3 : 0);
@@ -435,9 +601,18 @@
       b.drawImage(glow(name), x0 - 2, y0 - 2);
       if (Math.random() < 0.08) particle({ x: e.x + (Math.random() - 0.5) * img.width * 0.6, y: fy - Math.random() * img.height * 0.8, vx: 0, vy: -16, life: 0.6, c: Math.random() < 0.5 ? '#ffe066' : '#fff6c8', s: 1 });
     }
+    // The unit's own attack motion: offset, squash and stretch about its feet, a mirror flip, an afterimage.
+    const pose = motionPose(e, styleOf(e)), dir = e.side === 0 ? 1 : -1;
+    const pw = Math.round(img.width * pose.sx), ph = Math.round(img.height * pose.sy);
+    const px0 = Math.round(sx - ox * pose.sx + dir * pose.dx), py0 = Math.round(fy - ph + dy + pose.dy);
+    const put = (im) => {
+      if (!pose.flip) { b.drawImage(im, px0, py0, pw, ph); return; }
+      b.save(); b.translate(px0 + pw, py0); b.scale(-1, 1); b.drawImage(im, 0, 0, pw, ph); b.restore();
+    };
+    if (pose.ghost > 0) { b.globalAlpha = 0.3 * pose.ghost * alpha; b.drawImage(img, x0, y0); b.globalAlpha = 0.18 * pose.ghost * alpha; b.drawImage(img, Math.round((x0 + px0) / 2), y0); }
     b.globalAlpha = alpha;
-    b.drawImage(img, x0, y0);
-    if (e.flash > 0) { b.globalAlpha = Math.min(1, e.flash * 8) * 0.8 * alpha; b.drawImage(silhouette(name), x0, y0); }
+    put(img);
+    if (e.flash > 0) { b.globalAlpha = Math.min(1, e.flash * 8) * 0.8 * alpha; put(silhouette(name)); }
     b.globalAlpha = 1;
     // Status effects.
     if (e.freeze > 0) { b.fillStyle = 'rgba(115,239,247,0.45)'; b.fillRect(x0 + 2, y0 + 2, img.width - 4, img.height - 3); b.fillStyle = '#ffffff'; b.fillRect(x0 + 3, y0 + 3, 1, 1); b.fillRect(x0 + img.width - 5, y0 + 5, 1, 1); }
@@ -553,6 +728,7 @@
       const list = battle.ents.slice().sort(function (p, q) { return p.y - q.y || p.side - q.side; });
       for (const e of list) drawEnt(e);
       drawWaves();
+      SHY = shy; drawFx(dt);
     } else drawHome(dt);
     // Rings (wave launches, roar).
     for (let i = rings.length - 1; i >= 0; i--) {

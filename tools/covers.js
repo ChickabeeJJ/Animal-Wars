@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-/* Renders store art from the live game (index.html?cover=1) into store/.
+/* Renders the store key art (tools/keyart.html: the game's own sprites and paintings composed on one pixel grid)
+ * into store/.
  *   node tools/covers.js
  * Sizes follow CrazyGames' usual cover formats; recheck the current requirements before upload.
  */
@@ -39,8 +40,8 @@ const SIZES = [
     const ctx = await browser.newContext({ viewport: { width: s.w, height: s.h } });
     await ctx.route('**/sdk.crazygames.com/**', (r) => r.abort());
     const p = await ctx.newPage();
-    await p.goto(`http://localhost:${port}/index.html?cover=1&region=${s.region}`);
-    await p.waitForTimeout(900);
+    await p.goto(`http://localhost:${port}/tools/keyart.html?w=${s.w}&h=${s.h}`);
+    await p.waitForSelector('body[data-ready]', { timeout: 20000 });
     await p.screenshot({ path: path.join(OUT, s.name + '.png') });
     console.log('store/' + s.name + '.png');
     await ctx.close();

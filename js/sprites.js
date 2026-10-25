@@ -134,6 +134,34 @@
     }
     this.p = next;
   };
+  // Lighting pass for flat-filled sprites (run before the outline): a rim light on edges that face the light (top
+  // and left), a shadow on edges that face away (bottom and right) with a softer second band inside it, darker
+  // feet (ground shade over the lowest quarter), and a faint speckle on wide flat areas so they read as a material.
+  // Near-black ink (eyes, mouths) and pure white glints are left alone.
+  Painter.prototype.shade = function (light, dark) {
+    const L = light || '#fff4dc', D = dark || '#1c1030';
+    const w = this.w, h = this.h, src = this.p.slice(), on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && !!src[y * w + x];
+    let top = h, bot = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (src[y * w + x]) { top = Math.min(top, y); bot = Math.max(bot, y); }
+    const span = Math.max(1, bot - top);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = src[y * w + x];
+      if (!c) continue;
+      const r = hexRgb(c), lum = (r[0] * 0.3 + r[1] * 0.59 + r[2] * 0.11) / 255;
+      if (lum < 0.16 || c === '#ffffff' || c === WHITE) continue;
+      let out = c;
+      const lit = !on(x - 1, y) || !on(x, y - 1), away = !on(x + 1, y) || !on(x, y + 1);
+      const away2 = !away && (!on(x + 2, y) || !on(x, y + 2));
+      if (lit && !away) out = mix(out, L, 0.28);
+      else if (away) out = mix(out, D, 0.3);
+      else if (away2) out = mix(out, D, 0.13);
+      const k = (y - top) / span;
+      if (k > 0.75) out = mix(out, D, (k - 0.75) * 0.5);
+      // Speckle only deep inside flat areas: all four neighbours share this colour.
+      if (!lit && !away && src[y * w + x - 1] === c && src[y * w + x + 1] === c && src[(y - 1) * w + x] === c && src[(y + 1) * w + x] === c && ((x * 7 + y * 13) % 11) === 0) out = mix(out, D, 0.12);
+      this.p[y * w + x] = out;
+    }
+  };
   // Selective outline (sel-out): every edge pixel takes a darker shade of the colour it borders, tinted toward a deep
   // hue instead of black, and lit from the top left: top edges are lightest, then left, right and bottom (darkest).
   // pad grows the canvas by a pixel on every side so silhouettes that touch the edge still get a closed outline.
@@ -1476,6 +1504,7 @@
     const k = new Kit(P, u, frame);
     const T = tones(def.look.c);
     (ENEMY_ART[def.look.sp] || ENEMY_ART.blob)(k, T, def.look);
+    P.clean(); P.shade();
     P.outline('#2a0e2e', true);
     return mirror(P.canvas());
   }

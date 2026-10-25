@@ -1,0 +1,132 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Animal Wars key art</title>
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block;image-rendering:pixelated}</style></head>
+<body>
+<canvas id="out"></canvas>
+<script src="../js/content.js"></script>
+<script src="../js/assets.js"></script>
+<script src="../js/sprites.js"></script>
+<script>
+/* Store key art, composed on one pixel grid from the game's own sprites and paintings (tools/covers.js renders it).
+ * ?w=1920&h=1080 picks the output size; the scene is laid out in "art pixels" and scaled up by a whole number. */
+const S = AWSprites, C = AW_CONTENT;
+S.setContent(C);
+const q = new URLSearchParams(location.search);
+const W = +q.get('w') || 1920, H = +q.get('h') || 1080;
+const portrait = H > W * 1.2, square = !portrait && H > W * 0.8;
+const K = portrait ? 4 : square ? 4 : 6;                 // screen pixels per art pixel
+const AW_ = Math.ceil(W / K), AH = Math.ceil(H / K);     // art canvas
+const art = document.createElement('canvas'); art.width = AW_; art.height = AH;
+const g = art.getContext('2d'); g.imageSmoothingEnabled = false;
+
+function rgba(h, a) { const n = parseInt(h.slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+function px(x, y, c, w, h) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w || 1, h || 1); }
+let seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+
+// A sprite drawn with its feet at (x, y), scale k, an optional glow ring in a colour (pixel aura).
+function sprite(name, x, y, k, glow, flip) {
+  const c = S.get(name); if (!c) return;
+  const w = c.width * k, h = c.height * k, x0 = Math.round(x - w / 2), y0 = Math.round(y - h);
+  if (glow) {
+    const t = document.createElement('canvas'); t.width = c.width; t.height = c.height;
+    const tg = t.getContext('2d'); tg.drawImage(c, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = glow; tg.fillRect(0, 0, t.width, t.height);
+    g.globalAlpha = 0.55;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) draw(t, x0 + dx * k, y0 + dy * k, w, h, flip);
+    g.globalAlpha = 0.25;
+    for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) draw(t, x0 + dx * k, y0 + dy * k, w, h, flip);
+    g.globalAlpha = 1;
+  }
+  draw(c, x0, y0, w, h, flip);
+}
+function draw(c, x, y, w, h, flip) {
+  if (!flip) { g.drawImage(c, x, y, w, h); return; }
+  g.save(); g.translate(x + w, y); g.scale(-1, 1); g.drawImage(c, 0, 0, w, h); g.restore();
+}
+// Sun rays from a point: alternating wedges, fading out.
+function rays(cx, cy, r, col, n, a) {
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2, a1 = a0 + Math.PI / n * 0.9;
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, r); gr.addColorStop(0, rgba(col, a)); gr.addColorStop(1, rgba(col, 0));
+    g.fillStyle = gr; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, r, a0, a1); g.closePath(); g.fill();
+  }
+}
+function star(x, y, r, col) {
+  for (let i = -r; i <= r; i++) { px(x + i, y, Math.abs(i) < r * 0.4 ? '#ffffff' : col); px(x, y + i, Math.abs(i) < r * 0.4 ? '#ffffff' : col); }
+  for (let i = -Math.floor(r * 0.55); i <= Math.floor(r * 0.55); i++) { px(x + i, y + i, col); px(x + i, y - i, col); }
+  px(x - 1, y - 1, '#ffffff', 3, 3);
+}
+function slash(x, y, r, a0, a1, col, dir) {
+  for (let a = a0; a <= a1; a += 0.03) { const t = (a - a0) / (a1 - a0); const w = t < 0.15 || t > 0.85 ? 1 : 2; px(x + dir * Math.cos(a) * r, y + Math.sin(a) * r, '#ffffff', w, w); px(x + dir * Math.cos(a) * (r - 2), y + Math.sin(a) * (r - 2), col, 1, 1); }
+}
+
+function compose() {
+  // 1. The land: the meadow painting under a warm dusk grade, covering the art canvas.
+  const bg = S.asset('bg_meadow');
+  const bk = portrait ? 2 : 1, bw = bg.width * bk, bh = bg.height * bk;
+  const bx = Math.round((AW_ - bw) / 2 - (portrait ? 40 : 0)), by = AH - bh + (portrait ? 0 : 0);
+  g.fillStyle = '#6fa6e8'; g.fillRect(0, 0, AW_, AH);
+  g.drawImage(bg, bx, by, bw, bh);
+  // Warm light from the upper left, the Gloom's purple fog creeping in from the right.
+  let gr = g.createLinearGradient(0, 0, AW_, 0);
+  gr.addColorStop(0, 'rgba(255,190,110,0.28)'); gr.addColorStop(0.45, 'rgba(255,170,120,0.08)'); gr.addColorStop(0.62, 'rgba(70,20,90,0.25)'); gr.addColorStop(1, 'rgba(36,8,56,0.72)');
+  g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
+  gr = g.createLinearGradient(0, 0, 0, AH); gr.addColorStop(0, 'rgba(255,140,90,0.22)'); gr.addColorStop(0.5, 'rgba(255,140,90,0)'); g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
+
+  // Layout per format: logo spot, ground line, clash point.
+  const L = portrait ? { lx: AW_ / 2, ly: 52, gy: AH - 18, cx: AW_ * 0.55, cy: AH - 36 }
+    : square ? { lx: AW_ / 2, ly: 46, gy: AH - 14, cx: AW_ * 0.56, cy: AH - 28 }
+    : { lx: AW_ / 2, ly: 38, gy: AH - 13, cx: AW_ * 0.55, cy: AH - 26 };
+  rays(L.lx, L.ly, AW_ * 0.9, '#fff0c0', 18, 0.22);
+
+  // 2. The Gloom: a giant boss in the fog and its horde, facing left.
+  // The boss looms twice as large behind its horde, feet sunk below the ground line.
+  const bossX = portrait ? AW_ * 0.74 : square ? AW_ * 0.8 : AW_ * 0.85;
+  g.globalAlpha = 0.95; sprite('enemy_gloomking_3', bossX, portrait ? L.gy - 34 : L.gy + 14, 2, '#ff3aa0'); g.globalAlpha = 1;
+  // Fog in front of the boss so the horde reads against it.
+  gr = g.createLinearGradient(0, L.gy - 40, 0, AH); gr.addColorStop(0, 'rgba(40,10,60,0)'); gr.addColorStop(1, 'rgba(40,10,60,0.5)');
+  g.fillStyle = gr; g.fillRect(AW_ * 0.55, L.gy - 40, AW_ * 0.45, AH);
+  const foes = portrait ? [['gloomguard', 0.9, 0], ['banshee', 0.66, 14], ['gloop', 0.73, 1], ['skitter', 0.82, 0]]
+    : square ? [['harpy', 0.68, 24], ['gloomguard', 0.66, 2], ['gloop', 0.76, 0], ['skitter', 0.9, 0]]
+    : [['harpy', 0.66, 22], ['grumbo', 0.75, 2], ['gloomguard', 0.64, 4], ['skitter', 0.71, 0], ['gloop', 0.6, 1], ['banshee', 0.94, 10], ['boomer', 0.84, 0]];
+  for (const [id, fx, dy] of foes) sprite('enemy_' + id + '_' + (rnd() < 0.5 ? 3 : 0), AW_ * fx, L.gy - dy, 1, '#7a2ab0');
+
+  // 3. The heroes charging in from the left, third forms with their rarity glow.
+  const heroes = portrait
+    ? [['bruno', 2, 0.14, 0, 0], ['ronin', 2, 0.34, 0, 3], ['kitsu', 2, 0.5, 2, 3], ['pip', 2, 0.26, 7, 1]]
+    : square ? [['bruno', 2, 0.1, 0, 0], ['stretch', 1, 0.27, 4, 1], ['ronin', 2, 0.33, 0, 3], ['kitsu', 2, 0.45, 2, 3], ['pip', 2, 0.53, 6, 3]]
+    : [['bruno', 2, 0.07, 0, 0], ['shelly', 1, 0.17, 2, 1], ['ronin', 2, 0.26, 0, 3], ['stretch', 1, 0.33, 4, 1], ['kitsu', 2, 0.41, 2, 3], ['pip', 2, 0.48, 6, 3], ['bamboo', 1, 0.12, 8, 0]];
+  const flyers = portrait ? [['drako', 2, 0.3, 112]] : square ? [['aerion', 2, 0.22, 66]] : [['drako', 2, 0.2, 62], ['aerion', 2, 0.36, 76]];
+  const RCOL = S.RARITY_HEX;
+  for (const [id, f, x, yo] of flyers) { const h = C.HEROES.find((h) => h.id === id); sprite('hero_' + id + '_' + f + '_3', AW_ * x, L.gy - yo, 1, RCOL[h.rarity]); }
+  for (const [id, f, x, dy, fr] of heroes) { const h = C.HEROES.find((h) => h.id === id); sprite('hero_' + id + '_' + f + '_' + fr, AW_ * x, L.gy - dy, 1, f === 2 ? RCOL[h.rarity] : null); }
+
+  // 4. The clash: an impact burst, slashes and sparks where the two lines meet.
+  const cx = L.cx, cy = L.cy;
+  gr = g.createRadialGradient(cx, cy, 0, cx, cy, 34); gr.addColorStop(0, 'rgba(255,250,220,0.8)'); gr.addColorStop(0.4, 'rgba(255,200,90,0.35)'); gr.addColorStop(1, 'rgba(255,200,90,0)');
+  g.fillStyle = gr; g.fillRect(cx - 40, cy - 40, 80, 80);
+  star(cx, cy, 9, '#ffcd4d');
+  slash(cx - 6, cy, 16, -1.2, 1.1, '#ffcd4d', 1);
+  slash(cx + 8, cy - 4, 12, -1.0, 0.9, '#ff6fd0', -1);
+  for (let i = 0; i < 26; i++) { const a = rnd() * Math.PI * 2, r = 8 + rnd() * 26; px(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.7, rnd() < 0.5 ? '#ffffff' : '#ffcd4d', rnd() < 0.3 ? 2 : 1, 1); }
+
+  // 5. Motes: golden on the heroes' side, violet embers on the Gloom's.
+  for (let i = 0; i < 70; i++) { const x = rnd() * AW_, y = rnd() * AH; const gl = x < AW_ * 0.55; px(x, y, gl ? (rnd() < 0.5 ? '#fff6c8' : '#ffcd4d') : (rnd() < 0.5 ? '#c9b3ff' : '#ff6fd0'), 1, 1); }
+
+  // 6. Vignette, then the logo with a soft glow behind it.
+  gr = g.createRadialGradient(AW_ / 2, AH / 2, Math.min(AW_, AH) * 0.35, AW_ / 2, AH / 2, Math.max(AW_, AH) * 0.75);
+  gr.addColorStop(0, 'rgba(10,6,20,0)'); gr.addColorStop(1, 'rgba(10,6,20,0.6)');
+  g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
+  const logo = S.get('logo'), lk = 1;
+  gr = g.createRadialGradient(L.lx, L.ly, 0, L.lx, L.ly, logo.width * lk * 0.8); gr.addColorStop(0, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,240,190,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, AW_, AH);
+  g.drawImage(logo, Math.round(L.lx - logo.width * lk / 2), Math.round(L.ly - logo.height * lk / 2), logo.width * lk, logo.height * lk);
+
+  // Scale up to the output, centred, with sharp pixels.
+  const out = document.getElementById('out'); out.width = W; out.height = H;
+  const o = out.getContext('2d'); o.imageSmoothingEnabled = false;
+  o.drawImage(art, Math.round((W - AW_ * K) / 2), Math.round((H - AH * K) / 2), AW_ * K, AH * K);
+  document.body.dataset.ready = 1;
+}
+document.fonts.load('700 8px AWPixel').catch(() => {}).then(() => S.loadAssets()).then(compose);
+</script>
+</body></html>
