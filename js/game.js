@@ -886,26 +886,40 @@
   }
 
   // --- Hatchery -------------------------------------------------------------------
+  function oddsBar(B) {
+    const rs = [1, 2, 3, 4].filter((r) => B.rates[r]);
+    return '<div class="odds"><div class="obar">' + rs.map((r) => '<i class="r' + r + '" style="flex:' + Math.max(B.rates[r], 2.5) + '"></i>').join('') + '</div><div class="olab">' + rs.map((r) => '<span class="rc' + r + '">' + rarityName(r) + ' <b>' + B.rates[r] + '%</b></span>').join('') + '</div></div>';
+  }
   function renderHatch(el) {
     const day = AW.dayNumber(now()), f = AW.featured(day), t = now();
-    const royal = AW.BANNER.royal;
+    const royal = AW.BANNER.royal, silver = AW.BANNER.silver;
     let h = '';
+    // Collection strip.
+    const own = [0, 1, 2, 3, 4].map((r) => [CT.HEROES.filter((d) => d.rarity === r && state.heroes[d.id]).length, CT.HEROES.filter((d) => d.rarity === r).length]);
+    h += '<div class="coll fx-plaque"><b>' + icon('book') + 'Collection ' + AW.ownedCount(state) + ' / ' + CT.HEROES.length + '</b><span class="cl-r">' + own.map((o, r) => '<span class="rc' + r + '">' + rarityName(r) + ' <b class="num">' + o[0] + '/' + o[1] + '</b></span>').join('') + '</span></div>';
     if (AW.welcomeReady(state)) h += '<div class="tile fx-cardHot row"><span>' + SPR.img('egg_3', 2) + '</span><div class="grow"><h4>Welcome gift!</h4><span class="muted">A free ×10 Royal hatch with at least one Epic hero.</span></div><button type="button" class="bt2 fx-btn-gold pulse" id="welcome">Hatch ×10 free</button></div>';
+    // Royal Nest.
     const fe = [f.legend, f.mythic, f.epic].filter(Boolean);
-    h += '<div class="banner fx-windark"><div class="bn-art">' + (fe[1] ? heroFit(fe[1], 0, 90, 76, 'fh l') : '') + SPR.img('egg_3', 4, 'egg-big') + (fe[0] ? heroFit(fe[0], 0, 90, 76, 'fh r') : '') + '</div><div class="bn-info">' +
-      title('Royal Nest', 3, 'gold') + '<p>' + esc(royal.desc) + '</p>' +
-      '<div class="feat">' + fe.map((id) => '<span class="fx-plaque">' + heroFit(id, 0, 32, 28) + '<b style="color:' + SPR.RARITY_HEX[AW.HERO[id].rarity] + '">' + esc(AW.HERO[id].names[0]) + '</b>&nbsp;RATE UP</span>').join('') + '</div>' +
-      '<div class="pity">Mythic or better within ' + (royal.pity.mythic - state.gacha.sinceMythic) + ' hatches · Legend within ' + (royal.pity.legend - state.gacha.sinceLegend) + '</div>' + bar(state.gacha.sinceMythic / royal.pity.mythic, 'pitybar') +
+    const stand = (id, cls) => '<span class="stand ' + cls + '"><span class="rate">RATE UP</span>' + heroFit(id, 0, 96, 80, '', 3) + '<i class="ped r' + AW.HERO[id].rarity + '"></i></span>';
+    const pityRow = (lab, n, max, cls) => '<div class="prow"><span>' + lab + '</span>' + bar(n / max, 'pbar ' + cls) + '<b class="num">' + (max - n) + ' left</b></div>';
+    h += '<div class="nest royal fx-windark"><div class="nest-art">' + (fe[1] ? stand(fe[1], 'l') : '') + '<span class="nest-egg">' + SPR.img('egg_3', 5, 'egg-big') + SPR.img('nest', 3, 'straw') + '</span>' + (fe[0] ? stand(fe[0], 'r') : '') + '</div>' +
+      '<div class="nest-info">' + title('Royal Nest', 3, 'gold') + '<p>' + esc(royal.desc) + '</p>' +
+      '<div class="feat">' + fe.map((id) => '<span class="fx-plaque">' + heroFit(id, 0, 32, 28) + '<b style="color:' + SPR.RARITY_HEX[AW.HERO[id].rarity] + '">' + esc(AW.HERO[id].names[0]) + '</b><small>' + rarityName(AW.HERO[id].rarity) + '</small></span>').join('') + '</div>' +
+      oddsBar(royal) +
+      '<div class="pity">' + pityRow('Mythic+', state.gacha.sinceMythic, royal.pity.mythic, 'my') + pityRow('Legend', state.gacha.sinceLegend, royal.pity.legend, 'lg') + '</div>' +
       '<div class="bn-btns"><button type="button" class="bt2 fx-btn-pink" data-hatch="royal" data-n="1">×1 ' + (state.tickets.gold > 0 ? icon('gold') + '1' : icon('gem') + royal.cost) + '</button>' +
-      '<button type="button" class="bt2 lg fx-btn-gold" data-hatch="royal" data-n="10">×10 ' + (state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + royal.cost10) + '</button></div></div></div>';
+      '<button type="button" class="bt2 lg fx-btn-gold tagged" data-hatch="royal" data-n="10">×10 ' + (state.tickets.gold >= 10 ? icon('gold') + '10' : icon('gem') + royal.cost10) + '<span class="btag nopix">Epic+ inside · save 10%</span></button></div>' +
+      '<div class="have">You have ' + icon('gem') + '<b>' + fmt(state.gems) + '</b> ' + icon('gold') + '<b>' + state.tickets.gold + '</b></div></div></div>';
+    // Meadow Nest.
     const silverFree = AW.freeEggReady(state, t);
-    h += '<div class="banner fx-windark"><div class="bn-art">' + SPR.img('egg_1', 4, 'egg-big') + '</div><div class="bn-info">' + title('Meadow Nest', 3, 'green') +
-      '<p>' + esc(AW.BANNER.silver.desc) + ' You have <b>' + state.tickets.silver + '</b> Silver Eggs.</p>' +
-      '<div class="bn-btns"><button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free egg in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
+    h += '<div class="nest meadow fx-windark"><div class="nest-art"><span class="nest-egg">' + SPR.img('egg_1', 5, 'egg-big') + '<i class="straw"></i></span></div><div class="nest-info">' + title('Meadow Nest', 3, 'green') +
+      '<p>' + esc(silver.desc) + '</p>' + oddsBar(silver) +
+      '<div class="bn-btns"><button type="button" class="bt2 fx-btn-green' + (silverFree ? ' pulse' : '') + '" id="free-egg"' + (silverFree ? '' : ' disabled') + '>' + (silverFree ? 'Free egg!' : 'Free in ' + timeLeft(state.gacha.freeAt - t)) + '</button>' +
       '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="1">×1 ' + icon('silver') + '1</button>' +
-      '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button></div></div></div>';
-    h += '<div class="rates fx-inset"><b>Odds</b><br>' + CT.BANNERS.map((B) => esc(B.name) + ': ' + [1, 2, 3, 4].filter((r) => B.rates[r]).map((r) => '<b class="rc' + r + '">' + rarityName(r) + ' ' + B.rates[r] + '%</b>').join(' · ')).join('<br>') +
-      '<br>Rate up: a featured hero gets half of its rarity\'s chance. A ×10 Royal hatch always includes an Epic or better. Duplicates give +1 level (up to +20), then coins. Gems and eggs are only ever earned by playing. Featured heroes change every day.</div>';
+      '<button type="button" class="bt2 fx-btn-blue" data-hatch="silver" data-n="10">×10 ' + icon('silver') + '10</button></div>' +
+      '<div class="have">You have ' + icon('silver') + '<b>' + state.tickets.silver + '</b> Silver Eggs · one free egg every 4 hours</div></div></div>';
+    h += '<details class="rates fx-inset"><summary>All odds and rules</summary>' + CT.BANNERS.map((B) => esc(B.name) + ': ' + [1, 2, 3, 4].filter((r) => B.rates[r]).map((r) => '<b class="rc' + r + '">' + rarityName(r) + ' ' + B.rates[r] + '%</b>').join(' · ')).join('<br>') +
+      '<br>Rate up: a featured hero gets half of its rarity\'s chance. A ×10 Royal hatch always includes an Epic or better. Mythic or better is guaranteed within ' + royal.pity.mythic + ' Royal hatches and a Legend within ' + royal.pity.legend + '. Duplicates give +1 level (up to +20), then coins. Gems and eggs are only ever earned by playing. Featured heroes change every day.</details>';
     el.innerHTML = h;
     on(el, '[data-hatch]', (b) => doHatch(b.getAttribute('data-hatch'), Number(b.getAttribute('data-n'))));
     const w = el.querySelector('#welcome'); if (w) w.addEventListener('click', () => { const res = AW.claimWelcome(state, Math.random, AW.dayNumber(now())); if (res) { save(); showHatch(res); } });
@@ -922,60 +936,76 @@
     const res = AW.hatch(state, banner, n, Math.random, AW.dayNumber(now()));
     if (!res) return;
     save();
-    showHatch(res);
+    showHatch(res, { banner: banner, n: n });
   }
 
+  // Hatch show: egg pips across the top; each egg wobbles (glowing gold or rainbow when something great is
+  // inside), shakes and cracks on a tap, bursts in a flash of its rarity colour and reveals the hero on a ribbon.
   let hatchQ = null;
-  function showHatch(results) {
-    hatchQ = { list: results, i: 0, phase: 'egg' };
+  function showHatch(results, again) {
+    hatchQ = { list: results, i: 0, phase: 'egg', again: again || null, busy: false };
     $('hatchery').hidden = false;
     AU.play('home');
+    $('h-pips').innerHTML = results.length > 1 ? results.map((r, i) => '<span class="pip" data-i="' + i + '">' + SPR.img('egg_' + Math.max(1, r.rarity), 1) + '</span>').join('') : '';
     hatchStep();
   }
-  function sparkles(col) {
+  function sparkles(col, n) {
     const st = $('h-stage');
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < (n || 18); i++) {
       const s = document.createElement('i');
       s.className = 'sparkle';
-      const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 120;
+      const a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 140;
       s.style.cssText = 'left:50%;top:45%;--dx:' + Math.round(Math.cos(a) * d) + 'px;--dy:' + Math.round(Math.sin(a) * d) + 'px;--rc:' + col;
       st.appendChild(s);
       setTimeout(() => s.remove(), 950);
     }
   }
+  function flash(col) { const f = $('h-flash'); f.style.setProperty('--fc', col); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+  function stars(n) { return '<span class="rstars-s">' + Array.from({ length: n }, () => SPR.img('icon_star', 2)).join('') + '</span>'; }
   function hatchStep() {
     const q = hatchQ;
-    if (!q) return;
+    if (!q || q.busy) return;
     const st = $('h-stage'), info = $('h-info'), rays = $('h-rays');
     if (q.i >= q.list.length) { hatchSummary(); return; }
-    const r = q.list[q.i];
+    const r = q.list[q.i], eggR = Math.max(1, r.rarity);
+    const pips = $('h-pips').children;
+    for (let k = 0; k < pips.length; k++) pips[k].classList.toggle('now', k === q.i);
     if (q.phase === 'egg') {
       rays.classList.remove('on');
-      st.innerHTML = '<div class="egg wob">' + SPR.img('egg_' + Math.max(1, r.rarity), 7) + '</div>';
-      info.innerHTML = title('Egg ' + (q.i + 1) + ' of ' + q.list.length, 3, 'cream');
+      st.innerHTML = '<div class="egg idle' + (r.rarity >= 4 ? ' tier4' : r.rarity >= 3 ? ' tier3' : '') + '">' + SPR.img('egg_' + eggR, 7) + '</div>';
+      info.innerHTML = title(q.list.length > 1 ? 'Egg ' + (q.i + 1) + ' / ' + q.list.length : 'Your egg', 3, 'cream') + '<div class="hx hint">Tap the egg to crack it!</div>';
       setBtnText($('h-next'), 'Crack!');
       $('h-skip').hidden = q.list.length < 2;
-      AU.shake();
+      setBtnText($('h-skip'), 'Skip');
       q.phase = 'crack';
       return;
     }
     if (q.phase === 'crack') {
-      AU.crack();
-      st.innerHTML = '<div class="egg">' + SPR.img('egg_' + Math.max(1, r.rarity) + '_c', 7) + '</div>';
-      q.phase = 'reveal';
-      setTimeout(() => { if (hatchQ === q && q.phase === 'reveal') hatchStep(); }, 380);
+      q.busy = true;
+      const egg = st.querySelector('.egg');
+      egg.classList.remove('idle'); egg.classList.add('shake');
+      AU.shake(); setTimeout(() => AU.shake(), 220); setTimeout(() => { AU.crack(); egg.innerHTML = SPR.img('egg_' + eggR + '_c', 7); }, 440);
+      setTimeout(() => {
+        if (hatchQ !== q || q.phase !== 'crack') return;  // skipped meanwhile
+        flash(SPR.RARITY_HEX[r.rarity]);
+        q.busy = false; q.phase = 'reveal'; hatchStep();
+      }, 760);
       return;
     }
     if (q.phase === 'reveal') {
       const def = AW.HERO[r.id];
       rays.style.setProperty('--rc', SPR.RARITY_HEX[r.rarity]);
       rays.classList.toggle('on', r.rarity >= 1);
-      st.innerHTML = '<div class="got">' + heroFit(r.id, 0, 300, Math.min(220, innerHeight * 0.34), '', 8) + '<div class="pedestal"></div></div>';
-      if (r.rarity >= 2) sparkles(SPR.RARITY_HEX[r.rarity]);
-      info.innerHTML = title(rarityName(r.rarity), 3, RAR_PAL[r.rarity]) + title(def.names[0], 4, 'cream') + '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + (r.isNew ? 'NEW HERO!' : r.plus ? 'Duplicate: +1 level' : '+' + fmt(r.coins) + ' coins') + '</div>';
+      st.innerHTML = '<div class="got r' + r.rarity + '">' + heroFit(r.id, 0, 300, Math.min(220, innerHeight * 0.32), '', 8) + '<div class="pedestal"></div>' + (r.isNew ? '<span class="stamp">NEW!</span>' : '') + '</div>';
+      sparkles(SPR.RARITY_HEX[r.rarity], r.rarity >= 3 ? 30 : r.rarity >= 2 ? 18 : 8);
+      info.innerHTML = stars(r.rarity + 1) + '<div class="hname fx-ribbon' + (r.rarity >= 3 ? 'Gold' : r.rarity >= 1 ? 'Blue' : '') + '">' + title(def.names[0], 3, 'cream') + '</div>' +
+        '<div class="hx' + (r.isNew ? '' : ' dupe') + '">' + '<b class="rc' + r.rarity + '">' + rarityName(r.rarity) + '</b> · ' + (r.isNew ? 'joins your army!' : r.plus ? 'duplicate: +1 level' : 'duplicate: +' + fmt(r.coins) + ' coins') + '</div><div class="hdesc">' + esc(def.desc) + '</div>';
+      if (pips[q.i]) pips[q.i].innerHTML = heroFit(r.id, 0, 24, 24, 'r' + r.rarity, 1);
+      if (pips[q.i]) pips[q.i].classList.add('done', 'r' + r.rarity);
       AU.reveal(r.rarity);
       if (r.rarity >= 3) PF.happytime();
-      setBtnText($('h-next'), q.i + 1 < q.list.length ? 'Next' : 'OK');
+      setBtnText($('h-next'), q.i + 1 < q.list.length ? 'Next egg' : 'See all');
+      if (q.list.length === 1) setBtnText($('h-next'), 'OK');
       q.phase = 'next';
       return;
     }
@@ -984,14 +1014,24 @@
   function hatchSummary() {
     const q = hatchQ;
     if (q.list.length === 1) { endHatch(); return; }
+    q.busy = false;
     $('h-rays').classList.remove('on');
-    $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r) => '<div class="hero ' + rarFrame(r.rarity) + '"><div class="hi">' + heroFit(r.id, 0, 96, 64) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '') + '</div>').join('') + '</div>';
     const best = Math.max.apply(null, q.list.map((r) => r.rarity));
-    $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]);
-    setBtnText($('h-next'), 'OK'); $('h-skip').hidden = true;
+    let bestDone = false;
+    $('h-pips').innerHTML = '';
+    $('h-stage').innerHTML = '<div class="sum">' + q.list.map((r, i) => {
+      const isBest = r.rarity === best && !bestDone; if (isBest) bestDone = true;
+      return '<div class="hero ' + rarFrame(r.rarity) + (isBest ? ' best' : '') + '" style="animation-delay:' + i * 60 + 'ms"><div class="hi">' + heroFit(r.id, 0, 96, 64) + '</div><div class="hn">' + esc(AW.HERO[r.id].names[0]) + '</div>' + (r.isNew ? '<span class="new-tag">NEW</span>' : '<span class="dup-tag">' + (r.plus ? '+1 LV' : 'COINS') + '</span>') + '</div>';
+    }).join('') + '</div>';
+    const nNew = q.list.filter((r) => r.isNew).length;
+    $('h-info').innerHTML = title('Best: ' + rarityName(best), 3, RAR_PAL[best]) + '<div class="hx">' + nNew + ' new hero' + (nNew === 1 ? '' : 'es') + ' · ' + (q.list.length - nNew) + ' duplicate' + (q.list.length - nNew === 1 ? '' : 's') + '</div>';
+    setBtnText($('h-next'), 'Done');
+    const a = q.again;
+    if (a && AW.canHatch(state, a.banner, a.n)) { $('h-skip').hidden = false; setBtnText($('h-skip'), 'Again ×' + a.n); $('h-skip').dataset.again = '1'; }
+    else $('h-skip').hidden = true;
     q.phase = 'done';
   }
-  function endHatch() { hatchQ = null; $('hatchery').hidden = true; if (panelName) rerender(); else refreshHome(); }
+  function endHatch() { hatchQ = null; $('h-skip').dataset.again = ''; $('hatchery').hidden = true; if (panelName) rerender(); else refreshHome(); }
 
   // --- Army ---------------------------------------------------------------------
   function heroLvl(id) { const h = state.heroes[id]; return h.lvl + h.plus; }
@@ -1286,7 +1326,11 @@
     $('btn-speed').addEventListener('click', toggleSpeed);
     $('btn-cam').addEventListener('click', () => { AU.click(); state.settings.autoCam = !state.settings.autoCam; setToggles(); if (state.settings.autoCam) R.setAuto(); markDirty(); });
     $('h-next').addEventListener('click', () => { if (hatchQ && hatchQ.phase === 'done') { endHatch(); return; } hatchStep(); });
-    $('h-skip').addEventListener('click', () => { if (hatchQ) { hatchQ.list.forEach((r) => { if (r.rarity >= 3) PF.happytime(); }); AU.reveal(Math.max.apply(null, hatchQ.list.map((r) => r.rarity))); hatchSummary(); } });
+    $('h-skip').addEventListener('click', () => {
+      if (!hatchQ) return;
+      if (hatchQ.phase === 'done') { const a = hatchQ.again; endHatch(); if (a) doHatch(a.banner, a.n); return; }
+      hatchQ.list.forEach((r) => { if (r.rarity >= 3) PF.happytime(); }); AU.reveal(Math.max.apply(null, hatchQ.list.map((r) => r.rarity))); hatchSummary();
+    });
     $('hatchery').addEventListener('click', (e) => { if (e.target.closest('button')) return; if (hatchQ && hatchQ.phase !== 'done') hatchStep(); });
 
     const view = $('view');
